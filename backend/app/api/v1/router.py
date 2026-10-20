@@ -16,7 +16,8 @@ async def login(req: LoginRequest):
     try:
         res = await coopya_client.validar_login(usuario=req.usuario, contrasena=req.contrasena)
         if not res.get("success"):
-            raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos en el sistema central.")
+            mensaje = res.get("message") or "Usuario o contraseña incorrectos en el sistema central."
+            raise HTTPException(status_code=401, detail=mensaje)
         return res
     except HTTPException:
         raise

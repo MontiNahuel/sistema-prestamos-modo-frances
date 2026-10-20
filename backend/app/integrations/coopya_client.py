@@ -24,6 +24,11 @@ class CoopYaClient:
 
         async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
             resp = await client.post(url, json=payload)
+            if resp.status_code == 401:
+                try:
+                    return resp.json()
+                except Exception:
+                    return {"success": False, "message": "Usuario o contraseña incorrectos."}
             resp.raise_for_status()
             return resp.json()
 
