@@ -34,6 +34,10 @@ def test_otorgar_prestamo_y_flujo_completo():
     assert prestamo["plazo_meses"] == 6
     assert prestamo["estado"] == "ACTIVO"
     assert len(prestamo["cuotas"]) == 6
+    assert prestamo["linea_snapshot"] is not None
+    assert prestamo["linea_snapshot"]["linea_id"] == linea["id"]
+    assert prestamo["linea_snapshot"]["linea_nombre"] == linea["nombre"]
+    assert prestamo["linea_snapshot"]["motor_nombre"] is not None
 
     prestamo_id = prestamo["id"]
 

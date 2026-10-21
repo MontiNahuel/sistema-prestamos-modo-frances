@@ -161,7 +161,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
         </div>
         {prestamosSocio.length > 0 && (
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
-            Último: {prestamosSocio[0].linea_nombre || 'Tradicional'} ({formatMoney(prestamosSocio[0].monto_solicitado_centavos)})
+            Último: {prestamosSocio[0].linea_snapshot?.linea_nombre || 'Sin línea'} ({formatMoney(prestamosSocio[0].monto_solicitado_centavos)})
           </div>
         )}
       </div>

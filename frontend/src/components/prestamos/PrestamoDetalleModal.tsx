@@ -156,7 +156,7 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
               {formatMoney(prestamo.total_a_pagar_centavos)}
             </div>
             <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
-              Línea: {prestamo.linea_nombre || 'Tradicional'}
+              Línea: {prestamo.linea_snapshot?.linea_nombre || 'Sin línea'}
             </div>
           </div>
         </div>

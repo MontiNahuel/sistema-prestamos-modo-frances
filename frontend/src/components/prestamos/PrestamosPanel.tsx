@@ -194,10 +194,10 @@ export const PrestamosPanel: React.FC = () => {
 
                   <td style={{ padding: '1rem 1.25rem' }}>
                     <div style={{ fontWeight: 600, color: '#1e293b' }}>
-                      {p.linea_nombre || 'Tradicional'}
+                      {p.linea_snapshot?.linea_nombre || 'Sin línea'}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
-                      {p.motor_nombre || 'Sistema Francés'}
+                      {p.linea_snapshot?.motor_nombre || 'Sistema Francés'}
                     </div>
                   </td>
 

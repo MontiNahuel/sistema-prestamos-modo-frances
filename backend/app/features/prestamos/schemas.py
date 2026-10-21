@@ -79,15 +79,3 @@ class PrestamoResponse(BaseModel):
     socio: Optional[SocioResponse] = None
     cuotas: Optional[List[CuotaResponse]] = None
     linea_snapshot: Optional[PrestamoLineaSnapshotResponse] = None
-
-    @property
-    def linea_id(self) -> Optional[int]:
-        return self.linea_snapshot.linea_id if self.linea_snapshot else None
-
-    @property
-    def linea_nombre(self) -> Optional[str]:
-        return self.linea_snapshot.linea_nombre if self.linea_snapshot else None
-
-    @property
-    def motor_nombre(self) -> Optional[str]:
-        return self.linea_snapshot.motor_nombre if self.linea_snapshot else None

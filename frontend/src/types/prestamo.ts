@@ -39,9 +39,6 @@ export interface Prestamo {
   persona_id: number;
   persona_nombre: string;
   persona_doc: string;
-  linea_id?: number | null;
-  linea_nombre?: string | null;
-  motor_nombre?: string | null;
   monto_solicitado_centavos: number;
   plazo_meses: number;
   tna_pactada: number;
