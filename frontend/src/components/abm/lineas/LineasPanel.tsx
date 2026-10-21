@@ -149,7 +149,7 @@ export const LineasPanel: React.FC = () => {
                   </td>
                   <td style={{ padding: '1rem 1.25rem' }}>
                     <div style={{ fontWeight: 700, color: '#2563eb', fontSize: '0.9rem' }}>
-                      {l.tipo_tasa}: {formatPct(l.tasa_default)}
+                      {l.tipo_tasa || (l.motor?.convencion_tasa?.includes('TEA') ? 'TEA' : 'TNA')}: {formatPct(l.tasa_default)}
                     </div>
                     <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
                       IVA: {formatPct(l.alicuota_iva)} {l.permite_override_tasa && <span style={{ color: '#059669', fontWeight: 500 }}>• Variable</span>}

@@ -22,7 +22,6 @@ export const LineaModal: React.FC<LineaModalProps> = ({
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [motorId, setMotorId] = useState<number>(1);
-  const [tipoTasa, setTipoTasa] = useState('TNA');
   const [tasaPorcentaje, setTasaPorcentaje] = useState<number>(60);
   const [ivaPorcentaje, setIvaPorcentaje] = useState<number>(21);
   const [permiteOverride, setPermiteOverride] = useState(true);
@@ -54,7 +53,6 @@ export const LineaModal: React.FC<LineaModalProps> = ({
       setNombre(lineaParaEditar.nombre);
       setDescripcion(lineaParaEditar.descripcion || '');
       setMotorId(lineaParaEditar.motor_id);
-      setTipoTasa(lineaParaEditar.tipo_tasa);
       setTasaPorcentaje(Number(lineaParaEditar.tasa_default) * 100);
       setIvaPorcentaje(Number(lineaParaEditar.alicuota_iva) * 100);
       setPermiteOverride(lineaParaEditar.permite_override_tasa);
@@ -69,7 +67,6 @@ export const LineaModal: React.FC<LineaModalProps> = ({
       setCodigo('');
       setNombre('');
       setDescripcion('');
-      setTipoTasa('TNA');
       setTasaPorcentaje(60);
       setIvaPorcentaje(21);
       setPermiteOverride(true);
@@ -95,7 +92,6 @@ export const LineaModal: React.FC<LineaModalProps> = ({
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
         motor_id: Number(motorId),
-        tipo_tasa: tipoTasa,
         tasa_default: tasaPorcentaje / 100,
         alicuota_iva: ivaPorcentaje / 100,
         permite_override_tasa: permiteOverride,
@@ -204,16 +200,11 @@ export const LineaModal: React.FC<LineaModalProps> = ({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
-                Tipo Tasa
+                Tipo Tasa (del Motor)
               </label>
-              <select
-                value={tipoTasa}
-                onChange={(e) => setTipoTasa(e.target.value)}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#fff' }}
-              >
-                <option value="TNA">TNA (Nominal)</option>
-                <option value="TEA">TEA (Efectiva)</option>
-              </select>
+              <div style={{ padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>
+                {motores.find((m) => m.id === motorId)?.convencion_tasa.includes('TEA') ? 'TEA (Efectiva)' : 'TNA (Nominal)'}
+              </div>
             </div>
 
             <div>

@@ -17,14 +17,31 @@ export interface CuotaPrestamo {
   monto_pagado_centavos: number;
 }
 
+export interface PrestamoLineaSnapshot {
+  prestamo_id: string;
+  linea_id: number;
+  linea_codigo: string;
+  linea_nombre: string;
+  motor_id: number;
+  motor_nombre: string;
+  tasa_catalogo_vigente: number;
+  alicuota_iva: number;
+  monto_minimo_centavos: number;
+  monto_maximo_centavos: number;
+  plazo_minimo_meses: number;
+  plazo_maximo_meses: number;
+  reglas_motor_json: any;
+  fecha_snapshot: string;
+}
+
 export interface Prestamo {
   id: string;
   persona_id: number;
   persona_nombre: string;
   persona_doc: string;
-  linea_id: number | null;
-  linea_nombre: string | null;
-  motor_nombre: string | null;
+  linea_id?: number | null;
+  linea_nombre?: string | null;
+  motor_nombre?: string | null;
   monto_solicitado_centavos: number;
   plazo_meses: number;
   tna_pactada: number;
@@ -39,6 +56,7 @@ export interface Prestamo {
   fecha_alta: string;
   observaciones: string | null;
   cuotas?: CuotaPrestamo[];
+  linea_snapshot?: PrestamoLineaSnapshot;
 }
 
 export interface PrestamoCreate {

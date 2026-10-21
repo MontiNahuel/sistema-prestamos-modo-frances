@@ -161,6 +161,20 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
           </div>
         </div>
 
+        {prestamo.linea_snapshot && (
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.85rem 1.1rem', marginBottom: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>
+              Evidencia Legal del Contrato (Snapshot Inmutable de Línea)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.825rem', color: '#334155' }}>
+              <div>Línea: <strong>{prestamo.linea_snapshot.linea_nombre}</strong> (<code>{prestamo.linea_snapshot.linea_codigo}</code>)</div>
+              <div>Motor: <strong>{prestamo.linea_snapshot.motor_nombre}</strong></div>
+              <div>Tasa Catálogo Vigente: <strong>{formatPct(prestamo.linea_snapshot.tasa_catalogo_vigente)}</strong></div>
+              <div>Fecha Congelamiento: <strong>{new Date(prestamo.linea_snapshot.fecha_snapshot).toLocaleDateString('es-AR')}</strong></div>
+            </div>
+          </div>
+        )}
+
         {prestamo.observaciones && (
           <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#f1f5f9', borderRadius: '8px', fontSize: '0.85rem', color: '#334155' }}>
             <strong>Observaciones del legajo:</strong> {prestamo.observaciones}

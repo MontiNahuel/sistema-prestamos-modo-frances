@@ -7,7 +7,7 @@ export interface LineaPrestamo {
   descripcion?: string;
   motor_id: number;
   motor?: MotorCalculo;
-  tipo_tasa: string; // TNA o TEA
+  tipo_tasa?: string; // Derivada de motor.convencion_tasa
   tasa_default: string | number; // Ej: 0.60 para 60%
   alicuota_iva: string | number; // Ej: 0.21 para 21%
   permite_override_tasa: boolean;
@@ -28,7 +28,6 @@ export interface LineaPrestamoCreate {
   nombre: string;
   descripcion?: string;
   motor_id: number;
-  tipo_tasa: string;
   tasa_default: number;
   alicuota_iva: number;
   permite_override_tasa: boolean;

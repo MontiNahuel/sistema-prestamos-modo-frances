@@ -11,9 +11,11 @@ from alembic import context
 from app.core.config import settings
 from app.core.database import Base
 # Importar modelos para que Base.metadata contenga todas las tablas
-import app.models.prestamo
-import app.models.motor_calculo
-import app.models.linea_prestamo
+import app.features.socios.model
+import app.features.prestamos.model
+import app.features.motores.model
+import app.features.lineas.model
+import app.features.auditoria.model
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -5,9 +5,10 @@ from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.api.v1.router import router as api_v1_router
 # Importar modelos para que Base.metadata los reconozca
-import app.models.prestamo
-import app.models.motor_calculo
-import app.models.linea_prestamo
+import app.features.socios.model
+import app.features.prestamos.model
+import app.features.motores.model
+import app.features.lineas.model
 from app.services.seed_service import seed_motores_y_lineas
 
 

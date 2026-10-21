@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from app.models.motor_calculo import MotorCalculo
-from app.models.linea_prestamo import LineaPrestamo
+from app.features.motores.model import MotorCalculo
+from app.features.lineas.model import LineaPrestamo
 from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
 
 
@@ -74,7 +74,6 @@ def seed_motores_y_lineas(db: Session):
             "nombre": "Préstamo Personal Tradicional",
             "descripcion": "Línea general en cuotas decrecientes con TNA fija.",
             "motor_id": motores_creados["FRANCES_CLASICO"].id,
-            "tipo_tasa": "TNA",
             "tasa_default": Decimal("0.6000"), # 60%
             "alicuota_iva": Decimal("0.2100"), # 21%
             "permite_override_tasa": True,
@@ -93,7 +92,6 @@ def seed_motores_y_lineas(db: Session):
             "nombre": "Préstamo Comercial Cuota Fija",
             "descripcion": "El socio paga siempre el mismo valor final todos los meses con IVA incluido.",
             "motor_id": motores_creados["FRANCES_CUOTA_PLANA"].id,
-            "tipo_tasa": "TNA",
             "tasa_default": Decimal("0.7000"), # 70%
             "alicuota_iva": Decimal("0.2100"),
             "permite_override_tasa": True,

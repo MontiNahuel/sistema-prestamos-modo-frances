@@ -53,3 +53,5 @@ pnpm-debug.log*
 *.sublime-workspace
 .DS_Store
 Thumbs.db
+.agents/
+skills-lock.json
