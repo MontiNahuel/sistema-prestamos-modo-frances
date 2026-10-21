@@ -4,6 +4,7 @@ import { Persona } from '../../types/persona';
 import { SimulacionPayload } from '../../types/simulacion';
 import { getLineas } from '../../services/api/lineasApi';
 import { formatMoney } from '../../utils/formatters';
+import { CalculatorIcon } from '../common/Icons';
 
 interface SimuladorFormProps {
   onSimular: (payload: SimulacionPayload) => void;
@@ -65,29 +66,40 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   const lineaActiva = lineas.find(x => x.id === selectedLineaId);
 
   return (
-    <form onSubmit={handleSubmit} style={{ background: '#ffffff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1.125rem', color: '#111827' }}>
+    <form onSubmit={handleSubmit} style={{
+      background: '#ffffff',
+      padding: '1.5rem',
+      borderRadius: '12px',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
+      position: 'sticky',
+      top: '5rem'
+    }}>
+      <h3 style={{ margin: '0 0 1rem', fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>
         Parámetros de Simulación
       </h3>
 
       {personaSeleccionada && (
-        <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: '6px', marginBottom: '1.25rem', border: '1px solid #bfdbfe' }}>
-          <div style={{ fontSize: '0.75rem', color: '#1e40af', fontWeight: 600 }}>Socio Destinatario:</div>
-          <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '0.9rem' }}>
-            {personaSeleccionada.apellido} {personaSeleccionada.nombre} (#{personaSeleccionada.idPersona})
+        <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid #bfdbfe' }}>
+          <div style={{ fontSize: '0.725rem', color: '#1d4ed8', fontWeight: 600, textTransform: 'uppercase' }}>Socio Asignado:</div>
+          <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '0.9rem', marginTop: '0.15rem' }}>
+            {personaSeleccionada.apellido} {personaSeleccionada.nombre}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            IdPersona: #{personaSeleccionada.idPersona} · DNI: {personaSeleccionada.numeroDoc}
           </div>
         </div>
       )}
 
       {/* Selector de Línea de Crédito */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
-          Línea de Crédito (Plan)
+        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+          Línea de Crédito / Plan
         </label>
         <select
           value={selectedLineaId}
           onChange={(e) => handleLineaChange(e.target.value ? Number(e.target.value) : '')}
-          style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '0.9rem', background: '#fff' }}
+          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.875rem', background: '#fff', color: '#0f172a' }}
         >
           <option value="">Personalizado / Sin Línea</option>
           {lineas.map(l => (
@@ -97,17 +109,17 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           ))}
         </select>
         {lineaActiva && (
-          <div style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: '#6b7280' }}>
-            Fórmula: <strong>{lineaActiva.motor?.nombre || 'Francés'}</strong>
+          <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#64748b', background: '#f8fafc', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+            Fórmula: <strong>{lineaActiva.motor?.nombre || 'Francés Estándar'}</strong>
             <br />
-            Límites: {formatMoney(lineaActiva.monto_minimo_centavos)} a {formatMoney(lineaActiva.monto_maximo_centavos)} ({lineaActiva.plazo_minimo_meses} a {lineaActiva.plazo_maximo_meses} cuotas)
+            Rango: {formatMoney(lineaActiva.monto_minimo_centavos)} a {formatMoney(lineaActiva.monto_maximo_centavos)}
           </div>
         )}
       </div>
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
-          Monto Solicitado ($)
+      <div style={{ marginBottom: '1.15rem' }}>
+        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+          Monto a Financiar ($)
         </label>
         <input
           type="number"
@@ -115,17 +127,17 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           step="100"
           value={montoPesos}
           onChange={(e) => setMontoPesos(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
           required
         />
-        <small style={{ color: '#6b7280', fontSize: '0.75rem' }}>
-          {montoPesos * 100} centavos
-        </small>
+        <div style={{ color: '#64748b', fontSize: '0.725rem', marginTop: '0.2rem' }}>
+          Equivale a {montoPesos * 100} centavos
+        </div>
       </div>
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
-          Plazo (Meses)
+      <div style={{ marginBottom: '1.15rem' }}>
+        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+          Cantidad de Cuotas (Meses)
         </label>
         <input
           type="number"
@@ -133,39 +145,41 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           max="120"
           value={plazoMeses}
           onChange={(e) => setPlazoMeses(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
           required
         />
       </div>
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
-          Tasa Anual (%)
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={tnaPorcentaje}
-          onChange={(e) => setTnaPorcentaje(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
-          required
-        />
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+            Tasa Anual (%)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={tnaPorcentaje}
+            onChange={(e) => setTnaPorcentaje(Number(e.target.value))}
+            style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+            required
+          />
+        </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
-          IVA sobre Interés (%)
-        </label>
-        <input
-          type="number"
-          min="0"
-          step="0.5"
-          value={ivaPorcentaje}
-          onChange={(e) => setIvaPorcentaje(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
-          required
-        />
+        <div>
+          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+            IVA s/Int (%)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={ivaPorcentaje}
+            onChange={(e) => setIvaPorcentaje(Number(e.target.value))}
+            style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+            required
+          />
+        </div>
       </div>
 
       <button
@@ -173,17 +187,25 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
         disabled={simulando}
         style={{
           width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
           padding: '0.75rem',
           background: '#2563eb',
           color: '#ffffff',
           border: 'none',
-          borderRadius: '6px',
+          borderRadius: '8px',
           fontWeight: 600,
-          fontSize: '1rem',
-          cursor: simulando ? 'not-allowed' : 'pointer'
+          fontSize: '0.9rem',
+          cursor: simulando ? 'not-allowed' : 'pointer',
+          boxShadow: '0 1px 2px 0 rgba(37, 99, 235, 0.2)'
         }}
+        onMouseEnter={(e) => { if (!simulando) e.currentTarget.style.background = '#1d4ed8'; }}
+        onMouseLeave={(e) => { if (!simulando) e.currentTarget.style.background = '#2563eb'; }}
       >
-        {simulando ? 'Calculando...' : 'Calcular Amortización'}
+        <CalculatorIcon size={16} color="#ffffff" />
+        <span>{simulando ? 'Calculando...' : 'Calcular Amortización'}</span>
       </button>
     </form>
   );

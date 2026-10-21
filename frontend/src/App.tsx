@@ -119,15 +119,15 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      <main style={{ padding: '2rem', maxWidth: '1240px', margin: '0 auto' }}>
+      <main style={{ padding: '1.75rem 2.5rem', width: '100%', boxSizing: 'border-box' }}>
         {/* Pestaña: Buscar Personas */}
         {currentTab === 'personas' && (
           <div>
-            <div style={{ marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#111827' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Gestión y Búsqueda de Personas
               </h2>
-              <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+              <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
                 Consulta de socios, verificación de morosidad y cuentas bancarias en tiempo real desde CoopYa.
               </p>
             </div>
@@ -135,12 +135,12 @@ export default function App() {
             <PersonasBuscador onBuscar={handleBuscar} buscando={buscando} />
 
             {busqError && (
-              <div style={{ padding: '0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: '6px', marginBottom: '1.5rem' }}>
+              <div style={{ padding: '0.85rem 1.25rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #fecaca', fontWeight: 500 }}>
                 {busqError}
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: personaSeleccionada ? '1fr 420px' : '1fr', gap: '1.5rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: personaSeleccionada ? 'minmax(0, 1fr) 460px' : '1fr', gap: '1.75rem', alignItems: 'start' }}>
               <PersonasTabla
                 personas={personas}
                 personaSeleccionada={personaSeleccionada}
@@ -163,16 +163,16 @@ export default function App() {
         {/* Pestaña: Simulador Francés */}
         {currentTab === 'simulador' && (
           <div>
-            <div style={{ marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#111827' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Simulador del Sistema Francés
               </h2>
-              <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+              <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
                 Cálculo de cuotas de amortización según el plan y motor de fórmula seleccionados.
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '2rem', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: '2rem', alignItems: 'start' }}>
               <SimuladorForm
                 onSimular={handleSimular}
                 simulando={simulando}
@@ -181,7 +181,7 @@ export default function App() {
 
               <div>
                 {simError && (
-                  <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: '6px' }}>
+                  <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1.25rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontWeight: 500 }}>
                     {simError}
                   </div>
                 )}
@@ -192,7 +192,10 @@ export default function App() {
                     <CronogramaTabla cronograma={planResultado.cronograma} />
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#ffffff', borderRadius: '8px', border: '2px dashed #e5e7eb', color: '#9ca3af' }}>
+                  <div style={{ textAlign: 'center', padding: '5rem 2rem', background: '#ffffff', borderRadius: '12px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 500, color: '#64748b', marginBottom: '0.5rem' }}>
+                      Ninguna simulación calculada
+                    </div>
                     Seleccioná una línea o ingresá los parámetros y presioná "Calcular Amortización".
                   </div>
                 )}

@@ -1,4 +1,12 @@
 import React from 'react';
+import {
+  UsersIcon,
+  CalculatorIcon,
+  SlidersIcon,
+  CpuIcon,
+  LogoutIcon,
+  BuildingIcon
+} from './Icons';
 
 export type TabKey = 'personas' | 'simulador' | 'lineas' | 'motores';
 
@@ -9,89 +17,130 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogout }) => {
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'personas', label: 'Buscar Personas' },
-    { key: 'simulador', label: 'Simulador Francés' },
-    { key: 'lineas', label: 'Líneas de Préstamo (ABM)' },
-    { key: 'motores', label: 'Motores de Fórmulas (ABM)' }
+  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
+    { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
+    { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
+    { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> }
   ];
 
   return (
     <header style={{
+      width: '100%',
       background: '#ffffff',
-      borderBottom: '1px solid #e5e7eb',
+      borderBottom: '1px solid #e2e8f0',
       padding: '0.75rem 2rem',
       display: 'flex',
       justifyContent: 'space-between',
-      alignItems: 'center'
+      alignItems: 'center',
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{
-            background: '#2563eb',
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+        {/* Brand */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
             color: '#fff',
-            fontWeight: 800,
-            fontSize: '1rem',
-            padding: '0.25rem 0.5rem',
-            borderRadius: '6px'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
           }}>
-            CY
-          </span>
-          <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#111827' }}>
-            Préstamos CoopYa
-          </span>
+            <BuildingIcon size={18} color="#ffffff" />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', lineHeight: 1.1 }}>
+              CoopYa Préstamos
+            </div>
+            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>
+              Microservicio Sistema Francés
+            </div>
+          </div>
         </div>
 
+        {/* Navigation Tabs */}
         <nav style={{ display: 'flex', gap: '0.375rem' }}>
-          {tabs.map(t => {
+          {tabs.map((t) => {
             const active = currentTab === t.key;
             return (
               <button
                 key={t.key}
                 onClick={() => onTabChange(t.key)}
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
                   padding: '0.5rem 0.875rem',
                   borderRadius: '6px',
                   border: 'none',
                   background: active ? '#eff6ff' : 'transparent',
-                  color: active ? '#1d4ed8' : '#4b5563',
-                  fontWeight: active ? 700 : 500,
+                  color: active ? '#1d4ed8' : '#475569',
+                  fontWeight: active ? 600 : 500,
                   cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  transition: 'all 0.15s ease'
+                  fontSize: '0.85rem',
+                  outline: 'none'
                 }}
               >
-                {t.label}
+                <span style={{ color: active ? '#2563eb' : '#64748b' }}>
+                  {t.icon}
+                </span>
+                <span>{t.label}</span>
               </button>
             );
           })}
         </nav>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <span style={{
+      {/* Right Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem',
           fontSize: '0.75rem',
-          color: '#059669',
-          background: '#d1fae5',
+          color: '#047857',
+          background: '#ecfdf5',
+          border: '1px solid #a7f3d0',
           padding: '0.25rem 0.625rem',
           borderRadius: '999px',
           fontWeight: 600
         }}>
-          Sesión Activa
-        </span>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+          Operador Autenticado
+        </div>
+
         <button
           onClick={onLogout}
           style={{
-            padding: '0.4rem 0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.45rem 0.85rem',
             borderRadius: '6px',
-            border: '1px solid #d1d5db',
+            border: '1px solid #cbd5e1',
             background: '#ffffff',
-            color: '#4b5563',
-            fontSize: '0.875rem',
+            color: '#475569',
+            fontSize: '0.825rem',
+            fontWeight: 500,
             cursor: 'pointer'
           }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#94a3b8';
+            e.currentTarget.style.color = '#0f172a';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.color = '#475569';
+          }}
         >
-          Cerrar Sesión
+          <LogoutIcon size={14} color="#64748b" />
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </header>
