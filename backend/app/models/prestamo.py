@@ -27,6 +27,11 @@ class Prestamo(Base):
     persona_nombre = Column(String(200), nullable=True)
     persona_doc = Column(String(20), nullable=True)
     
+    # Línea y motor asociados (opcional para trazabilidad)
+    linea_id = Column(Integer, nullable=True)
+    linea_nombre = Column(String(100), nullable=True)
+    motor_nombre = Column(String(100), nullable=True)
+
     # Todos los importes monetarios en CENTAVOS (BigInteger)
     monto_solicitado_centavos = Column(BigInteger, nullable=False)
     plazo_meses = Column(Integer, nullable=False)

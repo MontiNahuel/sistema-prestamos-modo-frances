@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Persona, CuentaCorrienteResumen } from '../../types/persona';
-import { formatPesos } from '../../utils/formatters';
-import { CheckCircleIcon, AlertTriangleIcon, CreditCardIcon, ArrowRightIcon } from '../common/Icons';
+import { Prestamo } from '../../types/prestamo';
+import { getPrestamos } from '../../services/api/prestamosApi';
+import { formatPesos, formatMoney } from '../../utils/formatters';
+import { CheckCircleIcon, AlertTriangleIcon, CreditCardIcon, ArrowRightIcon, FileTextIcon } from '../common/Icons';
 
 interface PersonaFichaProps {
   persona: Persona;
@@ -16,6 +18,17 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
   cargandoCc,
   onSimularParaSocio
 }) => {
+  const [prestamosSocio, setPrestamosSocio] = useState<Prestamo[]>([]);
+
+  useEffect(() => {
+    if (persona?.idPersona) {
+      getPrestamos({ persona_id: persona.idPersona })
+        .then(setPrestamosSocio)
+        .catch(() => setPrestamosSocio([]));
+    } else {
+      setPrestamosSocio([]);
+    }
+  }, [persona]);
   return (
     <div style={{
       background: '#ffffff',
@@ -112,7 +125,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
       </div>
 
       {/* Cuentas / CBU para Desembolso */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
           <CreditCardIcon size={15} color="#64748b" />
           <span>CBU / Medios de Pago:</span>
@@ -131,6 +144,24 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
         ) : (
           <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
             No registra CBU bancario.
+          </div>
+        )}
+      </div>
+
+      {/* Préstamos en Sistema Propio */}
+      <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+            <FileTextIcon size={15} color="#2563eb" />
+            <span>Préstamos en Sistema:</span>
+          </div>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: prestamosSocio.length > 0 ? '#1d4ed8' : '#64748b' }}>
+            {prestamosSocio.length} operaciones
+          </span>
+        </div>
+        {prestamosSocio.length > 0 && (
+          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
+            Último: {prestamosSocio[0].linea_nombre || 'Tradicional'} ({formatMoney(prestamosSocio[0].monto_solicitado_centavos)})
           </div>
         )}
       </div>

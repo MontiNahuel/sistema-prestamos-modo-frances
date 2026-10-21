@@ -7,13 +7,17 @@ import { PersonaFicha } from './components/personas/PersonaFicha';
 import { SimuladorForm } from './components/simulador/SimuladorForm';
 import { SimuladorTarjetas } from './components/simulador/SimuladorTarjetas';
 import { CronogramaTabla } from './components/simulador/CronogramaTabla';
+import { OtorgarPrestamoModal } from './components/simulador/OtorgarPrestamoModal';
+import { PrestamosPanel } from './components/prestamos/PrestamosPanel';
 import { MotoresPanel } from './components/abm/motores/MotoresPanel';
 import { LineasPanel } from './components/abm/lineas/LineasPanel';
 
 import { Persona, CuentaCorrienteResumen, PersonaBusquedaParams } from './types/persona';
 import { PlanAmortizacion, SimulacionPayload } from './types/simulacion';
+import { Prestamo } from './types/prestamo';
 import { buscarPersonas, getCuentaCorriente } from './services/api/personasApi';
 import { simularPrestamo } from './services/api/simuladorApi';
+import { CheckCircleIcon, FileTextIcon } from './components/common/Icons';
 
 export default function App() {
   const [token, setToken] = useState<string>(() => localStorage.getItem('coopya_token') || '');
@@ -29,8 +33,13 @@ export default function App() {
 
   // Estado de Simulación
   const [simulando, setSimulando] = useState<boolean>(false);
+  const [ultimoPayload, setUltimoPayload] = useState<SimulacionPayload | null>(null);
   const [planResultado, setPlanResultado] = useState<PlanAmortizacion | null>(null);
   const [simError, setSimError] = useState<string | null>(null);
+
+  // Modal de Otorgamiento
+  const [modalOtorgarAbierto, setModalOtorgarAbierto] = useState<boolean>(false);
+  const [prestamoOtorgadoExito, setPrestamoOtorgadoExito] = useState<Prestamo | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -50,6 +59,8 @@ export default function App() {
     setPersonas([]);
     setCcResumen(null);
     setPlanResultado(null);
+    setUltimoPayload(null);
+    setPrestamoOtorgadoExito(null);
   };
 
   // Buscar Personas
@@ -95,6 +106,8 @@ export default function App() {
   const handleSimular = async (payload: SimulacionPayload) => {
     setSimulando(true);
     setSimError(null);
+    setUltimoPayload(payload);
+    setPrestamoOtorgadoExito(null);
 
     try {
       const plan = await simularPrestamo(payload);
@@ -104,6 +117,11 @@ export default function App() {
     } finally {
       setSimulando(false);
     }
+  };
+
+  // Callback de préstamo otorgado con éxito
+  const handlePrestamoOtorgado = (nuevo: Prestamo) => {
+    setPrestamoOtorgadoExito(nuevo);
   };
 
   // Si no está autenticado, mostramos el login
@@ -168,9 +186,60 @@ export default function App() {
                 Simulador del Sistema Francés
               </h2>
               <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-                Cálculo de cuotas de amortización según el plan y motor de fórmula seleccionados.
+                Cálculo de amortización y emisión formal de préstamos a socios de la cooperativa.
               </p>
             </div>
+
+            {/* Banner de Éxito al Otorgar */}
+            {prestamoOtorgadoExito && (
+              <div style={{
+                marginBottom: '1.5rem',
+                padding: '1.25rem',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '12px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                boxShadow: '0 2px 4px rgba(22, 163, 74, 0.08)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ color: '#16a34a' }}>
+                    <CheckCircleIcon size={28} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#166534', fontSize: '1.05rem' }}>
+                      ¡Préstamo #{prestamoOtorgadoExito.id.substring(0, 8).toUpperCase()} Otorgado con Éxito!
+                    </div>
+                    <div style={{ color: '#15803d', fontSize: '0.875rem', marginTop: '0.2rem' }}>
+                      Titular: <strong>{prestamoOtorgadoExito.persona_nombre}</strong> • Monto: <strong>${(prestamoOtorgadoExito.monto_solicitado_centavos / 100).toLocaleString('es-AR')}</strong> en <strong>{prestamoOtorgadoExito.plazo_meses} cuotas</strong>.
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setCurrentTab('prestamos')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#16a34a',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <FileTextIcon size={16} />
+                  Ver en Préstamos Otorgados
+                </button>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: '2rem', alignItems: 'start' }}>
               <SimuladorForm
@@ -188,6 +257,53 @@ export default function App() {
 
                 {planResultado ? (
                   <div>
+                    {/* Botón CTA para Otorgar Préstamo */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                      color: '#ffffff',
+                      padding: '1.25rem 1.5rem',
+                      borderRadius: '12px',
+                      marginBottom: '1.5rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                          ¿Deseas instrumentar este crédito?
+                        </div>
+                        <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                          {personaSeleccionada
+                            ? `Socio titular listo: ${personaSeleccionada.apellido} ${personaSeleccionada.nombre} (DNI ${personaSeleccionada.numeroDoc})`
+                            : 'Seleccioná primero un socio en "Buscar Personas" para registrar el legajo formal.'}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setModalOtorgarAbierto(true)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          padding: '0.7rem 1.5rem',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: personaSeleccionada ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : '#475569',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          cursor: personaSeleccionada ? 'pointer' : 'default',
+                          boxShadow: personaSeleccionada ? '0 2px 4px rgba(22, 163, 74, 0.3)' : 'none'
+                        }}
+                      >
+                        <FileTextIcon size={18} />
+                        {personaSeleccionada ? 'Otorgar este Préstamo Oficial' : 'Asignar Socio para Otorgar'}
+                      </button>
+                    </div>
+
                     <SimuladorTarjetas plan={planResultado} />
                     <CronogramaTabla cronograma={planResultado.cronograma} />
                   </div>
@@ -201,8 +317,21 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Modal de Otorgamiento */}
+            <OtorgarPrestamoModal
+              isOpen={modalOtorgarAbierto}
+              onClose={() => setModalOtorgarAbierto(false)}
+              persona={personaSeleccionada}
+              payload={ultimoPayload}
+              plan={planResultado}
+              onOtorgado={handlePrestamoOtorgado}
+            />
           </div>
         )}
+
+        {/* Pestaña: Préstamos Otorgados */}
+        {currentTab === 'prestamos' && <PrestamosPanel />}
 
         {/* Pestaña: ABM Líneas de Préstamo */}
         {currentTab === 'lineas' && <LineasPanel />}

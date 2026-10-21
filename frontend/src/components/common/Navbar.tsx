@@ -5,10 +5,11 @@ import {
   SlidersIcon,
   CpuIcon,
   LogoutIcon,
-  BuildingIcon
+  BuildingIcon,
+  FileTextIcon
 } from './Icons';
 
-export type TabKey = 'personas' | 'simulador' | 'lineas' | 'motores';
+export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'lineas' | 'motores';
 
 interface NavbarProps {
   currentTab: TabKey;
@@ -20,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogou
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
+    { key: 'prestamos', label: 'Préstamos Otorgados', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
     { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> }
   ];

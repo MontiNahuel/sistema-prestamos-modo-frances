@@ -10,12 +10,14 @@ from app.models.motor_calculo import MotorCalculo
 from app.models.linea_prestamo import LineaPrestamo
 from app.api.v1.motores import router as motores_router
 from app.api.v1.lineas import router as lineas_router
+from app.api.v1.prestamos import router as prestamos_router
 
 router = APIRouter()
 
-# Incluir sub-routers granulares de ABMs
+# Incluir sub-routers granulares
 router.include_router(motores_router)
 router.include_router(lineas_router)
+router.include_router(prestamos_router)
 
 
 @router.post("/auth/login", summary="Iniciar sesión delegando al Monolito CoopYa")
