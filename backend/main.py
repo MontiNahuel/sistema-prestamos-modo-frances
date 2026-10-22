@@ -47,3 +47,9 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 @app.get("/health", tags=["Salud"])
 def health_check():
     return {"status": "ok", "service": "microservicio-prestamos-frances"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host=settings.HOST, port=settings.PORT, reload=True)
+
