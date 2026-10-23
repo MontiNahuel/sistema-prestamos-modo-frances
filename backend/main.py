@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from app.core.config import settings
 from app.core.database import engine, Base, SessionLocal
 from app.api.v1.router import router as api_v1_router
@@ -32,16 +33,22 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Permitir CORS para desarrollo con el Frontend de Vite
+# Permitir CORS para desarrollo y acceso desde cualquier IP de la red local
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=r"^https?://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+
+@app.get("/", tags=["Salud"], include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health", tags=["Salud"])

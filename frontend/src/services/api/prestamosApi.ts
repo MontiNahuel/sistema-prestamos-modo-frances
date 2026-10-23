@@ -1,6 +1,6 @@
 import { Prestamo, PrestamoCreate } from '../../types/prestamo';
 
-const API_BASE = '/api/v1/prestamos';
+const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1/prestamos`;
 
 export async function getPrestamos(params?: {
   persona_id?: number;

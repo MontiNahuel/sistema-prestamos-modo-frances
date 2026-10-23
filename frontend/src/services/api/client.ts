@@ -1,3 +1,5 @@
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
+
 export async function apiClient<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -13,7 +15,9 @@ export async function apiClient<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(endpoint, {
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+
+  const response = await fetch(url, {
     ...options,
     headers
   });
