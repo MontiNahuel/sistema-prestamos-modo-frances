@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { TabKey, Navbar } from './components/common/Navbar';
 import { LoginForm } from './components/auth/LoginForm';
 import { PersonasBuscador } from './components/personas/PersonasBuscador';
@@ -11,6 +11,9 @@ import { OtorgarPrestamoModal } from './components/simulador/OtorgarPrestamoModa
 import { PrestamosPanel } from './components/prestamos/PrestamosPanel';
 import { MotoresPanel } from './components/abm/motores/MotoresPanel';
 import { LineasPanel } from './components/abm/lineas/LineasPanel';
+import { LineaModal } from './components/abm/lineas/LineaModal';
+import { ReportesPanel } from './features/reportes/ReportesPanel';
+import { createLinea } from './services/api/lineasApi';
 
 import { Persona, CuentaCorrienteResumen, PersonaBusquedaParams } from './types/persona';
 import { PlanAmortizacion, SimulacionPayload } from './types/simulacion';
@@ -36,6 +39,36 @@ export default function App() {
   const [ultimoPayload, setUltimoPayload] = useState<SimulacionPayload | null>(null);
   const [planResultado, setPlanResultado] = useState<PlanAmortizacion | null>(null);
   const [simError, setSimError] = useState<string | null>(null);
+  const [modalLineaAbierto, setModalLineaAbierto] = useState(false);
+  const [lineaCreada, setLineaCreada] = useState<string | null>(null);
+  const [revisionLineas, setRevisionLineas] = useState(0);
+  const [nuevaLinea, setNuevaLinea] = useState(false);
+  const [formVersion, setFormVersion] = useState(0);
+  const revisionSimulacion = useRef(0);
+  const condicionesSimuladas = useMemo(() => ultimoPayload && planResultado && ultimoPayload.motor_id ? {
+    motor_id: ultimoPayload.motor_id,
+    tasa: Number(planResultado.tasa_anual),
+    iva: Number(planResultado.alicuota_iva),
+    monto: ultimoPayload.monto_centavos,
+    plazo: ultimoPayload.plazo_meses
+  } : undefined, [ultimoPayload, planResultado]);
+
+  const invalidarSimulacion = () => {
+    revisionSimulacion.current += 1;
+    setPlanResultado(null);
+    setUltimoPayload(null);
+    setSimError(null);
+    setLineaCreada(null);
+    setModalLineaAbierto(false);
+    setModalOtorgarAbierto(false);
+  };
+
+  const iniciarNuevaLinea = () => {
+    invalidarSimulacion();
+    setNuevaLinea(true);
+    setFormVersion(v => v + 1);
+    setCurrentTab('simulador');
+  };
 
   // Modal de Otorgamiento
   const [modalOtorgarAbierto, setModalOtorgarAbierto] = useState<boolean>(false);
@@ -54,6 +87,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    invalidarSimulacion();
     setToken('');
     setPersonaSeleccionada(null);
     setPersonas([]);
@@ -98,22 +132,26 @@ export default function App() {
 
   // Transferir socio al simulador
   const handleSimularParaSocio = (p: Persona) => {
+    invalidarSimulacion();
     setPersonaSeleccionada(p);
     setCurrentTab('simulador');
   };
 
   // Ejecutar Simulación
   const handleSimular = async (payload: SimulacionPayload) => {
+    const revision = ++revisionSimulacion.current;
     setSimulando(true);
+    setPlanResultado(null);
+    setLineaCreada(null);
     setSimError(null);
     setUltimoPayload(payload);
     setPrestamoOtorgadoExito(null);
 
     try {
       const plan = await simularPrestamo(payload);
-      setPlanResultado(plan);
+      if (revision === revisionSimulacion.current) setPlanResultado(plan);
     } catch (err: any) {
-      setSimError(err.message || 'Error al calcular simulación');
+      if (revision === revisionSimulacion.current) setSimError(err.message || 'Error al calcular simulación');
     } finally {
       setSimulando(false);
     }
@@ -133,7 +171,10 @@ export default function App() {
     <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f9fafb', color: '#1f2937' }}>
       <Navbar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={tab => {
+          if (tab !== currentTab) invalidarSimulacion();
+          setCurrentTab(tab);
+        }}
         onLogout={handleLogout}
       />
 
@@ -186,7 +227,7 @@ export default function App() {
                 Simulador del Sistema Francés
               </h2>
               <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-                Cálculo de amortización y emisión formal de préstamos a socios de la cooperativa.
+                Simulá las condiciones, calculá las cuotas y creá una línea de préstamo desde el resultado.
               </p>
             </div>
 
@@ -243,7 +284,11 @@ export default function App() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: '2rem', alignItems: 'start' }}>
               <SimuladorForm
+                key={formVersion}
                 onSimular={handleSimular}
+                onParametrosChange={invalidarSimulacion}
+                nuevaLinea={nuevaLinea}
+                revisionLineas={revisionLineas}
                 simulando={simulando}
                 personaSeleccionada={personaSeleccionada}
               />
@@ -306,6 +351,21 @@ export default function App() {
 
                     <SimuladorTarjetas plan={planResultado} />
                     <CronogramaTabla cronograma={planResultado.cronograma} />
+                    {ultimoPayload && !ultimoPayload.linea_id && (
+                    <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px' }}>
+                      {lineaCreada ? (
+                        <p role="status" style={{ color: '#166534', margin: 0 }}>La línea “{lineaCreada}” se creó correctamente y ya está disponible en Líneas de Préstamo.</p>
+                      ) : (
+                        <>
+                          <h3 style={{ margin: '0 0 0.5rem' }}>Crear una línea con estas condiciones</h3>
+                          <p style={{ color: '#475569' }}>Guardá el motor, la tasa y el IVA calculados como una nueva línea de préstamo.</p>
+                          <button type="button" disabled={simulando || !condicionesSimuladas} onClick={() => setModalLineaAbierto(true)} style={{ padding: '0.8rem 1.25rem', border: 0, borderRadius: '8px', background: '#2563eb', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                            Crear línea con esta simulación
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '5rem 2rem', background: '#ffffff', borderRadius: '12px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
@@ -327,14 +387,26 @@ export default function App() {
               plan={planResultado}
               onOtorgado={handlePrestamoOtorgado}
             />
+            <LineaModal
+              isOpen={modalLineaAbierto}
+              onClose={() => setModalLineaAbierto(false)}
+              lineaParaEditar={null}
+              condicionesSimuladas={condicionesSimuladas}
+              onSave={async data => {
+                const creada = await createLinea(data);
+                setLineaCreada(creada.nombre);
+                setRevisionLineas(v => v + 1);
+              }}
+            />
           </div>
         )}
 
         {/* Pestaña: Préstamos Otorgados */}
         {currentTab === 'prestamos' && <PrestamosPanel />}
+        {currentTab === 'reportes' && <ReportesPanel />}
 
         {/* Pestaña: ABM Líneas de Préstamo */}
-        {currentTab === 'lineas' && <LineasPanel />}
+        {currentTab === 'lineas' && <LineasPanel onNuevaLinea={iniciarNuevaLinea} />}
 
         {/* Pestaña: ABM Motores de Fórmulas */}
         {currentTab === 'motores' && <MotoresPanel />}

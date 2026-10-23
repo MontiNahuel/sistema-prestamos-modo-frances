@@ -9,13 +9,15 @@ interface LineaModalProps {
   onClose: () => void;
   onSave: (data: LineaPrestamoCreate) => Promise<void>;
   lineaParaEditar: LineaPrestamo | null;
+  condicionesSimuladas?: { motor_id: number; tasa: number; iva: number; monto: number; plazo: number };
 }
 
 export const LineaModal: React.FC<LineaModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  lineaParaEditar
+  lineaParaEditar,
+  condicionesSimuladas
 }) => {
   const [motores, setMotores] = useState<MotorCalculo[]>([]);
   const [codigo, setCodigo] = useState('');
@@ -39,13 +41,14 @@ export const LineaModal: React.FC<LineaModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     getMotores(true).then((m) => {
       setMotores(m);
-      if (m.length > 0 && !lineaParaEditar) {
+      if (m.length > 0 && !lineaParaEditar && !condicionesSimuladas) {
         setMotorId(m[0].id);
       }
     }).catch(console.error);
-  }, [isOpen]);
+  }, [isOpen, lineaParaEditar, condicionesSimuladas]);
 
   useEffect(() => {
     if (lineaParaEditar) {
@@ -67,22 +70,31 @@ export const LineaModal: React.FC<LineaModalProps> = ({
       setCodigo('');
       setNombre('');
       setDescripcion('');
-      setTasaPorcentaje(60);
-      setIvaPorcentaje(21);
+      setTasaPorcentaje(condicionesSimuladas ? condicionesSimuladas.tasa * 100 : 60);
+      setIvaPorcentaje(condicionesSimuladas ? condicionesSimuladas.iva * 100 : 21);
+      if (condicionesSimuladas) setMotorId(condicionesSimuladas.motor_id);
       setPermiteOverride(true);
-      setMontoMinPesos(10000);
-      setMontoMaxPesos(1500000);
-      setMontoPasoPesos(1000);
-      setPlazoMin(3);
-      setPlazoMax(36);
+      setMontoMinPesos(condicionesSimuladas ? condicionesSimuladas.monto / 100 : 10000);
+      setMontoMaxPesos(condicionesSimuladas ? condicionesSimuladas.monto / 100 : 1500000);
+      setMontoPasoPesos(condicionesSimuladas ? 0.01 : 1000);
+      setPlazoMin(condicionesSimuladas?.plazo ?? 3);
+      setPlazoMax(condicionesSimuladas?.plazo ?? 36);
       setRequiereSocioAlDia(true);
       setActivo(true);
     }
     setError(null);
-  }, [lineaParaEditar, isOpen]);
+  }, [lineaParaEditar, isOpen, condicionesSimuladas]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (montoMinPesos <= 0 || montoMaxPesos < montoMinPesos || montoPasoPesos <= 0 || plazoMax < plazoMin) {
+      setError('Revisá los límites: los máximos deben ser mayores o iguales a los mínimos y el paso debe ser positivo.');
+      return;
+    }
+    if (condicionesSimuladas && (condicionesSimuladas.monto < Math.round(montoMinPesos * 100) || condicionesSimuladas.monto > Math.round(montoMaxPesos * 100) || condicionesSimuladas.plazo < plazoMin || condicionesSimuladas.plazo > plazoMax)) {
+      setError('Los límites de la línea deben incluir el monto y el plazo que simulaste.');
+      return;
+    }
     setGuardando(true);
     setError(null);
 
@@ -119,6 +131,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
       maxWidth="680px"
     >
       <form onSubmit={handleSubmit}>
+        {condicionesSimuladas && <p style={{ color: '#475569', marginTop: 0 }}>Las condiciones financieras corresponden al cálculo realizado. Completá la identificación y los límites comerciales para crear la línea.</p>}
         {error && (
           <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', fontSize: '0.85rem', border: '1px solid #fecaca' }}>
             {error}
@@ -136,6 +149,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
               placeholder="EJ: PERS_RAPIDO"
+              maxLength={50}
               disabled={Boolean(lineaParaEditar)}
               style={{
                 width: '100%',
@@ -159,6 +173,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Préstamo Personal Socios"
+              maxLength={100}
               style={{
                 width: '100%',
                 padding: '0.6rem 0.75rem',
@@ -179,6 +194,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
           </label>
           <select
             value={motorId}
+            disabled={Boolean(condicionesSimuladas)}
             onChange={(e) => setMotorId(Number(e.target.value))}
             style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.875rem', background: '#fff' }}
             required
@@ -215,6 +231,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 type="number"
                 step="0.01"
                 value={tasaPorcentaje}
+                disabled={Boolean(condicionesSimuladas)}
                 onChange={(e) => setTasaPorcentaje(Number(e.target.value))}
                 style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 required
@@ -229,6 +246,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 type="number"
                 step="0.5"
                 value={ivaPorcentaje}
+                disabled={Boolean(condicionesSimuladas)}
                 onChange={(e) => setIvaPorcentaje(Number(e.target.value))}
                 style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 required
@@ -251,6 +269,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               <input
                 type="number"
                 value={montoMinPesos}
+                step="0.01"
                 onChange={(e) => setMontoMinPesos(Number(e.target.value))}
                 style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 required
@@ -264,6 +283,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               <input
                 type="number"
                 value={montoMaxPesos}
+                step="0.01"
                 onChange={(e) => setMontoMaxPesos(Number(e.target.value))}
                 style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 required
@@ -277,6 +297,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               <input
                 type="number"
                 value={montoPasoPesos}
+                step="0.01"
                 onChange={(e) => setMontoPasoPesos(Number(e.target.value))}
                 style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 required
@@ -370,7 +391,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
             }}
           >
-            {guardando ? 'Guardando...' : 'Guardar Línea'}
+            {guardando ? 'Guardando...' : condicionesSimuladas ? 'Crear Línea de Préstamo' : 'Guardar Línea'}
           </button>
         </div>
       </form>

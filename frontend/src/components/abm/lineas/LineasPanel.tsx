@@ -6,7 +6,7 @@ import { LineaModal } from './LineaModal';
 import { formatMoney, formatPct } from '../../../utils/formatters';
 import { PlusIcon, EditIcon, TrashIcon, SlidersIcon } from '../../common/Icons';
 
-export const LineasPanel: React.FC = () => {
+export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLinea }) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +31,7 @@ export const LineasPanel: React.FC = () => {
   }, []);
 
   const handleNuevo = () => {
-    setLineaSeleccionada(null);
-    setModalAbierto(true);
+    onNuevaLinea();
   };
 
   const handleEditar = (l: LineaPrestamo) => {

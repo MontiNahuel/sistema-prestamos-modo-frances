@@ -9,7 +9,7 @@ import {
   FileTextIcon
 } from './Icons';
 
-export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'lineas' | 'motores';
+export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'lineas' | 'motores' | 'reportes';
 
 interface NavbarProps {
   currentTab: TabKey;
@@ -22,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogou
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
     { key: 'prestamos', label: 'Préstamos Otorgados', icon: <FileTextIcon size={17} /> },
+    { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
     { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> }
   ];
@@ -67,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogou
         </div>
 
         {/* Navigation Tabs */}
-        <nav style={{ display: 'flex', gap: '0.375rem' }}>
+        <nav style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
           {tabs.map((t) => {
             const active = currentTab === t.key;
             return (

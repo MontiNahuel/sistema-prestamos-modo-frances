@@ -5,17 +5,25 @@ import { SimulacionPayload } from '../../types/simulacion';
 import { getLineas } from '../../services/api/lineasApi';
 import { formatMoney } from '../../utils/formatters';
 import { CalculatorIcon } from '../common/Icons';
+import { MotorCalculo } from '../../types/motor';
+import { getMotores } from '../../services/api/motoresApi';
 
 interface SimuladorFormProps {
   onSimular: (payload: SimulacionPayload) => void;
   simulando: boolean;
   personaSeleccionada: Persona | null;
+  onParametrosChange: () => void;
+  nuevaLinea?: boolean;
+  revisionLineas?: number;
 }
 
 export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   onSimular,
   simulando,
-  personaSeleccionada
+  personaSeleccionada,
+  onParametrosChange,
+  nuevaLinea = false,
+  revisionLineas = 0
 }) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [selectedLineaId, setSelectedLineaId] = useState<number | ''>('');
@@ -23,18 +31,32 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   const [plazoMeses, setPlazoMeses] = useState<number>(12);
   const [tnaPorcentaje, setTnaPorcentaje] = useState<number>(60);
   const [ivaPorcentaje, setIvaPorcentaje] = useState<number>(21);
+  const [motores, setMotores] = useState<MotorCalculo[]>([]);
+  const [motorId, setMotorId] = useState<number | ''>('');
+  const [cargaError, setCargaError] = useState<string | null>(null);
+  const [cargandoMotores, setCargandoMotores] = useState(true);
+  const [cargandoLineas, setCargandoLineas] = useState(true);
+
+  useEffect(() => {
+    getMotores(true).then((data) => {
+      setMotores(data);
+      setMotorId(data[0]?.id ?? '');
+    }).catch(() => setCargaError('No se pudieron cargar los motores. Recargá la página para reintentar.'))
+      .finally(() => setCargandoMotores(false));
+  }, []);
 
   useEffect(() => {
     getLineas(true).then((data) => {
       setLineas(data);
-      if (data.length > 0) {
+      if (data.length > 0 && !nuevaLinea && revisionLineas === 0) {
         const primera = data[0];
         setSelectedLineaId(primera.id);
         setTnaPorcentaje(Number(primera.tasa_default) * 100);
         setIvaPorcentaje(Number(primera.alicuota_iva) * 100);
       }
-    }).catch(console.error);
-  }, []);
+    }).catch(() => setCargaError('No se pudieron cargar las líneas. Recargá la página para reintentar.'))
+      .finally(() => setCargandoLineas(false));
+  }, [nuevaLinea, revisionLineas]);
 
   const handleLineaChange = (lineaId: number | '') => {
     setSelectedLineaId(lineaId);
@@ -59,14 +81,15 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       plazo_meses: plazoMeses,
       tna: tnaPorcentaje / 100,
       alicuota_iva: ivaPorcentaje / 100,
-      linea_id: selectedLineaId ? Number(selectedLineaId) : null
+      linea_id: selectedLineaId ? Number(selectedLineaId) : null,
+      motor_id: selectedLineaId ? lineas.find(l => l.id === selectedLineaId)?.motor_id : Number(motorId)
     });
   };
 
   const lineaActiva = lineas.find(x => x.id === selectedLineaId);
 
   return (
-    <form onSubmit={handleSubmit} style={{
+    <form onSubmit={handleSubmit} onChange={onParametrosChange} style={{
       background: '#ffffff',
       padding: '1.5rem',
       borderRadius: '12px',
@@ -78,6 +101,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       <h3 style={{ margin: '0 0 1rem', fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>
         Parámetros de Simulación
       </h3>
+      {cargaError && <p role="alert" style={{ color: '#991b1b' }}>{cargaError}</p>}
 
       {personaSeleccionada && (
         <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid #bfdbfe' }}>
@@ -116,6 +140,16 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           </div>
         )}
       </div>
+
+      {!selectedLineaId && (
+        <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 600 }}>
+          Motor de cálculo
+          <select required value={motorId} onChange={e => setMotorId(Number(e.target.value))} style={{ width: '100%', padding: '0.625rem', marginTop: '0.35rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+            <option value="" disabled>Seleccioná un motor</option>
+            {motores.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+          </select>
+        </label>
+      )}
 
       <div style={{ marginBottom: '1.15rem' }}>
         <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
@@ -184,7 +218,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
 
       <button
         type="submit"
-        disabled={simulando}
+        disabled={simulando || cargandoMotores || cargandoLineas || (!selectedLineaId && !motorId)}
         style={{
           width: '100%',
           display: 'flex',
