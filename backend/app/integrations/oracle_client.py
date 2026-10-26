@@ -30,7 +30,7 @@ class OracleClient:
     ):
         self.user = user or settings.ORACLE_USER
         self.password = password or settings.ORACLE_PASSWORD
-        self.dsn = dsn or settings.ORACLE_DSN
+        self.dsn = dsn or settings.ORACLE_DSN or f"{settings.ORACLE_HOST}:{settings.ORACLE_PORT}/{settings.ORACLE_SERVICE}"
         self.lib_dir = lib_dir or settings.ORACLE_CLIENT_LIB_DIR
         self.tabla = tabla or settings.ORACLE_TABLA_PERSONAS
         self.enabled = enabled if enabled is not None else settings.ORACLE_ENABLED

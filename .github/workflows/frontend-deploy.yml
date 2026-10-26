@@ -1,0 +1,86 @@
+name: Frontend CI/CD - Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "Caddyfile"
+      - ".github/workflows/frontend-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test Frontend (React Vite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Verificar Linting
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Ejecutar pruebas unitarias de reportes
+        working-directory: frontend
+        run: npm run test:reportes
+
+      - name: Compilar Frontend para producción (Vite -> dist)
+        working-directory: frontend
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || vars.VITE_API_URL || '' }}
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL || vars.VITE_BACKEND_URL || '' }}
+        run: npm run build
+
+      - name: Subir artefacto de compilación (dist)
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  deploy:
+    name: Deploy Frontend a Caddy
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Descargar artefacto dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Desplegar archivos dist al servidor vía SSH / rsync
+        # Si tienes configurados los secretos de SSH en GitHub Actions (SERVER_HOST, SERVER_USER, SERVER_SSH_KEY)
+        # Este paso sincroniza la carpeta dist hacia la carpeta montada por Caddy
+        if: "${{ secrets.SERVER_HOST != '' }}"
+        uses: easingthemes/ssh-deploy@v5.0.3
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
+          REMOTE_USER: ${{ secrets.SERVER_USER }}
+          TARGET: ${{ secrets.SERVER_PROJECT_PATH || '/opt/sistema-prestamos' }}/frontend/dist
+          SOURCE: "dist/"
+          EXCLUDE: "/.git/"
+
+      - name: Resumen de Despliegue
+        run: |
+          echo "======================================================="
+          echo "Frontend compilado exitosamente en dist/"
+          echo "Caddy sirve automáticamente la nueva versión sin reiniciar"
+          echo "======================================================="

@@ -1,0 +1,70 @@
+:8088 {
+    # =========================================================================
+    # BUENAS PRÁCTICAS DE SEGURIDAD - HEADERS HTTP
+    # =========================================================================
+    header {
+        # Ocultamiento del encabezado de identificación del servidor web
+        -Server
+
+        # Prevención de MIME-sniffing
+        X-Content-Type-Options "nosniff"
+
+        # Protección contra ataques de Clickjacking
+        X-Frame-Options "DENY"
+
+        # Control de fuga de información en la cabecera Referer
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Restricción de APIs sensibles del navegador
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    # =========================================================================
+    # MITIGACIÓN DoS / LÍMITE DE BODY
+    # =========================================================================
+    request_body {
+        max_size 10MB
+    }
+
+    # =========================================================================
+    # BLOQUEO DE ARCHIVOS Y DIRECTORIOS OCULTOS (.env, .git, etc.)
+    # =========================================================================
+    @hidden path */.*
+    respond @hidden 404
+
+    # Compresión moderna para optimizar ancho de banda
+    encode zstd gzip
+
+    # =========================================================================
+    # PROXY INVERSO EXPLÍCITO A FASTAPI (BACKEND)
+    # =========================================================================
+    # FastAPI queda 100% oculto al exterior. Caddy atiende las llamadas internamente.
+    handle /api/* {
+        reverse_proxy backend:8001 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /docs* {
+        reverse_proxy backend:8001
+    }
+
+    handle /redoc* {
+        reverse_proxy backend:8001
+    }
+
+    handle /openapi.json {
+        reverse_proxy backend:8001
+    }
+
+    # =========================================================================
+    # FRONTEND (SPA REACT VITE SERVIDO DESDE DIST)
+    # =========================================================================
+    handle {
+        root * /srv/dist
+        file_server
+        try_files {path} /index.html
+    }
+}

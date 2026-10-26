@@ -1,0 +1,135 @@
+# =============================================================================
+# STACK DE APLICACIÓN: BACKEND (FASTAPI) + GATEWAY/FRONTEND (CADDY)
+# =============================================================================
+# Desacoplado de la base de datos SQL Server.
+# Los despliegues y reinicios de este stack NO afectan a la base de datos.
+#
+# Para iniciar:
+#   docker compose up -d --build
+# =============================================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: prestamos-backend
+    restart: unless-stopped
+
+    # 1. Prevención de escalada de privilegios
+    security_opt:
+      - no-new-privileges:true
+
+    # El puerto 8001 NO se publica al host. Queda 100% privado en la red de Docker.
+    environment:
+      PORT: 8001
+      DATABASE_URL: mssql+pyodbc://sa:${MSSQL_SA_PASSWORD:-TuClaveSegura2026!}@sqlserver:1433/PrestamosDB?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+      COOPYA_BASE_URL: ${COOPYA_BASE_URL:-https://test.coopya.com.ar}
+      COOPYA_DEFAULT_TOKEN: ${COOPYA_DEFAULT_TOKEN:-}
+      # Integración Oracle (se pasa siempre por variables de entorno)
+      ORACLE_ENABLED: ${ORACLE_ENABLED:-False}
+      ORACLE_USER: ${ORACLE_USER:-}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-}
+      ORACLE_HOST: ${ORACLE_HOST:-}
+      ORACLE_PORT: ${ORACLE_PORT:-1521}
+      ORACLE_SERVICE: ${ORACLE_SERVICE:-orcl}
+      ORACLE_DSN: ${ORACLE_DSN:-}
+      ORACLE_CLIENT_LIB_DIR: ${ORACLE_CLIENT_LIB_DIR:-}
+      ORACLE_TABLA_PERSONAS: ${ORACLE_TABLA_PERSONAS:-PRESTAPROD.PERSONA}
+
+    # 5. Red aislada dedicada: Se comunica con la DB y con el Gateway/Caddy
+    networks:
+      - prestamos_frontend_net
+      - prestamos_db_net
+
+    # 2. Límites de memoria y CPU
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1024M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+
+    # 3. Rotación y límite de logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 4. Healthcheck activo
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: prestamos-caddy
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    # 1. Prevención de escalada de privilegios
+    security_opt:
+      - no-new-privileges:true
+
+    # ÚNICO PUERTO PÚBLICO EXPUESTO EN EL HOST
+    ports:
+      - "8088:8088"
+
+    # 6. Configuración y dist montados en solo lectura (:ro)
+    # GitHub Actions compila el dist en la nube y lo coloca en ./frontend/dist
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv/dist:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+    # 5. Red aislada: Caddy solo tiene acceso al frontend y backend, NUNCA a la DB
+    networks:
+      - prestamos_frontend_net
+
+    # 2. Límites de memoria y CPU
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+    # 3. Rotación y límite de logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 4. Healthcheck activo
+    healthcheck:
+      test: ["CMD-SHELL", "caddy version || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+# Redes dedicadas
+networks:
+  prestamos_frontend_net:
+    name: prestamos_frontend_net
+    driver: bridge
+  # Red externa provista por el stack de base de datos (docker-compose.db.yml)
+  prestamos_db_net:
+    name: prestamos_db_net
+    external: true

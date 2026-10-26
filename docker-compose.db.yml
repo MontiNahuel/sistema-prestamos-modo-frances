@@ -1,0 +1,70 @@
+# =============================================================================
+# STACK DE BASE DE DATOS DEDICADO E INDEPENDIENTE (SQL SERVER 2022)
+# =============================================================================
+# Este stack se ejecuta de forma desacoplada del frontend y backend.
+# Permite actualizar, reiniciar o hacer deploy del backend/frontend SIN
+# reiniciar ni afectar la base de datos.
+#
+# Para iniciar:
+#   docker compose -f docker-compose.db.yml up -d
+# =============================================================================
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: prestamos-sqlserver
+    restart: unless-stopped
+
+    # 1. Prevención de escalada de privilegios
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-TuClaveSegura2026!}"
+      MSSQL_PID: "Express"
+
+    # Red privada aislada (no expone puertos a Internet)
+    # Si requieres acceder desde tu equipo local para desarrollo/DBeaver, descomenta ports:
+    # ports:
+    #   - "1433:1433"
+    networks:
+      - prestamos_db_net
+
+    volumes:
+      - mssql_data:/var/opt/mssql
+
+    # 2. Límites de memoria y CPU
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 1024M
+
+    # 3. Rotación y límite de logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 4. Healthcheck activo
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+volumes:
+  mssql_data:
+    name: prestamos_mssql_data
+
+# 5. Red aislada dedicada
+networks:
+  prestamos_db_net:
+    name: prestamos_db_net
+    driver: bridge
