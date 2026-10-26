@@ -1,13 +1,28 @@
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Query, Header
-from app.features.personas.schemas import PersonaBusquedaRequest
+from fastapi import APIRouter, Depends, Query, Header, status
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.integrations.coopya_client import coopya_client
+from app.integrations.oracle_client import oracle_client
+from app.features.auditoria.repository import HistorialCambiosRepository
+from app.features.socios.repository import SocioRepository
+from app.features.personas.schemas import (
+    PersonaBusquedaRequest,
+    PersonaCreateRequest,
+    PersonaCreateResponse
+)
 from app.features.personas.service import PersonasService
 
 router = APIRouter(prefix="/personas", tags=["Personas"])
 
 
-def get_personas_service() -> PersonasService:
-    return PersonasService()
+def get_personas_service(db: Session = Depends(get_db)) -> PersonasService:
+    return PersonasService(
+        client=coopya_client,
+        oracle=oracle_client,
+        auditoria_repo=HistorialCambiosRepository(db),
+        socio_repo=SocioRepository(db)
+    )
 
 
 @router.post("/buscar", summary="Buscar personas/socios en el Monolito CoopYa")
@@ -43,3 +58,32 @@ async def consultar_cuenta_corriente(
         auth_token = authorization.replace("Bearer ", "").strip()
 
     return await service.obtener_cuenta_corriente(id_persona=id_persona, token=auth_token)
+
+
+@router.post(
+    "",
+    response_model=PersonaCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear persona con orden estricto (Oracle Legacy -> Monolito CoopYa)"
+)
+async def crear_persona(
+    req: PersonaCreateRequest,
+    token: Optional[str] = Query(default=None),
+    authorization: Optional[str] = Header(default=None),
+    x_usuario: Optional[str] = Header(default=None, alias="X-Usuario-Operador"),
+    service: PersonasService = Depends(get_personas_service)
+):
+    """
+    Alta de persona con consistencia estricta:
+    1. Impacta primero en la base de datos vieja en Oracle (modo thick). Si falla, no se toca CoopYa.
+    2. Si Oracle es exitoso, impacta en el Monolito CoopYa.
+    """
+    auth_token = token
+    if not auth_token and authorization:
+        auth_token = authorization.replace("Bearer ", "").strip()
+
+    return await service.crear_persona(
+        req=req,
+        token=auth_token,
+        usuario_operador=x_usuario or "OPERADOR"
+    )

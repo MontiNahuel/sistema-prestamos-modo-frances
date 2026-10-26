@@ -4,6 +4,7 @@ import { Prestamo } from '../../types/prestamo';
 import { getPrestamos } from '../../services/api/prestamosApi';
 import { formatPesos, formatMoney } from '../../utils/formatters';
 import { CheckCircleIcon, AlertTriangleIcon, CreditCardIcon, ArrowRightIcon, FileTextIcon } from '../common/Icons';
+import { CuentaCorrienteModal } from './CuentaCorrienteModal';
 
 interface PersonaFichaProps {
   persona: Persona;
@@ -19,6 +20,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
   onSimularParaSocio
 }) => {
   const [prestamosSocio, setPrestamosSocio] = useState<Prestamo[]>([]);
+  const [modalCcAbierto, setModalCcAbierto] = useState(false);
 
   useEffect(() => {
     if (persona?.idPersona) {
@@ -29,6 +31,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
       setPrestamosSocio([]);
     }
   }, [persona]);
+
   return (
     <div style={{
       background: '#ffffff',
@@ -68,7 +71,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
       {/* Resumen de Cuenta Corriente */}
       <div style={{ marginBottom: '1.25rem' }}>
         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
-          Estado Financiero (CoopYa):
+          Estado Financiero (Cuenta Corriente):
         </div>
         {cargandoCc ? (
           <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: '#64748b', background: '#f8fafc', borderRadius: '8px' }}>
@@ -118,6 +121,30 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
                 </span>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setModalCcAbierto(true)}
+              style={{
+                width: '100%',
+                marginTop: '0.75rem',
+                padding: '0.5rem',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#2563eb',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem'
+              }}
+            >
+              <FileTextIcon size={14} color="#2563eb" />
+              <span>Ver Cuenta Corriente Detallada</span>
+            </button>
           </div>
         ) : (
           <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No se pudo obtener el resumen.</div>
@@ -190,6 +217,13 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
         <span>Simular Préstamo</span>
         <ArrowRightIcon size={16} color="#ffffff" />
       </button>
+
+      {/* Modal Detallado de Cuenta Corriente */}
+      <CuentaCorrienteModal
+        isOpen={modalCcAbierto}
+        onClose={() => setModalCcAbierto(false)}
+        cc={ccResumen}
+      />
     </div>
   );
 };

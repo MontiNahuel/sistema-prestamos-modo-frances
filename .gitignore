@@ -55,3 +55,7 @@ pnpm-debug.log*
 Thumbs.db
 .agents/
 skills-lock.json
+
+
+# Proyecto temporal DB vieja
+proyecto-para-conectar-con-db-vieja/

@@ -19,18 +19,75 @@ export interface Persona {
   mediosDePago: MedioPago[];
 }
 
+export interface ConceptoCuentaCorriente {
+  concepto: string;
+  etiqueta: string;
+  planNombre: string;
+  valorMensual: number;
+  cuotasDelPlan?: number;
+  cuotasCubiertas?: number;
+  cuotasVencidas?: number;
+  deudaDelConcepto?: number;
+  coberturaDelConcepto?: number;
+}
+
+export interface PeriodoCuentaCorriente {
+  mes: string;
+  esperado: number;
+  cubierto: number;
+  cobrados: number;
+  pendientes: number;
+  esParcial: boolean;
+}
+
+export interface MovimientoCuentaCorriente {
+  id: string | number;
+  fechaImpacto: string;
+  origen?: string;
+  concepto: string;
+  montoPesos: number;
+  estado: string;
+  explicacion?: string;
+}
+
+export interface DesgloseCuentaCorriente {
+  numeroCuota?: number;
+  cantidadCuotas?: number;
+  periodoObligacion?: string;
+  concepto: string;
+  planNombre?: string;
+  importePresentado: number;
+  importeCobrado: number;
+  importePendiente: number;
+  estado: string;
+  origen?: string;
+}
+
 export interface CuentaCorrienteResumen {
   persona: {
     id: number;
     apellido: string;
     nombre: string;
     numeroDoc: string;
+    cuil?: string;
+    nroSocio?: number;
   };
   totales: {
     saldo: number;
     algunaConMora: boolean;
     obligacionMensual: number;
+    totalObligaciones?: number;
+    importeCobrado?: number;
+    importePendiente?: number;
+    cobrados?: number;
+    pendientes?: number;
+    movimientos?: number;
   };
+  conceptos?: ConceptoCuentaCorriente[];
+  periodos?: PeriodoCuentaCorriente[];
+  movimientos?: MovimientoCuentaCorriente[];
+  desglose?: DesgloseCuentaCorriente[];
+  advertencias?: string[];
 }
 
 export interface PersonaBusquedaParams {
