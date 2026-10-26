@@ -22,4 +22,5 @@ jobs:
           git stash -u || true
           git fetch origin main
           git reset --hard origin/main
-          echo "Frontend actualizado. Caddy sirve la nueva versión automáticamente."
+          docker compose restart caddy
+          echo "Frontend actualizado y Caddy reiniciado exitosamente."

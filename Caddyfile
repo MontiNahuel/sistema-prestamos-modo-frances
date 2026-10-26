@@ -1,4 +1,7 @@
 :8088 {
+    # Raíz del sitio estático (Frontend React Vite)
+    root * /srv/dist
+
     # =========================================================================
     # BUENAS PRÁCTICAS DE SEGURIDAD - HEADERS HTTP
     # =========================================================================
@@ -38,7 +41,6 @@
     # =========================================================================
     # PROXY INVERSO EXPLÍCITO A FASTAPI (BACKEND)
     # =========================================================================
-    # FastAPI queda 100% oculto al exterior. Caddy atiende las llamadas internamente.
     handle /api/* {
         reverse_proxy backend:8001 {
             header_up X-Real-IP {remote_host}
@@ -60,11 +62,10 @@
     }
 
     # =========================================================================
-    # FRONTEND (SPA REACT VITE SERVIDO DESDE DIST)
+    # FRONTEND (SPA REACT VITE)
     # =========================================================================
     handle {
-        root * /srv/dist
-        file_server
         try_files {path} /index.html
+        file_server
     }
 }
