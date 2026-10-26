@@ -16,6 +16,7 @@ import app.features.prestamos.model
 import app.features.motores.model
 import app.features.lineas.model
 import app.features.auditoria.model
+import app.features.presentaciones_bapro.model
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

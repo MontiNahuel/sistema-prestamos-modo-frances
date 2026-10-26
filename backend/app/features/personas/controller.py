@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.integrations.coopya_client import coopya_client
 from app.integrations.oracle_client import oracle_client
-from app.features.auditoria.repository import HistorialCambiosRepository
+from app.features.auditoria.repository import AuditoriaRepository
 from app.features.socios.repository import SocioRepository
 from app.features.socios.schemas import TipoBancoResponse
 from app.features.personas.schemas import (
@@ -21,7 +21,7 @@ def get_personas_service(db: Session = Depends(get_db)) -> PersonasService:
     return PersonasService(
         client=coopya_client,
         oracle=oracle_client,
-        auditoria_repo=HistorialCambiosRepository(db),
+        auditoria_repo=AuditoriaRepository(db),
         socio_repo=SocioRepository(db)
     )
 

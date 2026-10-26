@@ -11,6 +11,7 @@ import app.features.prestamos.model
 import app.features.motores.model
 import app.features.lineas.model
 import app.features.auditoria.model
+import app.features.presentaciones_bapro.model
 from app.services.seed_service import seed_motores_y_lineas
 
 

@@ -21,6 +21,8 @@ class CuotaResponse(BaseModel):
     estado: str
     fecha_pago: Optional[datetime] = None
     monto_pagado_centavos: int = 0
+    movimiento_coopya_id: Optional[int] = None
+    desglose_coopya_id: Optional[int] = None
 
 
 class PrestamoLineaSnapshotResponse(BaseModel):

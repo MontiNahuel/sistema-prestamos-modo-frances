@@ -14,6 +14,9 @@ import { MotoresPanel } from './components/abm/motores/MotoresPanel';
 import { LineasPanel } from './components/abm/lineas/LineasPanel';
 import { LineaModal } from './components/abm/lineas/LineaModal';
 import { ReportesPanel } from './features/reportes/ReportesPanel';
+import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
+import { getPerfilActual } from './services/api/authApi';
+import { UserProfile } from './types/auth';
 import { createLinea } from './services/api/lineasApi';
 
 import { Persona, CuentaCorrienteResumen, PersonaBusquedaParams } from './types/persona';
@@ -26,6 +29,15 @@ import { CheckCircleIcon, FileTextIcon } from './components/common/Icons';
 export default function App() {
   const [token, setToken] = useState<string>(() => localStorage.getItem('coopya_token') || '');
   const [currentTab, setCurrentTab] = useState<TabKey>('personas');
+  const [perfil, setPerfil] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    if (token) {
+      getPerfilActual().then(setPerfil).catch(() => setPerfil(null));
+    } else {
+      setPerfil(null);
+    }
+  }, [token]);
 
   // Estado de Personas
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -178,6 +190,7 @@ export default function App() {
           setCurrentTab(tab);
         }}
         onLogout={handleLogout}
+        esAccesoCompleto={perfil?.es_acceso_completo}
       />
 
       <main style={{ padding: '1.75rem 2.5rem', width: '100%', boxSizing: 'border-box' }}>
@@ -442,6 +455,9 @@ export default function App() {
 
         {/* Pestaña: ABM Motores de Fórmulas */}
         {currentTab === 'motores' && <MotoresPanel />}
+
+        {/* Pestaña: Auditoría y Trazabilidad */}
+        {currentTab === 'auditoria' && <AuditoriaPanel />}
       </main>
     </div>
   );

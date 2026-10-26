@@ -9,3 +9,11 @@ export interface AuthResponse {
   message?: string;
   detail?: string;
 }
+
+export interface UserProfile {
+  id: number;
+  usuario: string;
+  mail?: string;
+  roles: string[];
+  es_acceso_completo: boolean;
+}

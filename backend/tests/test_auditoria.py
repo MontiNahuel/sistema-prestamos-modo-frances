@@ -15,7 +15,7 @@ def test_auditoria_en_creacion_y_soft_delete_linea():
     linea_payload = {
         "codigo": codigo_random,
         "nombre": "Línea para Test Auditoría",
-        "descripcion": "Verificación de historial_cambios",
+        "descripcion": "Verificación de tablas dedicadas",
         "motor_id": motor_id,
         "tasa_default": 0.55,
         "alicuota_iva": 0.21,
@@ -25,7 +25,7 @@ def test_auditoria_en_creacion_y_soft_delete_linea():
         "plazo_minimo_meses": 1,
         "plazo_maximo_meses": 24,
         "requiere_socio_al_dia": True,
-        "activo": True
+        "activo": True,
     }
 
     headers = {"X-User-Name": "operador_test@coopya.com"}
@@ -34,14 +34,17 @@ def test_auditoria_en_creacion_y_soft_delete_linea():
     linea_creada = resp_create.json()
     linea_id = linea_creada["id"]
 
-    # 2. Verificar que se grabó el evento de auditoría
-    resp_audit = client.get(f"/api/v1/auditoria?entidad_nombre=lineas_prestamo&entidad_id={linea_id}")
+    # 2. Verificar que se grabó en la tabla dedicada auditoria_configuracion_creditos
+    resp_audit = client.get(
+        f"/api/v1/auditoria/configuracion-creditos?tipo_entidad=LINEA&entidad_id={linea_id}"
+    )
     assert resp_audit.status_code == 200
-    eventos = resp_audit.json()
-    assert len(eventos) >= 1
-    assert eventos[0]["accion"] == "CREATE"
-    assert eventos[0]["usuario_operador"] == "operador_test@coopya.com"
-    assert eventos[0]["datos_nuevos"]["codigo"] == codigo_random
+    res = resp_audit.json()
+    assert res["total"] >= 1
+    items = res["items"]
+    assert items[0]["accion"] == "CREATE"
+    assert items[0]["usuario_operador"] == "operador_test@coopya.com"
+    assert items[0]["codigo"] == codigo_random
 
     # 3. Aplicar Soft-Delete
     resp_delete = client.delete(f"/api/v1/lineas/{linea_id}", headers=headers)
@@ -52,9 +55,11 @@ def test_auditoria_en_creacion_y_soft_delete_linea():
     assert resp_get.status_code == 200
     assert resp_get.json()["activo"] is False
 
-    # 5. Verificar evento SOFT_DELETE en auditoría
-    resp_audit_after = client.get(f"/api/v1/auditoria?entidad_nombre=lineas_prestamo&entidad_id={linea_id}")
-    eventos_after = resp_audit_after.json()
-    assert len(eventos_after) >= 2
-    assert eventos_after[0]["accion"] == "SOFT_DELETE"
-    assert eventos_after[0]["datos_nuevos"]["activo"] is False
+    # 5. Verificar evento SOFT_DELETE en auditoría dedicada
+    resp_audit_after = client.get(
+        f"/api/v1/auditoria/configuracion-creditos?tipo_entidad=LINEA&entidad_id={linea_id}"
+    )
+    res_after = resp_audit_after.json()
+    assert res_after["total"] >= 2
+    items_after = res_after["items"]
+    assert items_after[0]["accion"] == "SOFT_DELETE"

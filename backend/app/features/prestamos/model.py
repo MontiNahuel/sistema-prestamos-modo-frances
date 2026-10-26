@@ -81,4 +81,8 @@ class Cuota(Base):
     fecha_pago = Column(DateTime, nullable=True)
     monto_pagado_centavos = Column(BigInteger, default=0, nullable=False)
 
+    # Identificadores de sincronización con el Monolito (CoopYa)
+    movimiento_coopya_id = Column(Integer, nullable=True)
+    desglose_coopya_id = Column(Integer, nullable=True)
+
     prestamo = relationship("Prestamo", back_populates="cuotas")

@@ -3,8 +3,8 @@ from fastapi import HTTPException, status
 from app.integrations.coopya_client import CoopYaClient, coopya_client
 from app.integrations.oracle_client import OracleClient, oracle_client
 from app.features.personas.schemas import PersonaCreateRequest, PersonaCreateResponse
-from app.features.auditoria.repository import HistorialCambiosRepository
-from app.features.auditoria.model import HistorialCambio
+from app.features.auditoria.repository import AuditoriaRepository
+from app.features.auditoria.model import AuditoriaSincronizacionPersona
 from app.features.socios.repository import SocioRepository
 from app.features.socios.model import Socio
 from app.features.prestamos.model import Prestamo
@@ -21,7 +21,7 @@ class PersonasService:
         self,
         client: CoopYaClient = coopya_client,
         oracle: OracleClient = oracle_client,
-        auditoria_repo: Optional[HistorialCambiosRepository] = None,
+        auditoria_repo: Optional[AuditoriaRepository] = None,
         socio_repo: Optional[SocioRepository] = None
     ):
         self.client = client
@@ -236,14 +236,14 @@ class PersonasService:
         if not self.auditoria_repo:
             return
         try:
-            self.auditoria_repo.create(
-                HistorialCambio(
-                    entidad_nombre="personas",
-                    entidad_id=entidad_id,
+            self.auditoria_repo.registrar_sincronizacion_persona(
+                AuditoriaSincronizacionPersona(
+                    documento=entidad_id,
+                    estado="EXITO" if accion == "CREATE" else accion,
                     accion=accion,
                     usuario_operador=usuario or "SISTEMA",
-                    datos_nuevos=datos_nuevos,
-                    motivo=motivo
+                    payload_json=datos_nuevos,
+                    detalle_error=motivo
                 )
             )
         except Exception:

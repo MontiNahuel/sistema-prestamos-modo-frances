@@ -9,22 +9,24 @@ import {
   FileTextIcon
 } from './Icons';
 
-export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'lineas' | 'motores' | 'reportes';
+export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
 
 interface NavbarProps {
   currentTab: TabKey;
   onTabChange: (tab: TabKey) => void;
   onLogout: () => void;
+  esAccesoCompleto?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogout, esAccesoCompleto }) => {
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
     { key: 'prestamos', label: 'Préstamos Otorgados', icon: <FileTextIcon size={17} /> },
     { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
-    { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> }
+    { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> },
+    ...(esAccesoCompleto ? [{ key: 'auditoria' as TabKey, label: 'Auditoría', icon: <FileTextIcon size={17} /> }] : [])
   ];
 
   return (
