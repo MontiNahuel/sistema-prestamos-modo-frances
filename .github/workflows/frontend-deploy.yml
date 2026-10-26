@@ -19,5 +19,7 @@ jobs:
       - name: Actualizar frontend en el servidor
         run: |
           cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
-          git pull origin main
+          git stash -u || true
+          git fetch origin main
+          git reset --hard origin/main
           echo "Frontend actualizado. Caddy sirve la nueva versión automáticamente."

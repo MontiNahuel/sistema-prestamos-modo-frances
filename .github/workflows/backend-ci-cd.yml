@@ -19,7 +19,9 @@ jobs:
       - name: Actualizar código y reiniciar Backend
         run: |
           cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
-          git pull origin main
+          git stash -u || true
+          git fetch origin main
+          git reset --hard origin/main
           docker compose build backend
           docker compose up -d --no-deps backend
           docker compose ps
