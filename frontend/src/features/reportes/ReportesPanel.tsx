@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { construirReporte, hoyArgentina, TIPOS_REPORTE } from './reportes';
-import type { Columna, FiltrosReporte, Reporte, Valor } from './reportes';
+import type { Columna, FiltrosReporte, Reporte, TablaReporte, Valor } from './reportes';
 import { cargarCartera } from './reportesApi';
 import { descargarReporte } from './exportarReporte';
 import { formatMoney, formatPct } from '../../utils/formatters';
@@ -13,6 +13,25 @@ function mostrar(valor: Valor | undefined, columna: Columna): string {
   if (columna.tipo === 'porcentaje') return formatPct(valor);
   if (columna.tipo === 'fecha') return String(valor).split('-').reverse().join('/');
   return String(valor);
+}
+
+function AnexoReporte({ tabla }: { tabla: TablaReporte }) {
+  const [pagina, setPagina] = useState(1);
+  const paginas = Math.max(1, Math.ceil(tabla.filas.length / 50));
+  return <div className="reportes-resultado">
+    <div className="reportes-barra"><div><h3>{tabla.titulo}</h3><p>{tabla.filas.length.toLocaleString('es-AR')} cuotas · El Excel incluye el cronograma completo.</p></div></div>
+    <div className="reportes-tabla" tabIndex={0} aria-label={tabla.titulo}>
+      <table><thead><tr>{tabla.columnas.map(c => <th key={c.key} scope="col">{c.titulo}</th>)}</tr></thead>
+        <tbody>{tabla.filas.slice((pagina - 1) * 50, pagina * 50).map(fila => <tr key={`${fila.prestamo}-${fila.cuota}`}>
+          {tabla.columnas.map(c => <td key={c.key} className={c.tipo === 'dinero' || c.tipo === 'numero' ? 'reportes-numerico' : ''}>{mostrar(fila[c.key], c)}</td>)}
+        </tr>)}{!tabla.filas.length && <tr><td colSpan={tabla.columnas.length} className="reportes-sin-datos">Sin cuotas para los filtros seleccionados.</td></tr>}</tbody>
+      </table>
+    </div>
+    <div className="reportes-paginacion"><span>Página {pagina} de {paginas} · 50 cuotas por página.</span><div>
+      <button type="button" disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}>Anterior</button>
+      <button type="button" disabled={pagina >= paginas} onClick={() => setPagina(p => p + 1)}>Siguiente</button>
+    </div></div>
+  </div>;
 }
 
 export function ReportesPanel() {
@@ -84,7 +103,7 @@ export function ReportesPanel() {
 
       <div className="reportes-tipos" aria-label="Tipo de reporte">
         {TIPOS_REPORTE.map((tipo, i) => (
-          <button key={tipo.id} type="button" aria-pressed={filtros.tipo === tipo.id} onClick={() => cambiar({ tipo: tipo.id, estadoCuota: '' })}>
+          <button key={tipo.id} type="button" aria-pressed={filtros.tipo === tipo.id} onClick={() => cambiar({ tipo: tipo.id, estadoCuota: '', plazo: '' })}>
             <span className="reportes-numero">0{i + 1}</span><strong>{tipo.titulo}</strong><span>{tipo.descripcion}</span>
           </button>
         ))}
@@ -107,8 +126,12 @@ export function ReportesPanel() {
         {(filtros.tipo === 'caida' || filtros.tipo === 'cobranzas') && <label>Estado de la cuota<select value={filtros.estadoCuota} onChange={e => cambiar({ estadoCuota: e.target.value })}>
           <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="PAGADA">Pagada</option><option value="VENCIDA">Vencida</option>
         </select></label>}
+        {filtros.tipo === 'condiciones' && <label>Plazo (meses)<input type="number" min="1" max="120" step="1" list="reportes-plazos" placeholder="Todos los plazos" value={filtros.plazo ?? ''} onChange={e => cambiar({ plazo: e.target.value })} />
+          <datalist id="reportes-plazos"><option value="6" /><option value="12" /></datalist>
+        </label>}
         <button className="reportes-primario" type="submit" disabled={cargando}>{cargando ? 'Consultando…' : 'Consultar reporte'}</button>
       </form>
+      {filtros.tipo === 'condiciones' && <p className="reportes-ayuda">El período corresponde al otorgamiento. Consultá capital, tasas y totales por préstamo; debajo encontrarás el desglose completo de sus cuotas.</p>}
 
       {error && <div className="reportes-error" role="alert">{error}</div>}
       {cargando && <div className="reportes-vacio" role="status">Consultando la cartera completa… {progreso} préstamos recuperados.</div>}
@@ -136,6 +159,7 @@ export function ReportesPanel() {
             <button type="button" disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}>Anterior</button><button type="button" disabled={pagina >= paginas} onClick={() => setPagina(p => p + 1)}>Siguiente</button>
           </div></div>
         </div>
+        {reporte.anexos?.map(tabla => <AnexoReporte key={`${resultado.generado}-${tabla.titulo}`} tabla={tabla} />)}
         <aside className="reportes-notas"><h4>Criterios y disponibilidad de datos</h4><ul>{reporte.notas.map(nota => <li key={nota}>{nota}</li>)}</ul></aside>
       </>}
     </section>

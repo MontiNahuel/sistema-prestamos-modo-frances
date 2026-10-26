@@ -17,10 +17,10 @@ La referencia mencionada por el usuario es «definición del sistema nuevo (brev
 - Copia activa del proyecto: `C:\Users\lparlavecchio\Documents\proyectos\sistema-prestamos-modo-frances`.
 - Carpeta inicial del chat: `C:\Users\lparlavecchio\Documents\ChatGPT\SISTEMA CANAL PROPIO`. No confundirla con la copia activa.
 - Frontend de desarrollo configurado para `http://localhost:5173`.
-- Backend indicado por el usuario: `http://10.16.2.19:8001`.
-- Documentación de API: `http://10.16.2.19:8001/docs`.
-- OpenAPI consultado: `http://10.16.2.19:8001/api/v1/openapi.json`.
-- Configuración solicitada en `frontend/.env`: `VITE_BACKEND_URL=http://10.16.2.19:8001`.
+- Backend indicado originalmente por el usuario: `http://10.16.2.19:8001`.
+- Dirección actualizada el 26/10/2026 a `http://10.16.2.18:8001`; documentación: `http://10.16.2.18:8001/docs`.
+- OpenAPI consultado anteriormente: `http://10.16.2.19:8001/api/v1/openapi.json`.
+- Configuración actual en `frontend/.env`: `VITE_BACKEND_URL=http://10.16.2.18:8001`.
 - El backend local tuvo impedimentos por ODBC17/LocalDB; se trabajó contra el backend remoto.
 
 Estas direcciones describen el entorno utilizado, no garantizan que los servicios estén levantados al leer este archivo. Hay cambios locales que deben preservarse; no se informó un push ni despliegue remoto de esos cambios.

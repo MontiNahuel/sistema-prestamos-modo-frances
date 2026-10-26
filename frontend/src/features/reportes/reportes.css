@@ -3,7 +3,9 @@
 .reportes p { color: #64748b; font-size: .88rem; line-height: 1.5; margin: .4rem 0 0; }
 .reportes-encabezado { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 .reportes-etiqueta { color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 20px; padding: .4rem .8rem; white-space: nowrap; font-size: .8rem; }
-.reportes-tipos { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.reportes-tipos { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.reportes-resultado + .reportes-resultado { margin-top: 1.25rem; }
+.reportes .reportes-ayuda { margin: 0 0 1.25rem; }
 .reportes-tipos button { text-align: left; background: white; border: 1px solid #e2e8f0; padding: 1.1rem; border-radius: 12px; display: flex; flex-direction: column; gap: .55rem; color: #64748b; cursor: pointer; line-height: 1.4; }
 .reportes-tipos button strong { color: #0f172a; font-size: .98rem; }
 .reportes-tipos button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 0 1px #2563eb; }

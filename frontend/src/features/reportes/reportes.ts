@@ -1,6 +1,6 @@
 import type { CuotaPrestamo, Prestamo } from '../../types/prestamo';
 
-export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas';
+export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones';
 export type Valor = string | number | null;
 export interface Columna { key: string; titulo: string; tipo?: 'dinero' | 'fecha' | 'porcentaje' | 'numero' }
 export interface FiltrosReporte {
@@ -10,7 +10,9 @@ export interface FiltrosReporte {
   buscar: string;
   estadoPrestamo: string;
   estadoCuota: string;
+  plazo?: string;
 }
+export interface TablaReporte { titulo: string; columnas: Columna[]; filas: Record<string, Valor>[] }
 export interface Reporte {
   titulo: string;
   columnas: Columna[];
@@ -18,6 +20,7 @@ export interface Reporte {
   resumen: { titulo: string; valor: number; dinero?: boolean }[];
   notas: string[];
   advertencias: string[];
+  anexos?: TablaReporte[];
 }
 
 export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: string }[] = [
@@ -25,6 +28,7 @@ export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: stri
   { id: 'ultimo-pago', titulo: 'Fecha del último pago', descripcion: 'Última cobranza de cada préstamo y pendientes actuales.' },
   { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Créditos concedidos durante el período.' },
   { id: 'cobranzas', titulo: 'Cobranzas aplicadas', descripcion: 'Pagos registrados y su imputación a las cuotas.' },
+  { id: 'condiciones', titulo: 'Condiciones del préstamo', descripcion: 'Capital, tasas, cuotas, intereses, IVA y costo financiero.' },
 ];
 
 const identificacion: Columna[] = [
@@ -73,6 +77,7 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
   const advertencias: string[] = [];
   let columnas: Columna[];
   let resumen: Reporte['resumen'];
+  let anexos: TablaReporte[] | undefined;
   const notas: string[] = ['Importes en pesos argentinos (ARS). Estados y saldos pendientes corresponden a la fecha de consulta; no son un cierre histórico.'];
   const suma = (key: string) => filas.reduce((total, r) => total + (typeof r[key] === 'number' ? r[key] as number : 0), 0);
 
@@ -119,6 +124,41 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     }
     resumen = [{ titulo: 'Préstamos otorgados', valor: filas.length }, { titulo: 'Capital otorgado', valor: suma('capital'), dinero: true }, { titulo: 'Total a devolver', valor: suma('total'), dinero: true }];
     notas.push('Se muestran primera y última cuota porque el IVA puede variar mes a mes. Los gastos administrativos efectivamente cobrados no se exponen en la API: se informan como No disponible, no como cero.');
+  } else if (f.tipo === 'condiciones') {
+    columnas = [fecha('otorgamiento', 'Otorgamiento'), ...identificacion,
+      dinero('capital', 'Capital solicitado'), { key: 'tasa', titulo: 'Tasa anual registrada', tipo: 'porcentaje' },
+      { key: 'tna', titulo: 'TNA', tipo: 'porcentaje' }, { key: 'tem', titulo: 'Tasa mensual', tipo: 'porcentaje' },
+      numero('plazo', 'Plazo (meses)'), dinero('primeraCuota', 'Primera cuota mensual'), dinero('ultimaCuota', 'Última cuota mensual'),
+      dinero('intereses', 'Total intereses'), { key: 'alicuota', titulo: 'Alícuota IVA', tipo: 'porcentaje' }, dinero('iva', 'Total IVA sobre intereses'),
+      dinero('gastos', 'Gastos administrativos'), dinero('total', 'Total a devolver registrado'),
+      { key: 'cft', titulo: 'CFT', tipo: 'porcentaje' }, { key: 'estado', titulo: 'Estado préstamo' }];
+    const cronograma: TablaReporte = { titulo: 'Desglose de cuotas', columnas: [...identificacion, numero('cuota', 'Cuota'), fecha('vencimiento', 'Vencimiento'),
+      dinero('saldoInicial', 'Saldo inicial'), dinero('capital', 'Capital'), dinero('interes', 'Intereses'), dinero('iva', 'IVA sobre intereses'),
+      dinero('cuotaPura', 'Cuota sin IVA'), dinero('importe', 'Cuota total'), dinero('saldoFinal', 'Saldo final')], filas: [] };
+    for (const p of cartera.filter(p => enPeriodo(p.fecha_alta) && (!f.plazo || p.plazo_meses === Number(f.plazo)))) {
+      const cuotas = [...p.cuotas ?? []].sort((a, b) => a.numero_cuota - b.numero_cuota);
+      const convencion = p.linea_snapshot?.reglas_motor_json?.convencion_tasa;
+      const tem = Number(p.tem_pactada);
+      // La tasa anual de un motor TEA no es una TNA; su equivalente usa la tasa mensual pactada.
+      const tna = convencion === 'TEA_COMPUESTA' ? (Number.isFinite(tem) ? tem * 12 : null) : Number(p.tna_pactada);
+      filas.push({ ...identidad(p), otorgamiento: fechaArgentina(p.fecha_alta), capital: p.monto_solicitado_centavos,
+        tasa: Number(p.tna_pactada), tna, tem: Number.isFinite(tem) ? tem : null, plazo: p.plazo_meses,
+        primeraCuota: cuotas[0]?.cuota_total_centavos ?? null, ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null,
+        intereses: p.total_interes_centavos, alicuota: Number(p.alicuota_iva), iva: p.total_iva_centavos,
+        gastos: null, total: p.total_a_pagar_centavos, cft: null, estado: p.estado });
+      for (const c of cuotas) cronograma.filas.push({ ...identidad(p), cuota: c.numero_cuota, vencimiento: c.fecha_vencimiento,
+        saldoInicial: c.saldo_inicial_centavos, capital: c.capital_centavos, interes: c.interes_centavos, iva: c.iva_interes_centavos,
+        cuotaPura: c.cuota_pura_centavos, importe: c.cuota_total_centavos, saldoFinal: c.saldo_final_centavos });
+    }
+    anexos = [cronograma];
+    resumen = [{ titulo: 'Préstamos consultados', valor: filas.length }, { titulo: 'Capital solicitado', valor: suma('capital'), dinero: true },
+      { titulo: 'Total intereses', valor: suma('intereses'), dinero: true }, { titulo: 'Total IVA', valor: suma('iva'), dinero: true },
+      { titulo: 'Total a devolver registrado', valor: suma('total'), dinero: true }];
+    if (filas.length) advertencias.push('Gastos administrativos y CFT: no disponibles. El sistema todavía no registra los cargos y el cálculo necesarios para informar el costo financiero total.');
+    notas.push('El período selecciona la fecha de otorgamiento. El desglose incluye todas las cuotas de los préstamos seleccionados, aun cuando venzan fuera del período.');
+    notas.push('Se muestran las condiciones guardadas al otorgar el préstamo. Primera y última cuota incluyen IVA; el detalle permite ver el importe de cada mes y el ajuste de la última cuota.');
+    notas.push('La tasa anual registrada es la aplicada por el motor. Para motores TEA identificados en el préstamo, la TNA equivalente es la tasa mensual pactada multiplicada por 12; en los demás casos se informa el campo TNA registrado por el sistema.');
+    notas.push('Total a devolver registrado: importe contractual guardado en el sistema. No acredita la inclusión de gastos administrativos. CFT no disponible no equivale a cero y no se reemplaza por la tasa de interés.');
   } else {
     columnas = [fecha('cobranza', 'Fecha cobranza'), ...identificacion, numero('cuota', 'Cuota imputada'), dinero('importe', 'Importe cobrado'), dinero('capital', 'Aplicado a capital'), dinero('interes', 'Aplicado a intereses'), dinero('iva', 'Aplicado a IVA'), dinero('otros', 'Otros conceptos'), { key: 'medio', titulo: 'Medio de pago' }, dinero('saldo', 'Capital pendiente tras pago'), { key: 'estado', titulo: 'Estado cuota actual' }, { key: 'tipoPago', titulo: 'Tipo de pago' }];
     for (const p of cartera) {
@@ -146,5 +186,5 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     notas.push('El saldo tras pago se reconstruye con las cuotas pagadas solo si concilia con el capital pendiente actual. Las cuotas con igual fecha y hora comparten el saldo al finalizar ese registro. Cuota anticipada indica pago anterior al vencimiento, no una precancelación contractual.');
     if (filas.some(r => r.importe === null)) notas.push('Hay acumulados parciales: no se suman como cobranzas individuales. Los totales verificables no incluyen esos registros.');
   }
-  return { titulo: TIPOS_REPORTE.find(t => t.id === f.tipo)!.titulo, columnas, filas, resumen, notas: [...advertencias, ...notas], advertencias };
+  return { titulo: TIPOS_REPORTE.find(t => t.id === f.tipo)!.titulo, columnas, filas, resumen, notas: [...advertencias, ...notas], advertencias, anexos };
 }

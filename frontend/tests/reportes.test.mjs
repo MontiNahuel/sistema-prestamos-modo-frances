@@ -110,6 +110,44 @@ test('Excel real: roundtrip preserva números, centavos, fechas, documentos y te
   assert.equal(hoja.views[0].ySplit, 1);
 });
 
+test('condiciones: filtra otorgamientos y plazo, conserva cronograma completo y distingue TEA de TNA', () => {
+  const p = prestamo({ plazo_meses: 6, tna_pactada: '0.795856326', tem_pactada: '0.05', alicuota_iva: '0.21', total_interes_centavos: 2000, total_iva_centavos: 420,
+    linea_snapshot: { reglas_motor_json: { convencion_tasa: 'TEA_COMPUESTA' } },
+    cuotas: [cuota(2, { fecha_vencimiento: '2027-01-10' }), cuota(1)] });
+  const r = generar('condiciones', [p, prestamo({ id: 'otro-plazo', plazo_meses: 12 }), prestamo({ id: 'fuera', fecha_alta: '2026-09-01', plazo_meses: 6 })], { plazo: '6' });
+  assert.equal(r.filas.length, 1);
+  assert.ok(Math.abs(r.filas[0].tna - .6) < 1e-12);
+  assert.equal(r.filas[0].tasa, .795856326);
+  assert.equal(r.filas[0].intereses, 2000);
+  assert.equal(r.filas[0].iva, 420);
+  assert.equal(r.filas[0].gastos, null);
+  assert.equal(r.filas[0].cft, null);
+  assert.equal(r.resumen[1].valor, 20000);
+  assert.deepEqual(r.anexos[0].filas.map(f => f.cuota), [1, 2]);
+  assert.equal(r.anexos[0].filas[1].vencimiento, '2027-01-10');
+  assert.match(r.advertencias[0], /CFT/);
+  assert.equal(generar('condiciones', [p], { plazo: '12' }).filas.length, 0);
+});
+
+test('condiciones: Excel incluye resumen, condiciones y desglose, con importes y tasas numéricos', async () => {
+  const p = prestamo({ tem_pactada: '0.05', alicuota_iva: '.21', total_interes_centavos: 2000, total_iva_centavos: 420 });
+  const reporte = generar('condiciones', [p]);
+  const libro = await crearLibroReporte(reporte, filtros('condiciones'), '2026-10-26T12:00:00Z');
+  const copia = new ExcelJS.Workbook();
+  await copia.xlsx.load(await libro.xlsx.writeBuffer());
+  assert.deepEqual(copia.worksheets.map(h => h.name), ['Resumen', 'Detalle', 'Desglose de cuotas']);
+  const valor = (hoja, titulo) => {
+    const columnas = hoja.getRow(1).values;
+    return hoja.getRow(2).getCell(columnas.indexOf(titulo)).value;
+  };
+  assert.equal(valor(copia.getWorksheet('Detalle'), 'Capital solicitado'), 200);
+  assert.equal(valor(copia.getWorksheet('Detalle'), 'TNA'), .6);
+  assert.equal(valor(copia.getWorksheet('Detalle'), 'CFT'), 'No disponible');
+  assert.equal(valor(copia.getWorksheet('Desglose de cuotas'), 'Intereses'), 10);
+  assert.equal(valor(copia.getWorksheet('Desglose de cuotas'), 'IVA sobre intereses'), 2.1);
+  assert.equal(copia.getWorksheet('Desglose de cuotas').rowCount, 3);
+});
+
 test('API: carga más de 500 préstamos sin truncar y rechaza páginas fallidas', async t => {
   globalThis.localStorage = { getItem: () => null };
   const lista = Array.from({ length: 501 }, (_, i) => prestamo({ id: `p-${i}` }));
