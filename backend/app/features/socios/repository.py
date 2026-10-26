@@ -31,7 +31,7 @@ class SocioRepository:
         return self.db.query(TipoBanco).filter(TipoBanco.nombre.ilike(f"%{nombre}%")).first()
 
     def list_bancos(self) -> List[TipoBanco]:
-        return self.db.query(TipoBanco).filter(TipoBanco.activo.is_(True)).order_by(TipoBanco.nombre).all()
+        return self.db.query(TipoBanco).filter(TipoBanco.activo == True).order_by(TipoBanco.nombre).all()
 
     def add_medio_de_pago(
         self,

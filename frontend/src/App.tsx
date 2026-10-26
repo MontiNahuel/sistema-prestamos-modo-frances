@@ -4,6 +4,7 @@ import { LoginForm } from './components/auth/LoginForm';
 import { PersonasBuscador } from './components/personas/PersonasBuscador';
 import { PersonasTabla } from './components/personas/PersonasTabla';
 import { PersonaFicha } from './components/personas/PersonaFicha';
+import { PersonaCrearModal } from './components/personas/PersonaCrearModal';
 import { SimuladorForm } from './components/simulador/SimuladorForm';
 import { SimuladorTarjetas } from './components/simulador/SimuladorTarjetas';
 import { CronogramaTabla } from './components/simulador/CronogramaTabla';
@@ -33,6 +34,7 @@ export default function App() {
   const [ccResumen, setCcResumen] = useState<CuentaCorrienteResumen | null>(null);
   const [cargandoCc, setCargandoCc] = useState<boolean>(false);
   const [busqError, setBusqError] = useState<string | null>(null);
+  const [modalCrearPersonaAbierto, setModalCrearPersonaAbierto] = useState(false);
 
   // Estado de Simulación
   const [simulando, setSimulando] = useState<boolean>(false);
@@ -182,13 +184,35 @@ export default function App() {
         {/* Pestaña: Buscar Personas */}
         {currentTab === 'personas' && (
           <div>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                Gestión y Búsqueda de Personas
-              </h2>
-              <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-                Consulta de socios, verificación de morosidad y cuentas bancarias en tiempo real desde CoopYa.
-              </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                  Gestión y Búsqueda de Personas
+                </h2>
+                <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+                  Consulta de socios, verificación de morosidad y cuentas bancarias en tiempo real desde CoopYa.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalCrearPersonaAbierto(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.65rem 1.25rem',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
+                }}
+              >
+                <span>+ Nueva Persona</span>
+              </button>
             </div>
 
             <PersonasBuscador onBuscar={handleBuscar} buscando={buscando} />
@@ -216,6 +240,14 @@ export default function App() {
                 />
               )}
             </div>
+
+            <PersonaCrearModal
+              isOpen={modalCrearPersonaAbierto}
+              onClose={() => setModalCrearPersonaAbierto(false)}
+              onPersonaCreada={(res) => {
+                handleBuscar({ documento: res.documento });
+              }}
+            />
           </div>
         )}
 

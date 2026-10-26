@@ -6,6 +6,7 @@ from app.integrations.coopya_client import coopya_client
 from app.integrations.oracle_client import oracle_client
 from app.features.auditoria.repository import HistorialCambiosRepository
 from app.features.socios.repository import SocioRepository
+from app.features.socios.schemas import TipoBancoResponse
 from app.features.personas.schemas import (
     PersonaBusquedaRequest,
     PersonaCreateRequest,
@@ -87,3 +88,14 @@ async def crear_persona(
         token=auth_token,
         usuario_operador=x_usuario or "OPERADOR"
     )
+
+
+@router.get(
+    "/bancos",
+    response_model=List[TipoBancoResponse],
+    summary="Listar catálogo oficial de bancos"
+)
+def listar_bancos(db: Session = Depends(get_db)):
+    """Retorna los bancos oficiales disponibles para asociar al CBU."""
+    repo = SocioRepository(db)
+    return repo.list_bancos()

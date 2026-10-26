@@ -95,3 +95,41 @@ export interface PersonaBusquedaParams {
   documento?: string;
   idPersona?: number | null;
 }
+
+
+export interface Banco {
+  id: number;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+}
+
+export interface PersonaCreatePayload {
+  documento: string;
+  nombre: string;
+  apellido: string;
+  cuil?: string;
+  email?: string;
+  telefono?: string;
+  domicilio?: string;
+  cbu?: string;
+  alias_cbu?: string;
+  banco_id?: number | null;
+  banco_nombre?: string;
+}
+
+export interface PersonaCreateResponse {
+  success: boolean;
+  documento: string;
+  nombre_completo: string;
+  oracle_id?: string | number | null;
+  coopya_id?: string | number | null;
+  cbu?: string | null;
+  alias_cbu?: string | null;
+  banco_id?: number | null;
+  banco_nombre?: string | null;
+  medio_de_pago_id?: number | null;
+  oracle_ok: boolean;
+  coopya_ok: boolean;
+  mensaje: string;
+}
