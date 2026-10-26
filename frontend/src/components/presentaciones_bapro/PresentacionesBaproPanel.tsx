@@ -154,7 +154,6 @@ export const PresentacionesBaproPanel: React.FC = () => {
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Filtros de cuotas, numeración y layout oficial de 163 caracteres para Banco Provincia.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={() => setModalEmpresas(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>⚙ Empresas Originantes</button>
           <button onClick={() => setModalRespuesta(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>📥 Cargar Rendición</button>
         </div>
       </div>

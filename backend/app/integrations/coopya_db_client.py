@@ -218,5 +218,29 @@ class CoopYaDbClient:
                 logger.error(f"Fallo al realizar soft-delete de cuotas en CoopYa: {e}")
                 raise RuntimeError(f"Error en soft-delete de cuotas en CoopYa: {e}")
 
+    def obtener_empresas(self) -> List[Dict[str, Any]]:
+        """Consulta la tabla Empresas en CoopYa mediante el SP Select_Empresas."""
+        if not self.enabled:
+            return []
+        try:
+            with self._connection() as conn:
+                if not conn:
+                    return []
+                cursor = conn.cursor()
+                cursor.execute("EXEC Select_Empresas")
+                rows = cursor.fetchall()
+                return [
+                    {
+                        "id": r[0],
+                        "empresa": (r[1] or "").strip(),
+                        "cuit": (r[2] or "").strip(),
+                        "activo": bool(r[3]),
+                    }
+                    for r in rows
+                ]
+        except Exception as e:
+            logger.warning(f"No se pudieron consultar empresas desde CoopYa: {e}")
+            return []
+
 
 coopya_db_client = CoopYaDbClient()
