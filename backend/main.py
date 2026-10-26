@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from app.core.config import settings
-from app.core.database import engine, Base, SessionLocal
+from app.core.database import engine, Base, SessionLocal, init_db
 from app.api.v1.router import router as api_v1_router
 # Importar modelos para que Base.metadata los reconozca
 import app.features.socios.model
@@ -16,8 +16,8 @@ from app.services.seed_service import seed_motores_y_lineas
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Inicialización de tablas y semillas al arrancar
-    Base.metadata.create_all(bind=engine)
+    # Inicialización de tablas y semillas al arrancar con espera resiliente
+    init_db(Base, engine)
     db = SessionLocal()
     try:
         seed_motores_y_lineas(db)
