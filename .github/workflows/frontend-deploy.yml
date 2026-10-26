@@ -12,7 +12,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Test Frontend (React Vite)
+    name: Build Frontend en la Nube (Node.js 20)
     runs-on: ubuntu-latest
 
     steps:
@@ -41,11 +41,12 @@ jobs:
       - name: Compilar Frontend para producción (Vite -> dist)
         working-directory: frontend
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || vars.VITE_API_URL || '' }}
-          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL || vars.VITE_BACKEND_URL || '' }}
+          # Caddy actúa como reverse proxy en el puerto 8088 (/api/* se redirige internamente a FastAPI)
+          VITE_API_URL: ""
+          VITE_BACKEND_URL: ""
         run: npm run build
 
-      - name: Subir artefacto de compilación (dist)
+      - name: Subir artefacto dist
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
@@ -53,34 +54,21 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Deploy Frontend a Caddy
+    name: Despliegue en Servidor Local (Self-Hosted Runner)
     needs: build-and-test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Descargar artefacto dist
+      - name: Descargar artefacto dist directo a la carpeta del proyecto
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: dist
-
-      - name: Desplegar archivos dist al servidor vía SSH / rsync
-        # Si tienes configurados los secretos de SSH en GitHub Actions (SERVER_HOST, SERVER_USER, SERVER_SSH_KEY)
-        # Este paso sincroniza la carpeta dist hacia la carpeta montada por Caddy
-        if: "${{ secrets.SERVER_HOST != '' }}"
-        uses: easingthemes/ssh-deploy@v5.0.3
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.SERVER_HOST }}
-          REMOTE_USER: ${{ secrets.SERVER_USER }}
-          TARGET: ${{ secrets.SERVER_PROJECT_PATH || '/opt/sistema-prestamos' }}/frontend/dist
-          SOURCE: "dist/"
-          EXCLUDE: "/.git/"
+          path: /home/serverportable/Documentos/Prestamos/frontend/dist
 
       - name: Resumen de Despliegue
         run: |
           echo "======================================================="
-          echo "Frontend compilado exitosamente en dist/"
-          echo "Caddy sirve automáticamente la nueva versión sin reiniciar"
+          echo "Frontend actualizado en /home/serverportable/Documentos/Prestamos/frontend/dist"
+          echo "Caddy sirve la nueva versión automáticamente sin reiniciar contenedores"
           echo "======================================================="
