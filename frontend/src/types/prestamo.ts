@@ -60,6 +60,8 @@ export interface PrestamoCreate {
   persona_id: number;
   persona_nombre: string;
   persona_doc?: string;
+  cbu?: string;
+  banco_id?: number;
   monto_solicitado_centavos: number;
   plazo_meses: number;
   tna_pactada: number;

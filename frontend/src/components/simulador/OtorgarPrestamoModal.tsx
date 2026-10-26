@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Persona } from '../../types/persona';
 import { PlanAmortizacion, SimulacionPayload } from '../../types/simulacion';
 import { Prestamo } from '../../types/prestamo';
@@ -28,6 +28,12 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
   const [otorgando, setOtorgando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const cbuPredeterminado = useMemo(() => {
+    if (!persona?.mediosDePago?.length) return '';
+    const p = persona.mediosDePago.find(m => m.predeterminado && m.valor);
+    return p ? p.valor : (persona.mediosDePago[0]?.valor || '');
+  }, [persona]);
+
   if (!isOpen || !payload || !plan) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,6 +52,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
         persona_id: persona.idPersona,
         persona_nombre: nombreSocio,
         persona_doc: persona.numeroDoc || undefined,
+        cbu: cbuPredeterminado || undefined,
         monto_solicitado_centavos: payload.monto_centavos,
         plazo_meses: payload.plazo_meses,
         tna_pactada: payload.tna,
@@ -74,9 +81,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
     >
       <form onSubmit={handleSubmit}>
         {error && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.875rem' }}>
-            {error}
-          </div>
+          <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.875rem' }}>{error}</div>
         )}
 
         {/* Ficha del Socio Destinatario */}
@@ -86,18 +91,35 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
           </div>
 
           {persona ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
-                  {persona.apellido} {persona.nombre}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
+                    {persona.apellido} {persona.nombre}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.15rem' }}>
+                    DNI: <strong>{persona.numeroDoc}</strong> • IdPersona: <strong>{persona.idPersona}</strong>
+                  </div>
                 </div>
-                <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.15rem' }}>
-                  DNI: <strong>{persona.numeroDoc}</strong> • IdPersona: <strong>{persona.idPersona}</strong>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#16a34a', fontSize: '0.8rem', fontWeight: 600, background: '#dcfce7', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
+                  <CheckCircleIcon size={14} /> Socio Verificado
                 </div>
               </div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#16a34a', fontSize: '0.8rem', fontWeight: 600, background: '#dcfce7', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
-                <CheckCircleIcon size={14} /> Socio Verificado
-              </div>
+
+              {cbuPredeterminado ? (
+                <div style={{ marginTop: '0.65rem', padding: '0.45rem 0.75rem', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe', fontSize: '0.8rem', color: '#1e40af', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>CBU para cobro: <strong>{cbuPredeterminado}</strong></span>
+                  {cbuPredeterminado.startsWith('014') && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                      BAPRO
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginTop: '0.65rem', padding: '0.45rem 0.75rem', background: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.8rem', color: '#92400e' }}>
+                  ⚠️ Sin CBU registrado en el padrón central.
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#b45309', background: '#fef3c7', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
@@ -170,15 +192,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
             onChange={(e) => setObservaciones(e.target.value)}
             rows={2}
             placeholder="Ej: Destino del préstamo, verificación telefónica efectuada, sucursal..."
-            style={{
-              width: '100%',
-              padding: '0.6rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              fontSize: '0.85rem',
-              boxSizing: 'border-box',
-              resize: 'vertical'
-            }}
+            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', resize: 'vertical' }}
           />
         </div>
 
@@ -187,15 +201,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: '0.6rem 1.1rem',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#475569',
-              cursor: 'pointer',
-              fontWeight: 500
-            }}
+            style={{ padding: '0.6rem 1.1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', cursor: 'pointer', fontWeight: 500 }}
           >
             Cancelar
           </button>

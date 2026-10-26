@@ -38,7 +38,12 @@ class PresentacionBaproRepository:
 
     def obtener_proximo_nro_archivo_local(self) -> int:
         max_nro = self.db.query(func.max(PresentacionBaproArchivo.nro_archivo)).scalar()
-        return (max_nro or 0) + 1
+        if not max_nro or max_nro < 15000:
+            return 15285
+        return max_nro + 1
+
+    def validar_nro_archivo_disponible(self, nro_archivo: int) -> bool:
+        return self.db.query(PresentacionBaproArchivo.id).filter_by(nro_archivo=nro_archivo).first() is None
 
     def listar_archivos(
         self,

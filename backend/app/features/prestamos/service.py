@@ -75,7 +75,13 @@ class PrestamoService:
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-        self.socio_service.sincronizar_socio_titular(persona_id=req.persona_id, nombre_completo=req.persona_nombre, documento=req.persona_doc)
+        self.socio_service.sincronizar_socio_titular(
+            persona_id=req.persona_id,
+            nombre_completo=req.persona_nombre,
+            documento=req.persona_doc,
+            cbu=req.cbu,
+            banco_id=req.banco_id
+        )
         prestamo_id = str(uuid.uuid4())
 
         # Sincronización en el Monolito Central CoopYa (PersonasRepositorio + CuentaCorrienteDesglose)

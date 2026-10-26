@@ -9,7 +9,9 @@ def sincronizar_socio_titular(
     db: Session,
     persona_id: int,
     nombre_completo: str,
-    documento: Optional[str] = None
+    documento: Optional[str] = None,
+    cbu: Optional[str] = None,
+    banco_id: Optional[int] = None
 ) -> Socio:
     """Función helper retrocompatible."""
     repo = SocioRepository(db)
@@ -17,5 +19,7 @@ def sincronizar_socio_titular(
     return service.sincronizar_socio_titular(
         persona_id=persona_id,
         nombre_completo=nombre_completo,
-        documento=documento
+        documento=documento,
+        cbu=cbu,
+        banco_id=banco_id
     )

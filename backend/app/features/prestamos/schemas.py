@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from decimal import Decimal
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.features.socios.schemas import SocioResponse
 
@@ -48,6 +48,8 @@ class PrestamoCreate(BaseModel):
     persona_id: int
     persona_nombre: str
     persona_doc: Optional[str] = None
+    cbu: Optional[str] = None
+    banco_id: Optional[int] = None
     monto_solicitado_centavos: int = Field(gt=0)
     plazo_meses: int = Field(gt=0, le=120)
     tna_pactada: Decimal = Field(gt=0)

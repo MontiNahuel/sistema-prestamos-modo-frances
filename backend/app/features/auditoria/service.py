@@ -13,8 +13,12 @@ from app.features.auditoria.repository import AuditoriaRepository
 class AuditoriaService:
     """Servicio de dominio para auditar y consultar eventos en tablas dedicadas."""
 
-    def __init__(self, repository: AuditoriaRepository):
-        self.repository = repository
+    def __init__(self, repository):
+        from sqlalchemy.orm import Session
+        if isinstance(repository, Session):
+            self.repository = AuditoriaRepository(repository)
+        else:
+            self.repository = repository
 
     # 1. Préstamos
     def auditar_prestamo(

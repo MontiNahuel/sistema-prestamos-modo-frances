@@ -15,6 +15,7 @@ import { LineasPanel } from './components/abm/lineas/LineasPanel';
 import { LineaModal } from './components/abm/lineas/LineaModal';
 import { ReportesPanel } from './features/reportes/ReportesPanel';
 import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
+import { PresentacionesBaproPanel } from './components/presentaciones_bapro/PresentacionesBaproPanel';
 import { getPerfilActual } from './services/api/authApi';
 import { UserProfile } from './types/auth';
 import { createLinea } from './services/api/lineasApi';
@@ -448,6 +449,7 @@ export default function App() {
 
         {/* Pestaña: Préstamos Otorgados */}
         {currentTab === 'prestamos' && <PrestamosPanel />}
+        {currentTab === 'bapro' && <PresentacionesBaproPanel />}
         {currentTab === 'reportes' && <ReportesPanel />}
 
         {/* Pestaña: ABM Líneas de Préstamo */}

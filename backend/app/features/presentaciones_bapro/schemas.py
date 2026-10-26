@@ -57,7 +57,7 @@ class PresentacionBaproAuditoriaBase(BaseModel):
     bloque1_cbu: str = Field(..., max_length=8)
     bloque2_cbu: str = Field(..., max_length=14)
     importe: str = Field(..., max_length=10, description="Centavos con ceros a la izquierda")
-    monto_pesos: Decimal
+    monto_pesos: float
     cuit_empresa: str = "30690754386"
     descripcion_transaccion: str = "SERVICI014"
     referencia_debito: str = Field(..., max_length=15)
@@ -95,7 +95,7 @@ class PresentacionBaproArchivoBase(BaseModel):
     ruta: str
     tipo: str = "BAPRO"
     total_registros: int = 0
-    total_monto: Decimal = Decimal("0.00")
+    total_monto: float = Decimal("0.00")
     usuario_id: Optional[int] = None
     estado: str = "GENERADO"
     nombre_archivo: str
@@ -126,3 +126,79 @@ class PresentacionBaproFiltroQuery(BaseModel):
     estado: Optional[str] = None
     skip: int = 0
     limit: int = 50
+
+
+# ---------------------------------------------------------
+# Schemas para Búsqueda y Generación de Cuotas BAPRO
+# ---------------------------------------------------------
+class BuscarCuotasBaproRequest(BaseModel):
+    fecha_desde: Optional[str] = Field(None, description="Fecha desde YYYY-MM-DD")
+    fecha_hasta: Optional[str] = Field(None, description="Fecha hasta YYYY-MM-DD")
+    fecha_corte: Optional[str] = Field(None, description="Fecha de corte YYYY-MM-DD (retrocompatible)")
+    dni_desde: Optional[int] = Field(None, ge=0, le=9, description="Último dígito DNI desde (0-9)")
+    dni_hasta: Optional[int] = Field(None, ge=0, le=9, description="Último dígito DNI hasta (0-9)")
+    incluir_presentadas: bool = Field(True, description="Incluir cuotas en estado PENDIENTE o PRESENTADA")
+    base_filtrada: bool = Field(False, description="Filtrar por selección masiva de socios")
+
+
+class CuotaPresentableItem(BaseModel):
+    cuota_id: str
+    prestamo_id: str
+    numero_cuota: int
+    socio_id: int
+    socio_nombre: str
+    socio_documento: Optional[str] = None
+    cbu: Optional[str] = None
+    monto_pesos: float
+    monto_centavos: int
+    fecha_vencimiento: Optional[str] = None
+    estado: str
+    presentable: bool
+    motivo_exclusion: Optional[str] = None
+
+
+class BuscarCuotasBaproResponse(BaseModel):
+    presentables: List[CuotaPresentableItem]
+    excluidas: List[CuotaPresentableItem]
+    total_presentables: int
+    total_monto_pesos: float
+
+
+class GenerarPresentacionBaproRequest(BaseModel):
+    cuota_ids: List[str] = Field(..., min_length=1, description="Lista de UUIDs de cuotas seleccionadas")
+    fecha_impacto: Optional[str] = Field(None, description="Fecha de impacto DDMMAAAA o YYYY-MM-DD")
+    nro_lista: Optional[int] = Field(None, description="Número de lista / archivo asignado")
+    empresa_originante_id: Optional[int] = None
+    aplicar_desglose: bool = False
+    monto_minimo_desglose_pesos: Decimal = Decimal("50000.00")
+    numero_operacion_inicial: int = 1
+    nombre_archivo: Optional[str] = None
+    id_corrida: Optional[str] = None
+
+
+class GenerarPresentacionBaproResponse(BaseModel):
+    nro_archivo: int
+    nombre_archivo: str
+    total_registros: int
+    total_monto: float
+    ruta: str
+    fecha_generacion: datetime
+
+
+class ProcesarRespuestaBaproResponse(BaseModel):
+    nro_archivo: int
+    total_procesados: int
+    aprobados: int
+    rechazados: int
+    no_encontrados: int
+
+
+class ProximoNumeroListaResponse(BaseModel):
+    nro_lista_propuesto: int
+    disponible: bool
+
+
+class ValidarNumeroListaResponse(BaseModel):
+    nro_lista: int
+    disponible: bool
+    mensaje: str

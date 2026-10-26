@@ -58,3 +58,7 @@ skills-lock.json
 
 # Proyecto temporal DB vieja
 proyecto-para-conectar-con-db-vieja/
+
+# Archivos generados de almacenamiento local
+backend/storage/
+storage/
