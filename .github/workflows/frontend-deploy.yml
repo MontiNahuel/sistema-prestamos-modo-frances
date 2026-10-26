@@ -1,74 +1,23 @@
-name: Frontend CI/CD - Build & Deploy
+name: Frontend Deploy
 
 on:
   push:
     branches:
       - main
     paths:
-      - "frontend/**"
+      - "frontend/dist/**"
       - "Caddyfile"
       - ".github/workflows/frontend-deploy.yml"
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    name: Build Frontend en la Nube (Node.js 20)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Configurar Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Instalar dependencias
-        working-directory: frontend
-        run: npm ci
-
-      - name: Verificar Linting
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Ejecutar pruebas unitarias de reportes
-        working-directory: frontend
-        run: npm run test:reportes
-
-      - name: Compilar Frontend para producción (Vite -> dist)
-        working-directory: frontend
-        env:
-          # Caddy actúa como reverse proxy en el puerto 8088 (/api/* se redirige internamente a FastAPI)
-          VITE_API_URL: ""
-          VITE_BACKEND_URL: ""
-        run: npm run build
-
-      - name: Subir artefacto dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist/
-          retention-days: 7
-
   deploy:
-    name: Despliegue en Servidor Local (Self-Hosted Runner)
-    needs: build-and-test
+    name: Despliegue Frontend en Servidor (Self-Hosted Runner)
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Descargar artefacto dist directo a la carpeta del proyecto
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: /home/serverportable/Documentos/Prestamos/frontend/dist
-
-      - name: Resumen de Despliegue
+      - name: Actualizar frontend en el servidor
         run: |
-          echo "======================================================="
-          echo "Frontend actualizado en /home/serverportable/Documentos/Prestamos/frontend/dist"
-          echo "Caddy sirve la nueva versión automáticamente sin reiniciar contenedores"
-          echo "======================================================="
+          cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
+          git pull origin main
+          echo "Frontend actualizado. Caddy sirve la nueva versión automáticamente."

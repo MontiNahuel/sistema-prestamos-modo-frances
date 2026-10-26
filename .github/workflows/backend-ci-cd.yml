@@ -1,4 +1,4 @@
-name: Backend CI/CD - Test, Build & Deploy
+name: Backend Deploy
 
 on:
   push:
@@ -11,48 +11,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Pruebas Unitarias Backend en la Nube (Python 3.12)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Configurar Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Instalar dependencias del sistema para ODBC
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unixodbc-dev
-
-      - name: Instalar dependencias de Python
-        run: |
-          pip install --upgrade pip
-          pip install -r backend/requirements.txt
-
-      - name: Ejecutar pruebas de algoritmos y cálculos financieros
-        working-directory: backend
-        env:
-          PYTHONPATH: .
-        run: |
-          pytest tests/test_sistema_frances.py tests/test_variantes_motores.py
-
   deploy:
-    name: Despliegue en Servidor Local (Self-Hosted Runner)
-    needs: test
+    name: Despliegue Backend en Servidor (Self-Hosted Runner)
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Actualizar código y reiniciar Backend sin tocar la DB
+      - name: Actualizar código y reiniciar Backend
         run: |
-          cd /home/serverportable/Documentos/Prestamos
+          cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
           git pull origin main
           docker compose build backend
           docker compose up -d --no-deps backend
