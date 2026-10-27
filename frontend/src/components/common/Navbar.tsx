@@ -9,7 +9,7 @@ import {
   FileTextIcon
 } from './Icons';
 
-export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'bapro' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
+export type TabKey = 'personas' | 'simulador' | 'prestamos' | 'bapro' | 'bna' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
 
 interface NavbarProps {
   currentTab: TabKey;
@@ -24,6 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onLogou
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
     { key: 'prestamos', label: 'Préstamos Otorgados', icon: <FileTextIcon size={17} /> },
     { key: 'bapro', label: 'Presentación BAPRO', icon: <BuildingIcon size={17} /> },
+    { key: 'bna', label: 'Presentación BNA', icon: <BuildingIcon size={17} /> },
     { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
     { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> },
