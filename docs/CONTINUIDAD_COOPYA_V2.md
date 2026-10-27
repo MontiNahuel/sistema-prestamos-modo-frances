@@ -11,11 +11,12 @@ La auditoría V1 queda en `REVISION_Y_PEDIDO_CORRECCIONES_INTEGRACION_COOPYA.md`
 ## Implementado localmente en esta continuación
 
 1. Parser BAPRO conserva identificador de cliente de posiciones 11–24 y normaliza ceros iniciales. La conciliación exige lote + referencia + cliente numérico. Conservamos controles adicionales de CBU/CUIT/importe por seguridad: divergencia explícita respecto del SP original.
-2. Parser Nación admite `BNA`/`NACION`, moneda `P`/`1`, sistemas `CA`/`CC`/`01`/`02`, líneas 128/172. Valida dos convenciones observadas de pie (aplicados o presentados) y expone cuál reconoció. No cambia el sistema de cuenta a otro valor ni infiere equivalencias.
+2. Se integró desde la actualización de `origin/main` el módulo de presentación Nación: genera y persiste cabecera/detalles locales con cuota asociada. La carga unificada concilia por concepto de débito de la presentación y verifica cuenta e importe, sin asignación manual.
+3. Parser Nación admite `BNA`/`NACION`, moneda `P`/`1`, sistemas `CA`/`CC`/`01`/`02`, líneas 128/172. Valida dos convenciones observadas de pie (aplicados o presentados) y expone cuál reconoció. No infiere equivalencias.
 3. Límite 10 MB / 100.000 registros. Conservamos rechazo explícito de líneas inválidas: no copiamos las omisiones silenciosas del parser C#.
-4. Eliminada asignación manual Nación del servicio y pantalla. Solo revisión hasta disponer de presentación persistida, persona/obligación y detalles inequívocos. No usa ya el catálogo remoto para adivinar cuotas por CBU.
+4. Eliminada asignación manual Nación del servicio y pantalla. La presentación Nación local provee la relación persona/cuota; lotes importados sin esa relación quedan para revisión.
 5. BAPRO bloquea toda confirmación si una fila queda en revisión/conflicto; no aplica un subconjunto silencioso. Mantiene protección transaccional compartida con otras cobranzas. Rechaza una segunda carga de la misma presentación; reversión incremental pendiente.
-6. Nueva configuración `RESPUESTAS_BANCARIAS_CONFIRMACION_ENABLED=False` por defecto, verificada en el servicio además de informar a la UI. Solo se activa en pruebas aisladas. Esto evita habilitar el prototipo financiero al publicar el código.
+6. Nueva configuración `RESPUESTAS_BANCARIAS_CONFIRMACION_ENABLED=False` por defecto, verificada en el servicio además de informar a la UI. Solo se activa en pruebas aisladas. La sincronización a CoopYa ocurre después del commit local, por lo que no es una transacción distribuida y un fallo remoto requiere reconciliación; hasta homologarla, mantener desactivado.
 7. `RespuestaBancaria.archivo_original`: conserva bytes en la misma transacción que encabezado, detalles y saldos. Migración aditiva `d27b10f6a501` después de `c19e62a4b230`; históricos pueden tener NULL. Descarga autenticada `GET /api/v1/respuestas-bancarias/{id}/archivo`, sin caché.
 8. `contrato.py`: conversión pura a campos TVP, sin llamadas SQL; exportación de cronograma independiente de presentaciones, importes en cadenas decimales, IDs de cuota/préstamo sin conversiones a INT. Lectura autenticada `GET /api/v1/respuestas-bancarias/contrato/prestamos/{prestamo_id}`. Es propuesta versionada, no sincronización central.
 9. Pruebas de formatos V2, atomicidad, bloqueo por configuración, ausencia de asignación manual, identidad de cliente, conservación del original y exportación contractual.
@@ -41,9 +42,9 @@ Se preservan cambios previos del usuario: migración visual Tailwind, unificaci�
 
 Auditar `backend/app/integrations/coopya_db_client.py` y los flujos ya existentes de otorgamiento/cobro manual (`PrestamoService.otorgar`/`pagar_cuota`). Hay llamadas previas a `impactar_cuotas_prestamo` y `registrar_cobro_cuota`; **la bandera nueva protege la carga de respuesta, no todas las escrituras históricas del sistema**. Resolver escritor único, equivalencias y transacciones antes de habilitar integración productiva. No insertar PRESTAMO_CUOTA en un CHECK que todavía lo prohíbe; no ignorar errores de sincronización como si el asiento se hubiera registrado.
 
-### P1 — Presentación Nación y desglose contractual
+### P1 — Desglose contractual y conciliación Nación
 
-Crear cabecera/detalles locales, generación o importación validada y vínculo previo a obligaciones. Clave de conciliación: presentación + sucursal + sistema + cuenta + importe, manteniendo texto y ceros. Persistir desglose inmutable de capital/interés/IVA por renglón en ambas presentaciones y soportar reintentos sin duplicar la obligación.
+La presentación Nación local ya guarda cabecera/detalles y UUID de cuota para lotes generados localmente. Validar importaciones históricas y bordes de concepto truncado/duplicado. Mantener clave de conciliación por presentación + concepto de débito vinculado + cuenta + importe, con campos texto y ceros. Falta persistir el desglose inmutable contractual de capital/interés/IVA por renglón en ambas presentaciones y soportar reintentos sin duplicar la obligación.
 
 El reparto proporcional acumulado actual de `prestamos/cobros.py` es una política local del prototipo, NO una regla demostrada por V2. Reemplazarlo por desglose contractual cuando ese snapshot exista; conciliar pagos históricos en una migración explícita, sin recalcular silenciosamente asientos anteriores.
 
@@ -63,9 +64,9 @@ Pruebas en SQL Server aislado con DDL y SP reales, incluyendo repetidos, contrad
 
 ## Verificación y Git
 
-Estado inicial de pruebas: 39 pruebas backend aisladas y 16 pruebas de reportes pasaron; frontend compiló. Se amplió la batería y se agregaron fixtures V2; resultado final se actualiza al terminar esta preparación.
+Tras el pull de `origin/main` hasta `edce3f6`: 54 pruebas backend aisladas pasan, 16 pruebas de reportes pasan, frontend compila y lint termina con avisos existentes de efectos React. El backend aislado informa que Oracle Client configurado tiene arquitectura incorrecta; no fue necesario para las pruebas porque la integración está apagada. El build frontend mantiene aviso de bundle ExcelJS grande.
 
-Se detectó un commit remoto nuevo `6a5c4f8` (empresas originantes consultadas en CoopYa y ocultación del botón ABM). Debe quedar conservado al integrar y pushear. No sobrescribir el remoto con force push.
+El pull incorporó los nuevos commits de presentaciones Nación, conciliación por presentación, sincronización de cobros y compatibilidad Linux. La rama de continuidad actual es `respuesta_astra`, basada en `origin/main`; queda pushear sus commits al remoto para que la otra IA continúe desde esa rama. No usar force push.
 
 Comandos reproducibles desde sus carpetas:
 

@@ -76,6 +76,7 @@ class Cuota(Base):
     cuota_pura_centavos = Column(BigInteger, nullable=False)
     cuota_total_centavos = Column(BigInteger, nullable=False)
     saldo_final_centavos = Column(BigInteger, nullable=False)
+    calculo_exacto = Column(JSON, nullable=True)  # Decimales Romi y conciliación de centavos
 
     estado = Column(String(20), default="PENDIENTE", nullable=False)  # PENDIENTE, PAGADA, VENCIDA
     fecha_pago = Column(DateTime, nullable=True)

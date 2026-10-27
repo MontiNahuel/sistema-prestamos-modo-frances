@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
 from app.domain.calculadoras.tasas import calcular_tasa_periodica
+from app.domain.calculadoras.romi import CuotaRomiExacta, TotalesRomiExactos, calcular_romi
 
 
 def round_cents(val: Decimal) -> int:
@@ -22,6 +23,7 @@ class CuotaItem(BaseModel):
     cuota_pura_centavos: int
     cuota_total_centavos: int
     saldo_final_centavos: int
+    calculo_exacto: Optional[CuotaRomiExacta] = None
 
 
 class PlanAmortizacion(BaseModel):
@@ -38,6 +40,7 @@ class PlanAmortizacion(BaseModel):
     total_iva_centavos: int
     total_a_pagar_centavos: int
     cronograma: List[CuotaItem]
+    calculo_exacto: Optional[TotalesRomiExactos] = None
 
     # Campos retrocompatibles para frontend existente
     @property
@@ -79,8 +82,18 @@ class CalculadoraFrances:
             raise ValueError("El plazo en meses debe ser mayor a cero.")
         if tasa_anual < Decimal("0"):
             raise ValueError("La tasa anual no puede ser negativa.")
+        if alicuota_iva < Decimal("0"):
+            raise ValueError("La alícuota de IVA no puede ser negativa.")
 
         cfg = config or MotorConfig()
+        es_romi = cfg.convencion_tasa == ConvencionTasa.TASA_ESTILO_ROMI
+        if es_romi:
+            # Romi define una cuota final plana por períodos mensuales, como Excel.
+            cfg = cfg.model_copy(update={
+                "base_dias": BaseDias.COMERCIAL_30_360,
+                "modalidad_iva": (ModalidadIva.EXENTO if cfg.modalidad_iva == ModalidadIva.EXENTO
+                                  else ModalidadIva.CUOTA_TOTAL_PLANA),
+            })
 
         if cfg.modalidad_iva == ModalidadIva.EXENTO:
             alicuota_iva_efectiva = Decimal("0.00")
@@ -96,6 +109,13 @@ class CalculadoraFrances:
             dias_periodo=30,
             base_dias=cfg.base_dias
         )
+
+        cuotas_exactas = None
+        totales_exactos = None
+        if es_romi:
+            cuotas_exactas, totales_exactos = calcular_romi(
+                monto_centavos, plazo_meses, tasa_mensual_base, alicuota_iva_efectiva
+            )
 
         # 2. Cálculo de cuota teórica según modalidad de IVA
         if tasa_mensual_base == Decimal("0"):
@@ -154,7 +174,29 @@ class CalculadoraFrances:
             es_primera = (k == 1)
 
             # Cálculo de Capital y Cuotas
-            if es_ultima and cfg.ajuste_residual == AjusteResidual.ULTIMA_CUOTA:
+            exacta = cuotas_exactas[k - 1] if cuotas_exactas is not None else None
+            if exacta is not None:
+                capital_excel = round_cents(exacta.capital_pesos * 100)
+                capital_cents = (saldo_inicial if es_ultima
+                                 else min(capital_excel, saldo_inicial))
+                interes_excel = round_cents(exacta.interes_pesos * 100)
+                interes_cents = interes_excel
+                iva_cents = round_cents(exacta.iva_interes_pesos * 100)
+                cuota_excel = round_cents(exacta.cuota_total_pesos * 100)
+                ajuste = cuota_excel - capital_cents - interes_cents - iva_cents
+                # La proyección en centavos concilia el asiento sin alterar el IVA
+                # ni realimentar el cronograma exacto. Nunca crea interés a tasa cero.
+                if tasa_mensual_base and interes_cents + ajuste >= 0:
+                    interes_cents += ajuste
+                cuota_pura = capital_cents + interes_cents
+                cuota_total = cuota_pura + iva_cents
+                saldo_final = saldo_inicial - capital_cents
+                exacta = exacta.model_copy(update={
+                    "ajuste_capital_centavos": capital_cents - capital_excel,
+                    "ajuste_interes_centavos": interes_cents - interes_excel,
+                    "ajuste_cuota_centavos": cuota_total - cuota_excel,
+                })
+            elif es_ultima and cfg.ajuste_residual == AjusteResidual.ULTIMA_CUOTA:
                 capital_cents = saldo_inicial
                 saldo_final = 0
                 cuota_pura = capital_cents + interes_cents
@@ -192,7 +234,8 @@ class CalculadoraFrances:
                     iva_interes_centavos=iva_cents,
                     cuota_pura_centavos=cuota_pura,
                     cuota_total_centavos=cuota_total,
-                    saldo_final_centavos=saldo_final
+                    saldo_final_centavos=saldo_final,
+                    calculo_exacto=exacta,
                 )
             )
 
@@ -211,7 +254,8 @@ class CalculadoraFrances:
             total_interes_centavos=total_interes_centavos,
             total_iva_centavos=total_iva_centavos,
             total_a_pagar_centavos=total_a_pagar_centavos,
-            cronograma=cronograma
+            cronograma=cronograma,
+            calculo_exacto=totales_exactos,
         )
 
     @classmethod

@@ -9,6 +9,17 @@ def seed_motores_y_lineas(db: Session):
     """Crea los motores y líneas iniciales del sistema si no existen."""
     motores_data = [
         {
+            "codigo": "TASA_ESTILO_ROMI",
+            "nombre": "tasa estilo-romi",
+            "descripcion": "PAGO/PAGOPRIN/PAGOINT con acarreo de decimales como Excel. TNA/12, cuota total plana e IVA incluido; conciliación de centavos separada.",
+            "convencion_tasa": ConvencionTasa.TASA_ESTILO_ROMI.value,
+            "base_dias": BaseDias.COMERCIAL_30_360.value,
+            "modalidad_iva": ModalidadIva.CUOTA_TOTAL_PLANA.value,
+            "ajuste_residual": AjusteResidual.ULTIMA_CUOTA.value,
+            "es_sistema": True,
+            "activo": True,
+        },
+        {
             "codigo": "FRANCES_CLASICO",
             "nombre": "Francés Tradicional (TNA Proporcional 30/360)",
             "descripcion": "Cuota pura fija, IVA sobre interés decreciente mes a mes. Estándar bancario habitual.",
