@@ -13,6 +13,7 @@ from app.features.prestamos.model import Prestamo, Cuota
 from app.features.prestamos.cobros import desglose_cobrado
 from app.features.personas.cuenta_corriente import construir_cuenta_corriente_local
 from app.features.presentaciones_bapro.model import PresentacionBaproArchivo, PresentacionBaproAuditoria
+from app.features.presentaciones_bna.model import PresentacionBnaArchivo, PresentacionBnaAuditoria
 from app.features.presentaciones_bapro.bapro_layout import BaproRegistroIndividual
 from app.features.respuestas_bancarias.parser import parsear
 from app.features.respuestas_bancarias.model import RespuestaBancaria, RespuestaBancariaDetalle
@@ -75,6 +76,20 @@ def bna(importes=(12420,), codigos=('0',), longitud=128):
     no = [m for m, c in zip(importes, codigos) if c == '9']
     pie = ('3' + str(sum(ok)).zfill(15) + str(len(ok)).zfill(6) + str(sum(no)).zfill(15) + str(len(no)).zfill(6)).ljust(longitud)
     return '\r\n'.join([cab, *detalles, pie]).encode()
+
+
+def bna_con_presentacion(db, importes=(12420,), codigos=('0',)):
+    a = PresentacionBnaArchivo(nro_archivo=28, ruta='test', nombre_archivo='test.txt')
+    db.add(a); db.flush()
+    for i, (m, cod) in enumerate(zip(importes, codigos), 1):
+        db.add(PresentacionBnaAuditoria(
+            presentacion_archivo_id=a.id, cuota_id='cuota-1', id_persona=1, nro_archivo=28,
+            numero_operacion=i, sucursal_cuenta_cliente='0085', sistema_cuenta='CA',
+            nro_cuenta_cliente='12345678901', importe=str(m).zfill(15), monto_pesos=Decimal(m)/100,
+            concepto_debito=f'28-{i}', nombre_archivo='test.txt'
+        ))
+    db.commit()
+    return bna(importes, codigos)
 
 
 def aplicar(service, banco, contenido, asignaciones=None):
@@ -410,3 +425,16 @@ def test_original_y_ledger_se_revierten_juntos(db, monkeypatch):
         aplicar(RespuestasService(db), 'BAPRO', data)
     assert db.query(RespuestaBancaria).count() == 0
     assert db.get(Cuota, 'cuota-1').monto_pagado_centavos == 0
+
+
+def test_bna_con_presentacion_vincula_e_imputa(db):
+    data = bna_con_presentacion(db)
+    service = RespuestasService(db)
+    vista = service.previsualizar('BNA', 28, data, FECHA)
+    assert vista['resumen']['cobrados'] == 1
+    assert vista['filas'][0]['estado'] == 'COBRAR'
+    assert vista['filas'][0]['persona'] == 'Persona de prueba'
+    assert vista['filas'][0]['cuota_id'] == 'cuota-1'
+    aplicar(service, 'BNA', data)
+    assert db.get(Cuota, 'cuota-1').estado == 'PAGADA'
+    assert db.query(PresentacionBnaArchivo).filter_by(nro_archivo=28).one().estado == 'RENDIDO'

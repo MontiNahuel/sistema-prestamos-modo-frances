@@ -51,8 +51,9 @@ class PresentacionBnaResponseService:
                 if detalle.cuota_id:
                     cuota = self.db.query(Cuota).filter_by(id=detalle.cuota_id).first()
                     if cuota:
-                        cuota.estado = "COBRADA"
-                        cuota.fecha_pago = datetime.utcnow().date()
+                        cuota.estado = "PAGADA"
+                        cuota.monto_pagado_centavos = cuota.cuota_total_centavos
+                        cuota.fecha_pago = datetime.utcnow()
             else:
                 rechazados += 1
                 if detalle.cuota_id:

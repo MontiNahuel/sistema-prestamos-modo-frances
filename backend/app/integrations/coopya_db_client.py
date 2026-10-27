@@ -12,15 +12,9 @@ logger = logging.getLogger("CoopYaDbClient")
 class CoopYaDbClient:
     """Cliente para sincronización transaccional con la base de datos de CoopYa (CoopYaBeta / CoopYaProd)."""
 
-    def __init__(
-        self,
-        server: Optional[str] = None,
-        database: Optional[str] = None,
-        user: Optional[str] = None,
-        domain: Optional[str] = None,
-        password: Optional[str] = None,
-        enabled: Optional[bool] = None
-    ):
+    def __init__(self, server: Optional[str] = None, database: Optional[str] = None,
+                 user: Optional[str] = None, domain: Optional[str] = None,
+                 password: Optional[str] = None, enabled: Optional[bool] = None):
         self.server = server or settings.COOPYA_DB_SERVER
         self.database = database or settings.COOPYA_DB_NAME
         self.user = user or settings.COOPYA_DB_USER
@@ -151,33 +145,48 @@ class CoopYaDbClient:
 
     def registrar_cobro_cuota(self, movimiento_id: int, monto_pesos: float) -> bool:
         """Marca una cuota como COBRADA en CoopYa actualizando PersonasRepositorio y CuentaCorrienteDesglose."""
-        if not self.enabled or not movimiento_id:
-            return False
+        return bool(self.sincronizar_cobros_bancarios([{"movimiento_id": movimiento_id, "aceptado": True, "es_total": True, "monto_cobrado_pesos": monto_pesos, "nota": ""}]))
 
+    def sincronizar_cobros_bancarios(self, operaciones: List[Dict[str, Any]]) -> int:
+        """Sincroniza en CoopYaBeta/CoopYaProd los resultados de la rendición bancaria (OK, parcial o rechazo)."""
+        if not self.enabled or not operaciones:
+            return 0
         with self._connection() as conn:
             if not conn:
-                return False
+                return 0
             cursor = conn.cursor()
+            actualizados = 0
             try:
-                cursor.execute("""
-                    UPDATE dbo.PersonasRepositorio
-                    SET Resultado = 'OK', FechaModif = GETDATE()
-                    WHERE Id = ?;
-                """, (movimiento_id,))
-
-                cursor.execute("""
-                    UPDATE dbo.CuentaCorrienteDesglose
-                    SET ImporteCobrado = ?
-                    WHERE IdMovimiento = ?;
-                """, (monto_pesos, movimiento_id))
-
+                for op in operaciones:
+                    mov_id = op.get("movimiento_id")
+                    if not mov_id:
+                        continue
+                    aceptado, es_total = op.get("aceptado", False), op.get("es_total", False)
+                    monto_pesos, nota = op.get("monto_cobrado_pesos", 0.0), op.get("nota", "")[:100]
+                    if aceptado:
+                        cursor.execute("""
+                            UPDATE dbo.PersonasRepositorio
+                            SET Resultado = ?, FechaModif = GETDATE(),
+                                Motivo = CASE WHEN LEN(ISNULL(Motivo, '')) + LEN(?) + 1 <= 500 THEN ISNULL(Motivo, '') + ' ' + ? ELSE ISNULL(Motivo, '') END
+                            WHERE Id = ?;
+                        """, ("OK" if es_total else None, nota, nota, mov_id))
+                        cursor.execute("UPDATE dbo.CuentaCorrienteDesglose SET ImporteCobrado = ? WHERE IdMovimiento = ?;", (monto_pesos, mov_id))
+                    else:
+                        res_rechazo = op.get("resultado_rechazo") or "RECHAZADO"
+                        cursor.execute("""
+                            UPDATE dbo.PersonasRepositorio
+                            SET Resultado = ?, FechaModif = GETDATE(),
+                                Motivo = CASE WHEN LEN(ISNULL(Motivo, '')) + LEN(?) + 1 <= 500 THEN ISNULL(Motivo, '') + ' ' + ? ELSE ISNULL(Motivo, '') END
+                            WHERE Id = ?;
+                        """, (res_rechazo, nota, nota, mov_id))
+                    actualizados += 1
                 conn.commit()
-                logger.info(f"Cuota (Movimiento #{movimiento_id}) cobrada exitosamente en {self.database}.")
-                return True
+                logger.info(f"Sincronizadas {actualizados} operaciones bancarias en {self.database}.")
+                return actualizados
             except Exception as e:
                 conn.rollback()
-                logger.error(f"Fallo al marcar cuota #{movimiento_id} como cobrada en CoopYa: {e}")
-                raise RuntimeError(f"Error registrando pago en CoopYa: {e}")
+                logger.error(f"Fallo al sincronizar operaciones bancarias en {self.database}: {e}")
+                raise RuntimeError(f"Error sincronizando cobros bancarios en CoopYa: {e}")
 
     def cancelar_cuotas_prestamo(self, movimiento_ids: List[int], motivo_cancelacion: str = "Préstamo cancelado") -> int:
         """
@@ -229,15 +238,7 @@ class CoopYaDbClient:
                 cursor = conn.cursor()
                 cursor.execute("EXEC Select_Empresas")
                 rows = cursor.fetchall()
-                return [
-                    {
-                        "id": r[0],
-                        "empresa": (r[1] or "").strip(),
-                        "cuit": (r[2] or "").strip(),
-                        "activo": bool(r[3]),
-                    }
-                    for r in rows
-                ]
+                return [{"id": r[0], "empresa": (r[1] or "").strip(), "cuit": (r[2] or "").strip(), "activo": bool(r[3])} for r in rows]
         except Exception as e:
             logger.warning(f"No se pudieron consultar empresas desde CoopYa: {e}")
             return []

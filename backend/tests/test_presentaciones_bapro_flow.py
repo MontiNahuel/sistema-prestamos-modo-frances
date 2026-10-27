@@ -192,6 +192,8 @@ def test_flujo_completo_presentacion_y_rendicion_bapro():
         assert cuota.estado == "PRESENTADA"
 
         # 6. Procesar Rendición Bancaria (Respuesta OK)
+        from app.core.config import settings
+        settings.RESPUESTAS_BANCARIAS_CONFIRMACION_ENABLED = True
         from app.features.respuestas_bancarias.service import RespuestasService
         linea_resp = b'72' + contenido_bytes[2:]
         respuestas = RespuestasService(db_session)
