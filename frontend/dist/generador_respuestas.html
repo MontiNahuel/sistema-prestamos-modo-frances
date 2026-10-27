@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador y Simulador de Respuestas Bancarias (BAPRO / BNA)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <!-- Top Navigation / Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-slate-900 leading-tight">Generador de Respuestas Bancarias</h1>
+          <p class="text-xs text-slate-500">Banco Provincia (BAPRO) y Banco Nación (BNA) &bull; Microservicio Francés</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+          Listo en Navegador
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Grid: Config & Upload on Left, Output on Right -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Columna Izquierda: Carga y Parámetros (5 cols) -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- Card: Carga de Archivo -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            1. Cargar Archivo de Presentación
+          </h2>
+
+          <div id="dropzone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition-all bg-slate-50/50 hover:bg-blue-50/30">
+            <input type="file" id="fileInput" accept=".txt,.TXT,text/plain" class="hidden" />
+            <div class="w-12 h-12 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-700">Arrastrá el archivo TXT aquí</p>
+            <p class="text-xs text-slate-500 mt-1">o hacé clic para seleccionar desde tu computadora</p>
+            <div id="fileInfo" class="hidden mt-3 pt-3 border-t border-slate-200 text-xs font-medium text-blue-700 text-left bg-blue-50 p-2.5 rounded-lg">
+              <span id="fileName" class="font-bold"></span>
+              <span id="fileSize" class="text-slate-500 block"></span>
+            </div>
+          </div>
+
+          <!-- Selector de Banco (Auto-detectado) -->
+          <div class="mt-4 pt-4 border-t border-slate-100">
+            <label class="block text-xs font-semibold text-slate-600 mb-2">Banco Detectado / Seleccionado:</label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold" id="bancoBaproLabel">
+                <input type="radio" name="bancoRadio" value="BAPRO" class="text-blue-600 focus:ring-blue-500" checked />
+                <span>Banco Provincia (BAPRO)</span>
+              </label>
+              <label class="cursor-pointer border rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold" id="bancoBnaLabel">
+                <input type="radio" name="bancoRadio" value="BNA" class="text-blue-600 focus:ring-blue-500" />
+                <span>Banco Nación (BNA)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card: Parámetros de Simulación / Variabilidad -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+            </svg>
+            2. Configurar Variabilidad y Códigos
+          </h2>
+
+          <!-- Presets Rápidos -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-2">Escenario Rápido:</label>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <button type="button" onclick="setPreset(100)" class="p-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 font-semibold hover:bg-emerald-100 text-left">
+                🟢 100% Cobrados (Todo OK)
+              </button>
+              <button type="button" onclick="setPreset(80)" class="p-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 text-left">
+                ⚖️ 80% OK / 20% Rechazos
+              </button>
+              <button type="button" onclick="setPreset('one_rejected')" class="p-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 font-semibold hover:bg-amber-100 text-left">
+                🎯 1 Solo Rechazo
+              </button>
+              <button type="button" onclick="setPreset(0)" class="p-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 font-semibold hover:bg-rose-100 text-left">
+                🔴 100% Rechazados
+              </button>
+            </div>
+          </div>
+
+          <!-- Slider de Tasa de Éxito -->
+          <div>
+            <div class="flex justify-between items-center mb-1.5">
+              <label for="successRate" class="text-xs font-semibold text-slate-700">Tasa de Aprobación:</label>
+              <span id="rateLabel" class="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">80% Cobrados</span>
+            </div>
+            <input type="range" id="successRate" min="0" max="100" value="80" step="5" class="w-full accent-blue-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+            <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+              <span>0% (Todo Rechazo)</span>
+              <span>50%</span>
+              <span>100% (Todo Cobrado)</span>
+            </div>
+          </div>
+
+          <!-- Fecha de Proceso Bancario -->
+          <div>
+            <label for="fechaProceso" class="block text-xs font-semibold text-slate-600 mb-1">Fecha de Rendición / Cobro Bancario:</label>
+            <input type="date" id="fechaProceso" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          </div>
+
+          <!-- Botón Generar -->
+          <button type="button" id="btnGenerar" disabled onclick="generarRespuesta()" class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Generar Respuesta de Prueba
+          </button>
+        </div>
+      </div>
+
+      <!-- Columna Derecha: Resumen, Tabla y Descarga (7 cols) -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- Card: Métricas de la Respuesta Generada -->
+        <div id="statsSection" class="hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Resumen de la Rendición Generada
+            </h2>
+            <span id="badgeBanco" class="text-xs px-2.5 py-1 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200"></span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200/80">
+              <span class="text-xs text-slate-500 font-medium block">Total Registros</span>
+              <span id="statTotal" class="text-2xl font-black text-slate-800">0</span>
+              <span id="statTotalMonto" class="text-xs font-semibold text-slate-600 block mt-0.5">$0,00</span>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200/80">
+              <span class="text-xs text-emerald-700 font-medium block">Cobrados / OK</span>
+              <span id="statCobrados" class="text-2xl font-black text-emerald-700">0</span>
+              <span id="statCobradosMonto" class="text-xs font-semibold text-emerald-800 block mt-0.5">$0,00</span>
+            </div>
+            <div class="bg-rose-50 rounded-xl p-4 border border-rose-200/80">
+              <span class="text-xs text-rose-700 font-medium block">Rechazados</span>
+              <span id="statRechazados" class="text-2xl font-black text-rose-700">0</span>
+              <span id="statRechazadosMonto" class="text-xs font-semibold text-rose-800 block mt-0.5">$0,00</span>
+            </div>
+          </div>
+
+          <!-- Barra de Acciones de Descarga -->
+          <div class="mt-5 pt-4 border-t border-slate-100 flex flex-wrap gap-3 items-center justify-between">
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="descargarArchivo()" class="py-2.5 px-5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Descargar TXT de Respuesta
+              </button>
+              <button type="button" onclick="generarRespuesta()" class="py-2.5 px-3 rounded-xl font-semibold text-xs border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Regenerar Códigos
+              </button>
+            </div>
+            <button type="button" onclick="copiarAlPortapapeles()" class="text-xs font-semibold text-slate-500 hover:text-slate-800 underline">
+              Copiar texto al portapapeles
+            </button>
+          </div>
+        </div>
+
+        <!-- Card: Previsualización de Filas -->
+        <div id="previewCard" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-700">Filas Detalle</span>
+              <span id="filasCount" class="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold"></span>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <button type="button" onclick="toggleView('table')" id="btnViewTable" class="px-2.5 py-1 rounded-md font-semibold bg-white border border-slate-300 shadow-sm text-slate-800">
+                Vista Tabular
+              </button>
+              <button type="button" onclick="toggleView('raw')" id="btnViewRaw" class="px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900">
+                Texto Crudo (Posicional)
+              </button>
+            </div>
+          </div>
+
+          <!-- Vista Tabular -->
+          <div id="viewTable" class="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-100 text-slate-600 sticky top-0 border-b border-slate-200">
+                <tr>
+                  <th class="p-2.5 font-bold">#</th>
+                  <th class="p-2.5 font-bold">Referencia / Op</th>
+                  <th class="p-2.5 font-bold">Cuenta / CBU</th>
+                  <th class="p-2.5 font-bold text-right">Importe</th>
+                  <th class="p-2.5 font-bold">Estado Banco</th>
+                  <th class="p-2.5 font-bold">Motivo / Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-100">
+                <!-- Se llena dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Vista Cruda Posicional -->
+          <div id="viewRaw" class="hidden p-4 bg-slate-900 text-slate-100 mono text-[11px] overflow-x-auto max-h-[460px] overflow-y-auto whitespace-pre leading-relaxed">
+            <code id="rawContent"></code>
+          </div>
+        </div>
+
+        <!-- Estado Inicial Vacío -->
+        <div id="emptyState" class="bg-white rounded-2xl p-12 border border-slate-200 shadow-sm text-center">
+          <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-slate-700">Sin archivo cargado</h3>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+            Subí cualquier archivo de presentación emitido por el sistema (BAPRO o Banco Nación) en el panel izquierdo para generar su archivo de respuesta de prueba.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Catálogos oficiales
+    const MOTIVOS_BAPRO = [
+      { codigo: 'R10', desc: 'Falta de fondos', peso: 50 },
+      { codigo: 'R02', desc: 'Cuenta cerrada o suspendida', peso: 10 },
+      { codigo: 'R03', desc: 'Cuenta inexistente', peso: 10 },
+      { codigo: 'R04', desc: 'Número de cuenta inválido', peso: 5 },
+      { codigo: 'R08', desc: 'Orden de no pagar', peso: 10 },
+      { codigo: 'R14', desc: 'Identificador cliente erróneo', peso: 5 },
+      { codigo: 'R20', desc: 'Moneda distinta a la cuenta', peso: 5 },
+      { codigo: 'R23', desc: 'Sucursal no habilitada', peso: 3 },
+      { codigo: 'R24', desc: 'Transacción duplicada', peso: 2 }
+    ];
+
+    const MOTIVOS_BNA = [
+      { desc: 'MONTO SUP. AL DISPONIBLE', peso: 50 },
+      { desc: 'CUENTA CERRADA', peso: 15 },
+      { desc: 'ORDEN DE NO PAGAR', peso: 15 },
+      { desc: 'SIN AUTORIZACION', peso: 8 },
+      { desc: 'ERROR EN CUENTA', peso: 5 },
+      { desc: 'INHABILITACION JUDICIAL', peso: 4 },
+      { desc: 'CUENTA SIN MOVIMIENTO', peso: 3 }
+    ];
+
+    let estado = {
+      banco: 'BAPRO',
+      nombreArchivoOriginal: '',
+      lineasOriginales: [],
+      respuestaGeneradaTxt: '',
+      detallesGenerados: [],
+      resumen: { total: 0, cobrados: 0, rechazados: 0, montoCobrado: 0, montoRechazado: 0 }
+    };
+
+    // Inicializar fecha de hoy
+    document.getElementById('fechaProceso').value = new Date().toISOString().slice(0, 10);
+
+    // Eventos Drag & Drop y Archivo
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('border-blue-500', 'bg-blue-50/50'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('border-blue-500', 'bg-blue-50/50'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-blue-500', 'bg-blue-50/50');
+      if (e.dataTransfer.files.length) procesarArchivo(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) procesarArchivo(e.target.files[0]);
+    });
+
+    // Cambios de banco manual
+    document.querySelectorAll('input[name="bancoRadio"]').forEach(r => {
+      r.addEventListener('change', (e) => {
+        estado.banco = e.target.value;
+        actualizarEstilosBanco();
+      });
+    });
+
+    // Slider de éxito
+    const successRateInput = document.getElementById('successRate');
+    const rateLabel = document.getElementById('rateLabel');
+    successRateInput.addEventListener('input', (e) => {
+      rateLabel.textContent = `${e.target.value}% Cobrados`;
+    });
+
+    function setPreset(val) {
+      if (val === 'one_rejected') {
+        successRateInput.value = 95;
+        rateLabel.textContent = `1 Solo Rechazo`;
+      } else {
+        successRateInput.value = val;
+        rateLabel.textContent = `${val}% Cobrados`;
+      }
+    }
+
+    function actualizarEstilosBanco() {
+      const baproLabel = document.getElementById('bancoBaproLabel');
+      const bnaLabel = document.getElementById('bancoBnaLabel');
+      if (estado.banco === 'BAPRO') {
+        baproLabel.className = 'cursor-pointer border-2 border-blue-600 bg-blue-50 text-blue-900 rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold';
+        bnaLabel.className = 'cursor-pointer border border-slate-200 bg-white text-slate-700 rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold';
+        document.querySelector('input[name="bancoRadio"][value="BAPRO"]').checked = true;
+      } else {
+        bnaLabel.className = 'cursor-pointer border-2 border-blue-600 bg-blue-50 text-blue-900 rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold';
+        baproLabel.className = 'cursor-pointer border border-slate-200 bg-white text-slate-700 rounded-xl p-3 flex items-center gap-2.5 transition-all text-xs font-semibold';
+        document.querySelector('input[name="bancoRadio"][value="BNA"]').checked = true;
+      }
+    }
+
+    function procesarArchivo(file) {
+      estado.nombreArchivoOriginal = file.name;
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = `${(file.size / 1024).toFixed(1)} KB - Archivo cargado`;
+      document.getElementById('fileInfo').classList.remove('hidden');
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const texto = e.target.result;
+        const lineas = texto.split(/\r?\n/).filter(l => l.trim().length > 0);
+        estado.lineasOriginales = lineas;
+
+        // Auto-detección del banco
+        if (lineas.length > 0) {
+          const l1 = lineas[0];
+          if (l1.startsWith('71') && l1.length >= 163) {
+            estado.banco = 'BAPRO';
+          } else if (l1.startsWith('1') && l1.length >= 128) {
+            estado.banco = 'BNA';
+          }
+          actualizarEstilosBanco();
+        }
+
+        document.getElementById('btnGenerar').disabled = false;
+        generarRespuesta();
+      };
+      reader.readAsText(file, 'latin1');
+    }
+
+    function elegirMotivoAleatorio(catalogo) {
+      const sumaPesos = catalogo.reduce((acc, c) => acc + c.peso, 0);
+      let rand = Math.random() * sumaPesos;
+      for (const c of catalogo) {
+        if (rand < c.peso) return c;
+        rand -= c.peso;
+      }
+      return catalogo[0];
+    }
+
+    function generarRespuesta() {
+      if (!estado.lineasOriginales.length) return;
+
+      const rate = parseInt(successRateInput.value, 10);
+      const isOneRejectedPreset = (rateLabel.textContent === '1 Solo Rechazo');
+      const fechaProc = document.getElementById('fechaProceso').value.replace(/-/g, ''); // AAAAMMDD
+      const fechaProcDdmmaaaa = fechaProc.slice(6, 8) + fechaProc.slice(4, 6) + fechaProc.slice(0, 4);
+
+      let lineasSalida = [];
+      let detalles = [];
+      let cobrados = 0;
+      let rechazados = 0;
+      let montoCobradoCentavos = 0;
+      let montoRechazadoCentavos = 0;
+
+      if (estado.banco === 'BAPRO') {
+        // Generar respuesta BAPRO (163 caracteres fijos por línea)
+        const totalLineas = estado.lineasOriginales.length;
+        const indexForzadoRechazo = isOneRejectedPreset ? Math.floor(Math.random() * totalLineas) : -1;
+
+        estado.lineasOriginales.forEach((linea, idx) => {
+          if (linea.length < 163) return;
+
+          let esCobrado = true;
+          if (isOneRejectedPreset) {
+            esCobrado = (idx !== indexForzadoRechazo);
+          } else {
+            esCobrado = (Math.random() * 100) < rate;
+          }
+
+          let codigoResp = '   ';
+          let motivoDesc = 'Aceptado / Cobrado exitosamente';
+
+          if (!esCobrado) {
+            const elegido = elegirMotivoAleatorio(MOTIVOS_BAPRO);
+            codigoResp = elegido.codigo.padEnd(3, ' ');
+            motivoDesc = elegido.desc;
+            rechazados++;
+          } else {
+            cobrados++;
+          }
+
+          // BAPRO layout:
+          // Pos 0..2: '72' (en vez de '71')
+          // Pos 2..144: idéntico al envío
+          // Pos 144..147: código de respuesta (3 chars)
+          // Pos 147..163: empresa
+          const p1_2 = '72';
+          const p3_144 = linea.slice(2, 144);
+          const p145_147 = codigoResp.slice(0, 3);
+          const p148_163 = linea.slice(147, 163);
+
+          const lineaResp = (p1_2 + p3_144 + p145_147 + p148_163).padEnd(163, ' ').slice(0, 163);
+          lineasSalida.push(lineaResp);
+
+          const importeCentavos = parseInt(linea.slice(61, 71).trim(), 10) || 0;
+          if (esCobrado) montoCobradoCentavos += importeCentavos;
+          else montoRechazadoCentavos += importeCentavos;
+
+          detalles.push({
+            idx: idx + 1,
+            referencia: linea.slice(92, 107).trim(),
+            cuenta: linea.slice(39, 61).trim(),
+            importePesos: (importeCentavos / 100).toFixed(2),
+            esOk: esCobrado,
+            codigo: esCobrado ? 'OK' : codigoResp.trim(),
+            motivo: motivoDesc,
+            raw: lineaResp
+          });
+        });
+
+      } else {
+        // Generar respuesta BNA (172 caracteres fijos por línea)
+        const lineas = estado.lineasOriginales;
+        if (lineas.length < 3) return alert('El archivo BNA requiere cabecera (1), detalles (2) y pie (3)');
+
+        const cabeceraOrig = lineas[0];
+        const pieOrig = lineas[lineas.length - 1];
+        const detallesOrig = lineas.slice(1, lineas.length - 1);
+        const totalLineas = detallesOrig.length;
+        const indexForzadoRechazo = isOneRejectedPreset ? Math.floor(Math.random() * totalLineas) : -1;
+
+        // Cabecera Tipo 1 (172 posiciones)
+        // Pos 0..18: '1' + datos originante
+        // Pos 18: 'D' (Devolución)
+        // Pos 19..23: Secuencia
+        // Pos 23..31: Fecha respuesta
+        // Pos 31..34: 'REE'
+        // Pos 34..172: Espacios
+        const p1_18 = cabeceraOrig.slice(0, 18);
+        const secuencia = cabeceraOrig.slice(19, 23) || '1101';
+        const cabeceraResp = (p1_18 + 'D' + secuencia + fechaProc + 'REE').padEnd(172, ' ').slice(0, 172);
+        lineasSalida.push(cabeceraResp);
+
+        detallesOrig.forEach((linea, idx) => {
+          if (!linea.startsWith('2')) return;
+
+          let esCobrado = true;
+          if (isOneRejectedPreset) {
+            esCobrado = (idx !== indexForzadoRechazo);
+          } else {
+            esCobrado = (Math.random() * 100) < rate;
+          }
+
+          const sucursal = linea.slice(1, 5).padStart(4, '0');
+          const sistema = linea.slice(5, 7) || 'CA';
+          const cuenta = linea.slice(7, 18).padStart(11, '0');
+          const importeCentavos = parseInt(linea.slice(18, 33).trim(), 10) || 0;
+          const concepto = (linea.slice(72, 82).trim() || `OP-${idx+1}`).padEnd(10, ' ').slice(0, 10);
+
+          let estadoCodigo = '0';
+          let descRechazo = ''.padEnd(30, ' ');
+          let motivoTexto = 'Cobrado / Aceptado';
+
+          if (!esCobrado) {
+            estadoCodigo = '9';
+            const elegido = elegirMotivoAleatorio(MOTIVOS_BNA);
+            descRechazo = elegido.desc.padEnd(30, ' ').slice(0, 30);
+            motivoTexto = elegido.desc;
+            rechazados++;
+            montoRechazadoCentavos += importeCentavos;
+          } else {
+            cobrados++;
+            montoCobradoCentavos += importeCentavos;
+          }
+
+          // Armar detalle BNA de 172 posiciones exactas:
+          // 2 + sucursal(4) + sistema(2) + cuenta(11) + importe(15) + fechaProc(8) + estado(1) + desc(30) + concepto(10) + filler(42) + sucursalBcra(3) + filler(45)
+          const sucursalBcra = sucursal.slice(-3).padStart(3, '0');
+          const lineaDet = (
+            '2' +
+            sucursal +
+            sistema +
+            cuenta +
+            String(importeCentavos).padStart(15, '0') +
+            fechaProc +
+            estadoCodigo +
+            descRechazo +
+            concepto
+          ).padEnd(124, ' ') + sucursalBcra + ''.padEnd(45, ' ');
+
+          const lineaDet172 = lineaDet.slice(0, 172);
+          lineasSalida.push(lineaDet172);
+
+          detalles.push({
+            idx: idx + 1,
+            referencia: concepto.trim(),
+            cuenta: `${sucursal}-${sistema}-${cuenta}`,
+            importePesos: (importeCentavos / 100).toFixed(2),
+            esOk: esCobrado,
+            codigo: estadoCodigo,
+            motivo: motivoTexto,
+            raw: lineaDet172
+          });
+        });
+
+        // Pie Tipo 3 (172 posiciones exactas)
+        // 3 + totalCobrado(15) + cantCobrados(6) + totalRechazado(15) + cantRechazados(6) + espacios(129)
+        const pieResp = (
+          '3' +
+          String(montoCobradoCentavos).padStart(15, '0') +
+          String(cobrados).padStart(6, '0') +
+          String(montoRechazadoCentavos).padStart(15, '0') +
+          String(rechazados).padStart(6, '0')
+        ).padEnd(172, ' ').slice(0, 172);
+        lineasSalida.push(pieResp);
+      }
+
+      estado.respuestaGeneradaTxt = lineasSalida.join('\r\n') + '\r\n';
+      estado.detallesGenerados = detalles;
+      estado.resumen = {
+        total: detalles.length,
+        cobrados,
+        rechazados,
+        montoCobrado: (montoCobradoCentavos / 100),
+        montoRechazado: (montoRechazadoCentavos / 100)
+      };
+
+      mostrarResultados();
+    }
+
+    function mostrarResultados() {
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('statsSection').classList.remove('hidden');
+      document.getElementById('previewCard').classList.remove('hidden');
+
+      const r = estado.resumen;
+      document.getElementById('badgeBanco').textContent = estado.banco === 'BAPRO' ? 'Banco Provincia (163 chars)' : 'Banco Nación (172 chars)';
+      document.getElementById('statTotal').textContent = r.total;
+      document.getElementById('statTotalMonto').textContent = `$ ${(r.montoCobrado + r.montoRechazado).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      document.getElementById('statCobrados').textContent = r.cobrados;
+      document.getElementById('statCobradosMonto').textContent = `$ ${r.montoCobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      document.getElementById('statRechazados').textContent = r.rechazados;
+      document.getElementById('statRechazadosMonto').textContent = `$ ${r.montoRechazado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+      document.getElementById('filasCount').textContent = `${r.total} registros`;
+
+      // Llenar tabla
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      estado.detallesGenerados.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold text-slate-500">${d.idx}</td>
+          <td class="p-2.5 mono font-semibold text-slate-800">${d.referencia}</td>
+          <td class="p-2.5 mono text-slate-600">${d.cuenta}</td>
+          <td class="p-2.5 text-right font-bold text-slate-900">$ ${parseFloat(d.importePesos).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
+          <td class="p-2.5">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${d.esOk ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+              ${d.esOk ? 'Cobrado (' + d.codigo + ')' : 'Rechazo (' + d.codigo + ')'}
+            </span>
+          </td>
+          <td class="p-2.5 text-slate-600 text-xs">${d.motivo}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Llenar texto crudo
+      document.getElementById('rawContent').textContent = estado.respuestaGeneradaTxt;
+    }
+
+    function toggleView(modo) {
+      const viewTable = document.getElementById('viewTable');
+      const viewRaw = document.getElementById('viewRaw');
+      const btnTable = document.getElementById('btnViewTable');
+      const btnRaw = document.getElementById('btnViewRaw');
+
+      if (modo === 'table') {
+        viewTable.classList.remove('hidden');
+        viewRaw.classList.add('hidden');
+        btnTable.className = 'px-2.5 py-1 rounded-md font-semibold bg-white border border-slate-300 shadow-sm text-slate-800';
+        btnRaw.className = 'px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900';
+      } else {
+        viewTable.classList.add('hidden');
+        viewRaw.classList.remove('hidden');
+        btnRaw.className = 'px-2.5 py-1 rounded-md font-semibold bg-white border border-slate-300 shadow-sm text-slate-800';
+        btnTable.className = 'px-2.5 py-1 rounded-md font-medium text-slate-600 hover:text-slate-900';
+      }
+    }
+
+    function descargarArchivo() {
+      if (!estado.respuestaGeneradaTxt) return;
+
+      let baseName = estado.nombreArchivoOriginal.replace(/\.txt$/i, '');
+      if (baseName.includes('_respuesta') || baseName.includes(' - respuesta')) {
+        baseName = baseName.replace(/(_respuesta| - respuesta)/gi, '');
+      }
+      const nombreFinal = `${baseName} - respuesta.txt`;
+
+      const blob = new Blob([estado.respuestaGeneradaTxt], { type: 'text/plain;charset=latin1' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreFinal;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function copiarAlPortapapeles() {
+      if (!estado.respuestaGeneradaTxt) return;
+      navigator.clipboard.writeText(estado.respuestaGeneradaTxt).then(() => {
+        alert('¡Contenido de la respuesta copiado al portapapeles!');
+      });
+    }
+  </script>
+</body>
+</html>

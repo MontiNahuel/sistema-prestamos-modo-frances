@@ -312,12 +312,23 @@ export function RespuestasPanel({
   );
   return (
     <section className="text-[#0f172a]">
-      <h2 className="m-0 text-2xl font-bold">Carga de respuesta</h2>
-      <p className="text-[#64748b] mb-6">
-        Importá las respuestas de BAPRO o Banco Nación, revisá las coincidencias
-        para revisar sus resultados. La integración CoopYa está pendiente de
-        homologación; Nación requiere vincular primero su presentación original.
-      </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h2 className="m-0 text-2xl font-bold">Carga de respuesta</h2>
+          <p className="text-[#64748b] m-0 text-sm">
+            Importá las respuestas de BAPRO o Banco Nación, revisá las coincidencias
+            para verificar sus resultados.
+          </p>
+        </div>
+        <a
+          href="/generador_respuestas.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold shadow-sm transition-all"
+        >
+          <span>⚡ Generador / Simulador de Respuestas HTML</span>
+        </a>
+      </div>
       <form
         onSubmit={previsualizar}
         className="bg-white rounded-xl p-5 [border:1px_solid_#e2e8f0]"
@@ -567,6 +578,15 @@ export function RespuestasPanel({
             >
               Confirmar e imputar respuesta
             </button>
+            {seleccionadoInvalido && vista && (
+              <p className="text-xs text-amber-700 mt-2 font-medium">
+                {!vista.confirmacion_habilitada
+                  ? "La confirmacion esta deshabilitada en la configuracion del servidor."
+                  : vista.resumen.revisar > 0
+                    ? `Hay ${vista.resumen.revisar} fila(s) en revision/conflicto. Se debe resolver el lote completo antes de imputar.`
+                    : "No hay registros listos para imputar (cobrados o rechazados)."}
+              </p>
+            )}
           </div>
         </div>
       )}
