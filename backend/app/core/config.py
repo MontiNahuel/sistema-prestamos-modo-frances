@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     COOPYA_DEFAULT_TOKEN: str = ""
     COOPYA_DB_SERVER: str = "10.16.1.13"
     COOPYA_DB_NAME: str = "CoopYaBeta"
-    COOPYA_DB_USER: str = "pgurvicius"
-    COOPYA_DB_DOMAIN: str = "coopya"
-    COOPYA_DB_PASSWORD: str = ""
+    COOPYA_DB_USER: str = "CoopYaProd"
+    COOPYA_DB_DOMAIN: str = ""
+    COOPYA_DB_PASSWORD: str = "Yacoop*2025;"
     COOPYA_DB_ENABLED: bool = True
     # Integración bancaria aún pendiente de homologación SQL/CoopYa V2.
     # Habilitar únicamente en un entorno aislado de pruebas.
