@@ -10,7 +10,51 @@ class EmpresaOriginanteService:
     def __init__(self, db: Session):
         self.repo = EmpresaOriginanteRepository(db)
 
+    def sincronizar_desde_coopya(self) -> None:
+        """Sincroniza las empresas originantes desde la tabla Empresas del Monolito CoopYa."""
+        try:
+            from app.integrations.coopya_db_client import coopya_db_client
+            remotas = coopya_db_client.obtener_empresas()
+            for r in remotas:
+                cuit = r["cuit"]
+                nombre = r["empresa"].upper()
+                existente = self.repo.obtener_por_cuit(cuit)
+
+                if "COOPYA" in nombre:
+                    prefijo = "EBT_COOPCREDITOYALTDA"
+                    razon_social = "COOPCREDITOYALTD"
+                    predet = True
+                elif any(k in nombre for k in ("CLAUGEL", "CLAUGEN", "ASISTODO")):
+                    prefijo = "EBT_ASISTODO_"
+                    razon_social = "CLAUGEL"
+                    predet = False
+                else:
+                    prefijo = f"EBT_{nombre}_"
+                    razon_social = nombre
+                    predet = False
+
+                if existente:
+                    existente.razon_social = razon_social
+                    existente.nombre_fantasia = nombre
+                    existente.prefijo_archivo = prefijo
+                    existente.activo = r["activo"]
+                    self.repo.actualizar(existente, {})
+                else:
+                    nueva = EmpresaOriginante(
+                        cuit=cuit,
+                        razon_social=razon_social,
+                        nombre_fantasia=nombre,
+                        prefijo_archivo=prefijo,
+                        descripcion_transaccion="SERVICI014",
+                        activo=r["activo"],
+                        predeterminado=predet,
+                    )
+                    self.repo.crear(nueva)
+        except Exception:
+            pass
+
     def listar(self, solo_activas: bool = False) -> List[EmpresaOriginante]:
+        self.sincronizar_desde_coopya()
         return self.repo.listar(solo_activas=solo_activas)
 
     def obtener_por_id(self, empresa_id: int) -> EmpresaOriginante:

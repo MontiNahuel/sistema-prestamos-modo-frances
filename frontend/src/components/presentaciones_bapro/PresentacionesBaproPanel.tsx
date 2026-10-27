@@ -152,8 +152,12 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.85rem', color: '#64748b' }}>Filtros de cuotas, numeración y layout oficial de 163 caracteres para Banco Provincia.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+<<<<<<< HEAD
           <button onClick={() => setModalEmpresas(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>⚙ Empresas Originantes</button>
           <button onClick={onCargarRespuesta} className="px-3 py-2 rounded-md [border:1px_solid_#16a34a] bg-[#f0fdf4] text-[#16a34a] text-sm font-semibold cursor-pointer">📥 Cargar respuesta</button>
+=======
+          <button onClick={() => setModalRespuesta(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>📥 Cargar Rendición</button>
+>>>>>>> 6a5c4f8cf9021346ee058e181ac6b5eb2475e403
         </div>
       </div>
 
