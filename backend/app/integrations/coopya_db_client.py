@@ -1,5 +1,4 @@
 import ctypes
-from ctypes import wintypes
 from contextlib import contextmanager
 import logging
 from typing import List, Dict, Any, Optional
@@ -24,48 +23,38 @@ class CoopYaDbClient:
 
     @contextmanager
     def _connection(self):
-        """Abre conexión con SQL Server impersonando al usuario de dominio CoopYa."""
+        """Abre conexión con SQL Server en Windows (impersonando) o Linux (con credenciales directas)."""
         if not self.enabled:
             logger.info("CoopYa DB client está deshabilitado. Omitiendo conexión.")
             yield None
             return
 
-        advapi32 = ctypes.windll.advapi32
-        kernel32 = ctypes.windll.kernel32
-        logon_type = 9  # LOGON32_LOGON_NEW_CREDENTIALS
-        provider = 0    # LOGON32_PROVIDER_DEFAULT
+        drivers = pyodbc.drivers()
+        driver = "ODBC Driver 18 for SQL Server" if "ODBC Driver 18 for SQL Server" in drivers and "ODBC Driver 17 for SQL Server" not in drivers else "ODBC Driver 17 for SQL Server"
 
-        token = wintypes.HANDLE()
-        ok = advapi32.LogonUserW(
-            self.user,
-            self.domain,
-            self.password,
-            logon_type,
-            provider,
-            ctypes.byref(token)
-        )
-        if not ok:
-            err = kernel32.GetLastError()
-            raise RuntimeError(f"Fallo al autenticar en dominio {self.domain}\\{self.user}. Error: {err}")
-
-        try:
-            advapi32.ImpersonateLoggedOnUser(token)
-            conn_str = (
-                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                f"SERVER={self.server};"
-                f"DATABASE={self.database};"
-                "Trusted_Connection=yes;"
-                "TrustServerCertificate=yes;"
-                "Connection Timeout=15;"
-            )
-            conn = pyodbc.connect(conn_str)
+        if hasattr(ctypes, "windll"):
+            from ctypes import wintypes
+            advapi32, kernel32 = ctypes.windll.advapi32, ctypes.windll.kernel32
+            token = wintypes.HANDLE()
+            if not advapi32.LogonUserW(self.user, self.domain, self.password, 9, 0, ctypes.byref(token)):
+                raise RuntimeError(f"Fallo al autenticar en dominio {self.domain}\\{self.user}. Error: {kernel32.GetLastError()}")
+            try:
+                advapi32.ImpersonateLoggedOnUser(token)
+                conn = pyodbc.connect(f"DRIVER={{{driver}}};SERVER={self.server};DATABASE={self.database};Trusted_Connection=yes;TrustServerCertificate=yes;Connection Timeout=15;")
+                try:
+                    yield conn
+                finally:
+                    conn.close()
+            finally:
+                advapi32.RevertToSelf()
+                kernel32.CloseHandle(token)
+        else:
+            uid = f"{self.domain}\\{self.user}" if self.domain else self.user
+            conn = pyodbc.connect(f"DRIVER={{{driver}}};SERVER={self.server};DATABASE={self.database};UID={uid};PWD={self.password};TrustServerCertificate=yes;Connection Timeout=15;")
             try:
                 yield conn
             finally:
                 conn.close()
-        finally:
-            advapi32.RevertToSelf()
-            kernel32.CloseHandle(token)
 
     def impactar_cuotas_prestamo(
         self,
