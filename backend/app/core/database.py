@@ -75,6 +75,8 @@ def _asegurar_columnas_criticas(db_engine):
                 ALTER TABLE cuotas ADD movimiento_coopya_id INT NULL;
             IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('cuotas') AND name = 'desglose_coopya_id')
                 ALTER TABLE cuotas ADD desglose_coopya_id INT NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('cuotas') AND name = 'calculo_exacto')
+                ALTER TABLE cuotas ADD calculo_exacto NVARCHAR(MAX) NULL;
         END
         """,
         """
