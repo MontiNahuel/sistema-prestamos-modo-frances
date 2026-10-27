@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.features.socios.schemas import SocioResponse
+from app.domain.calculadoras.romi import CuotaRomiExacta
 
 
 class CuotaResponse(BaseModel):
@@ -18,6 +19,7 @@ class CuotaResponse(BaseModel):
     cuota_pura_centavos: int
     cuota_total_centavos: int
     saldo_final_centavos: int
+    calculo_exacto: Optional[CuotaRomiExacta] = None
     estado: str
     fecha_pago: Optional[datetime] = None
     monto_pagado_centavos: int = 0

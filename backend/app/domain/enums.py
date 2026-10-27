@@ -5,6 +5,7 @@ class ConvencionTasa(str, Enum):
     TNA_PROPORCIONAL = "TNA_PROPORCIONAL"       # i = TNA / 12 (Mensual proporcional)
     TEA_COMPUESTA = "TEA_COMPUESTA"             # i = (1 + TEA)^(1/12) - 1 (Mensual equivalente)
     TNA_DIAS_REALES = "TNA_DIAS_REALES"         # i_k = TNA * (dias / 365)
+    TASA_ESTILO_ROMI = "TASA_ESTILO_ROMI"       # TNA / 12; PAGO/PAGOPRIN/PAGOINT sin redondeo intermedio
 
 
 class BaseDias(str, Enum):

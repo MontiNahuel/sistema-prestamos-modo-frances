@@ -119,6 +119,7 @@ class PrestamoService:
                 capital_centavos=c.capital_centavos, interes_centavos=c.interes_centavos,
                 iva_interes_centavos=c.iva_interes_centavos, cuota_pura_centavos=c.cuota_pura_centavos,
                 cuota_total_centavos=c.cuota_total_centavos, saldo_final_centavos=c.saldo_final_centavos,
+                calculo_exacto=c.calculo_exacto.model_dump(mode="json") if c.calculo_exacto else None,
                 estado="PENDIENTE", monto_pagado_centavos=0,
                 movimiento_coopya_id=vinculos_map.get(c.numero_cuota, {}).get("movimiento_id"),
                 desglose_coopya_id=vinculos_map.get(c.numero_cuota, {}).get("desglose_id")

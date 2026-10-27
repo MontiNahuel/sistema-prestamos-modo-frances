@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from app.domain.enums import ConvencionTasa, BaseDias
 
 
@@ -14,6 +14,11 @@ def calcular_tasa_periodica(
     """
     if tasa_anual <= Decimal("0"):
         return Decimal("0")
+
+    if convencion == ConvencionTasa.TASA_ESTILO_ROMI:
+        with localcontext() as contexto:
+            contexto.prec = 50
+            return tasa_anual / Decimal("12")
 
     if convencion == ConvencionTasa.TNA_PROPORCIONAL:
         # Tasa nominal anual proporcional a 12 meses
