@@ -10,7 +10,7 @@ import {
 } from './Icons';
 
 export type TabKey =
-  'personas' | 'simulador' | 'bapro' | 'respuestas' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
+  'personas' | 'simulador' | 'bapro' | 'bna' | 'respuestas' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
 
 interface NavbarProps {
   currentTab: TabKey;
@@ -29,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
     { key: 'bapro', label: 'Presentación BAPRO', icon: <BuildingIcon size={17} /> },
+    { key: 'bna', label: 'Presentación BNA', icon: <BuildingIcon size={17} /> },
     { key: 'respuestas', label: 'Carga de respuesta', icon: <FileTextIcon size={17} /> },
     { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },

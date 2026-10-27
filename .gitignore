@@ -62,3 +62,9 @@ proyecto-para-conectar-con-db-vieja/
 # Archivos generados de almacenamiento local
 backend/storage/
 storage/
+ 
+# Paquetes y exportaciones temporales de integracion
+exportacion_coopya/
+exportacion_coopya_v2/
+*.zip
+RESPUESTA_PARA_IA_INTEGRACION_COOPYA*.md

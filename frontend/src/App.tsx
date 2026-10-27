@@ -16,6 +16,7 @@ import { ReportesPanel } from './features/reportes/ReportesPanel';
 import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
 import { PresentacionesBaproPanel } from './components/presentaciones_bapro/PresentacionesBaproPanel';
 import { RespuestasPanel } from './features/respuestas/RespuestasPanel';
+import { PresentacionesBnaPanel } from './components/presentaciones_bna/PresentacionesBnaPanel';
 import { getPerfilActual } from './services/api/authApi';
 import { UserProfile } from './types/auth';
 import { createLinea } from './services/api/lineasApi';
@@ -473,7 +474,8 @@ export default function App() {
         )}
 
         {/* Pestaña: Préstamos Otorgados */}
-        {currentTab === 'bapro' && <PresentacionesBaproPanel onCargarRespuesta={() => setCurrentTab('respuestas')} />}
+{currentTab === 'bapro' && <PresentacionesBaproPanel onCargarRespuesta={() => setCurrentTab('respuestas')} />}
+        {currentTab === 'bna' && <PresentacionesBnaPanel />}
         {currentTab === 'respuestas' && <RespuestasPanel onAplicada={() => {
           if (personaSeleccionada) void handleSeleccionarPersona(personaSeleccionada);
         }} />}
