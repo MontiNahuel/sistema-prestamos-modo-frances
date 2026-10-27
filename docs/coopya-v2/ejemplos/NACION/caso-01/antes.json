@@ -1,0 +1,162 @@
+{
+  "metadatos": {
+    "banco": "NACION",
+    "nro_archivo": 1935,
+    "descripcion": "Estado de base de datos tras ejecutar InsertarPresentacionNacionAuditoria antes de rendici\u00f3n",
+    "esquema_verificado": true
+  },
+  "PresentacionNacionAuditoria": [
+    {
+      "Id": 801,
+      "NroArchivo": 1935,
+      "Cab_Casa": "0085",
+      "Cab_Producto": "01",
+      "Cab_Cuenta": "0000123456",
+      "Cab_Moneda": "1",
+      "Cab_Identificador": "E",
+      "Cab_Secuencia": "1935",
+      "Cab_FechaTopeRendicion": "20261027",
+      "Cab_IndicadorLote": "LOT",
+      "Pie_TotalDebitar": "000000002450000",
+      "Pie_CantidadRegistros": "000002",
+      "Pie_TotalNoAplicados": "000000000000000",
+      "Pie_CantidadNoAplicados": "000000",
+      "TipoExportacion": "NACION",
+      "TipoImporte": "CuotaSocial",
+      "NombreArchivo": "BNA_1935.txt",
+      "FechaGeneracion": "2026-10-27T09:15:00",
+      "UsuarioId": 1,
+      "IdCorrida": null,
+      "SumarMora": true
+    }
+  ],
+  "PresentacionNacionAuditoriaDetalle": [
+    {
+      "Id": 1401,
+      "IdAuditoria": 801,
+      "Det_SucursalCuentaCliente": "0015",
+      "Det_SistemaCuenta": "02",
+      "Det_NroCuentaCliente": "00012345678",
+      "Det_Importe": "000000001500000",
+      "Det_FechaVencimiento": "20261027",
+      "Det_Estado": " ",
+      "Det_DescripcionRechazo": "                              ",
+      "Det_ConceptoDebito": "CUOTASOC  ",
+      "IdPersona": 100052,
+      "NumeroOperacion": 201,
+      "CodigoRespuesta": null,
+      "FechaRespuesta": null
+    },
+    {
+      "Id": 1402,
+      "IdAuditoria": 801,
+      "Det_SucursalCuentaCliente": "0022",
+      "Det_SistemaCuenta": "02",
+      "Det_NroCuentaCliente": "00098765432",
+      "Det_Importe": "000000000950000",
+      "Det_FechaVencimiento": "20261027",
+      "Det_Estado": " ",
+      "Det_DescripcionRechazo": "                              ",
+      "Det_ConceptoDebito": "CUOTASOC  ",
+      "IdPersona": 100088,
+      "NumeroOperacion": 202,
+      "CodigoRespuesta": null,
+      "FechaRespuesta": null
+    }
+  ],
+  "PersonasRepositorio": [
+    {
+      "Id": 915,
+      "IdPersona": 100052,
+      "Banco": "NACION",
+      "Monto": "000000001500000",
+      "PresentacionId_Det": 1401,
+      "FechaImpacto": "2026-10-27T00:00:00",
+      "RespuestaId": null,
+      "Resultado": null,
+      "FechaInsert": "2026-10-27T09:15:00",
+      "FechaModif": null,
+      "TipoMovimiento": null,
+      "Concepto": null,
+      "PeriodoCubierto": null,
+      "Motivo": null,
+      "UsuarioId": null,
+      "IdMovimientoOrigen": null
+    },
+    {
+      "Id": 916,
+      "IdPersona": 100088,
+      "Banco": "NACION",
+      "Monto": "000000000950000",
+      "PresentacionId_Det": 1402,
+      "FechaImpacto": "2026-10-27T00:00:00",
+      "RespuestaId": null,
+      "Resultado": null,
+      "FechaInsert": "2026-10-27T09:15:00",
+      "FechaModif": null,
+      "TipoMovimiento": null,
+      "Concepto": null,
+      "PeriodoCubierto": null,
+      "Motivo": null,
+      "UsuarioId": null,
+      "IdMovimientoOrigen": null
+    }
+  ],
+  "CuentaCorrienteDesglose": [
+    {
+      "Id": 1401,
+      "IdPersona": 100052,
+      "Banco": "NACION",
+      "NroArchivo": 1935,
+      "PresentacionId_Det": 1401,
+      "IdMovimiento": 915,
+      "Concepto": "CUOTA_SOCIAL",
+      "PlanId": 2,
+      "NumeroCuota": 1,
+      "CantidadCuotas": null,
+      "PeriodoObligacion": "2026-10-01",
+      "ImporteTeorico": 15000.0,
+      "ImportePresentado": 15000.0,
+      "ImporteCobrado": 0.0,
+      "ImporteRechazado": 0.0,
+      "FechaGeneracion": "2026-10-27T09:15:00",
+      "FechaRespuesta": null,
+      "Origen": "BANCARIO",
+      "UsuarioId": 1,
+      "Motivo": null
+    },
+    {
+      "Id": 1402,
+      "IdPersona": 100088,
+      "Banco": "NACION",
+      "NroArchivo": 1935,
+      "PresentacionId_Det": 1402,
+      "IdMovimiento": 916,
+      "Concepto": "CUOTA_SOCIAL",
+      "PlanId": 2,
+      "NumeroCuota": 1,
+      "CantidadCuotas": null,
+      "PeriodoObligacion": "2026-10-01",
+      "ImporteTeorico": 9500.0,
+      "ImportePresentado": 9500.0,
+      "ImporteCobrado": 0.0,
+      "ImporteRechazado": 0.0,
+      "FechaGeneracion": "2026-10-27T09:15:00",
+      "FechaRespuesta": null,
+      "Origen": "BANCARIO",
+      "UsuarioId": 1,
+      "Motivo": null
+    }
+  ],
+  "PresentacionNacionArchivos": [
+    {
+      "Id": 412,
+      "NroArchivo": 1935,
+      "Ruta": "Presentaciones/Nacion/1935/BNA_1935.txt",
+      "Tipo": "PRESENTACION",
+      "FechaCarga": "2026-10-27T09:15:00",
+      "UsuarioId": 1,
+      "NombreArchivo": "BNA_1935.txt"
+    }
+  ]
+}

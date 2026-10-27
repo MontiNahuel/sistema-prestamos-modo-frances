@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     COOPYA_DB_DOMAIN: str = "coopya"
     COOPYA_DB_PASSWORD: str = ""
     COOPYA_DB_ENABLED: bool = True
+    # Integración bancaria aún pendiente de homologación SQL/CoopYa V2.
+    # Habilitar únicamente en un entorno aislado de pruebas.
+    RESPUESTAS_BANCARIAS_CONFIRMACION_ENABLED: bool = False
 
     # Integración con Base Legacy Oracle (Modo Thick) - Configurable por variables de entorno
     ORACLE_ENABLED: bool = False

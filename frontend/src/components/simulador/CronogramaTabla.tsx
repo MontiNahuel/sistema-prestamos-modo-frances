@@ -6,64 +6,88 @@ interface CronogramaTablaProps {
   cronograma: CuotaItem[];
 }
 
-export const CronogramaTabla: React.FC<CronogramaTablaProps> = ({ cronograma }) => {
+export const CronogramaTabla: React.FC<CronogramaTablaProps> = ({
+  cronograma
+}) => {
   return (
-    <div style={{
-      background: '#ffffff',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      overflowX: 'auto',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
-    }}>
-      <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
+    <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl [overflow-x:auto] shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)]">
+      <div className="p-[1rem_1.25rem] [border-bottom:1px_solid_#f1f5f9] flex justify-between items-center">
+        <h4 className="m-0 text-[0.95rem] font-bold text-[#0f172a]">
           Tabla de Amortización (Desglose Cuota a Cuota)
         </h4>
-        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+        <span className="text-[0.75rem] text-[#64748b]">
           {cronograma.length} cuotas proyectadas
         </span>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.85rem' }}>
-        <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+      <table className="w-full border-collapse text-right text-[0.85rem]">
+        <thead className="bg-[#f8fafc] [border-bottom:1px_solid_#e2e8f0] text-[#475569]">
           <tr>
-            <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>N°</th>
-            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Saldo Inicial</th>
-            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Capital Amortizado</th>
-            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Interés</th>
-            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>IVA s/Int</th>
-            <th style={{ padding: '0.75rem 1rem', color: '#15803d', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Cuota Total</th>
-            <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Saldo Deudor Final</th>
+            <th className="p-[0.75rem_1rem] text-center text-[0.75rem] font-semibold uppercase">
+              N°
+            </th>
+            <th className="p-[0.75rem_1rem] text-[0.75rem] font-semibold uppercase">
+              Saldo Inicial
+            </th>
+            <th className="p-[0.75rem_1rem] text-[0.75rem] font-semibold uppercase">
+              Capital Amortizado
+            </th>
+            <th className="p-[0.75rem_1rem] text-[0.75rem] font-semibold uppercase">
+              Interés
+            </th>
+            <th className="p-[0.75rem_1rem] text-[0.75rem] font-semibold uppercase">
+              IVA s/Int
+            </th>
+            <th className="p-[0.75rem_1rem] text-[#15803d] text-[0.75rem] font-bold uppercase">
+              Cuota Total
+            </th>
+            <th className="p-[0.75rem_1rem] text-[0.75rem] font-semibold uppercase">
+              Saldo Deudor Final
+            </th>
           </tr>
         </thead>
         <tbody>
           {cronograma.map((c, i) => (
             <tr
               key={c.numero_cuota}
-              style={{
-                borderBottom: '1px solid #f1f5f9',
-                background: i % 2 === 0 ? '#ffffff' : '#fafafa'
-              }}
+              className={[
+                '[border-bottom:1px_solid_#f1f5f9]',
+                i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafafa]'
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
-              <td style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>
+              <td className="p-[0.75rem_1rem] text-center font-semibold text-[#64748b]">
                 {c.numero_cuota}
               </td>
-              <td style={{ padding: '0.75rem 1rem', color: '#334155' }}>
+              <td className="p-[0.75rem_1rem] text-[#334155]">
                 {formatMoney(c.saldo_inicial_centavos)}
               </td>
-              <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#0f172a' }}>
+              <td className="p-[0.75rem_1rem] font-semibold text-[#0f172a]">
                 {formatMoney(c.capital_centavos)}
               </td>
-              <td style={{ padding: '0.75rem 1rem', color: '#2563eb' }}>
+              <td className="p-[0.75rem_1rem] text-[#2563eb]">
                 {formatMoney(c.interes_centavos)}
               </td>
-              <td style={{ padding: '0.75rem 1rem', color: '#7c3aed' }}>
+              <td className="p-[0.75rem_1rem] text-[#7c3aed]">
                 {formatMoney(c.iva_interes_centavos)}
               </td>
-              <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: '#15803d', fontSize: '0.9rem' }}>
+              <td className="p-[0.75rem_1rem] font-bold text-[#15803d] text-[0.9rem]">
                 {formatMoney(c.cuota_total_centavos)}
               </td>
-              <td style={{ padding: '0.75rem 1rem', color: c.saldo_final_centavos === 0 ? '#10b981' : '#64748b', fontWeight: c.saldo_final_centavos === 0 ? 700 : 400 }}>
+              <td
+                className={[
+                  'p-[0.75rem_1rem]',
+                  c.saldo_final_centavos === 0
+                    ? 'text-[#10b981]'
+                    : 'text-[#64748b]',
+                  c.saldo_final_centavos === 0
+                    ? 'font-bold'
+                    : '[font-weight:400]'
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
                 {formatMoney(c.saldo_final_centavos)}
               </td>
             </tr>

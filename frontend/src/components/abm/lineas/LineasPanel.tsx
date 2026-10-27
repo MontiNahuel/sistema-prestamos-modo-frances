@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { LineaPrestamo, LineaPrestamoCreate } from '../../../types/linea';
-import { getLineas, createLinea, updateLinea, deleteLinea } from '../../../services/api/lineasApi';
+import {
+  getLineas,
+  createLinea,
+  updateLinea,
+  deleteLinea
+} from '../../../services/api/lineasApi';
 import { Badge } from '../../common/Badge';
 import { LineaModal } from './LineaModal';
 import { formatMoney, formatPct } from '../../../utils/formatters';
 import { PlusIcon, EditIcon, TrashIcon, SlidersIcon } from '../../common/Icons';
 
-export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLinea }) => {
+export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({
+  onNuevaLinea
+}) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [lineaSeleccionada, setLineaSeleccionada] = useState<LineaPrestamo | null>(null);
+  const [lineaSeleccionada, setLineaSeleccionada] =
+    useState<LineaPrestamo | null>(null);
 
   const cargarLineas = async () => {
     setCargando(true);
@@ -58,7 +66,8 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
   };
 
   const handleEliminar = async (l: LineaPrestamo) => {
-    if (!window.confirm(`¿Estás seguro de eliminar la línea "${l.nombre}"?`)) return;
+    if (!window.confirm(`¿Estás seguro de eliminar la línea "${l.nombre}"?`))
+      return;
 
     try {
       await deleteLinea(l.id);
@@ -70,18 +79,19 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#dbeafe', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="flex items-center gap-[0.6rem]">
+            <div className="w-[36px] h-[36px] rounded-lg bg-[#dbeafe] text-[#1d4ed8] flex items-center justify-center">
               <SlidersIcon size={20} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              <h2 className="text-[1.5rem] font-bold m-0 text-[#0f172a] tracking-[-0.02em]">
                 Líneas de Préstamo
               </h2>
-              <p style={{ margin: '0.2rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>
-                Catálogo comercial de productos crediticios, montos límite, plazos y motor financiero asignado.
+              <p className="m-[0.2rem_0_0] text-[#64748b] text-[0.875rem]">
+                Catálogo comercial de productos crediticios, montos límite,
+                plazos y motor financiero asignado.
               </p>
             </div>
           </div>
@@ -89,21 +99,7 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
 
         <button
           onClick={handleNuevo}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.65rem 1.25rem',
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
-            transition: 'all 0.15s ease'
-          }}
+          className="inline-flex items-center gap-2 p-[0.65rem_1.25rem] [background:linear-gradient(135deg,_#2563eb_0%,_#1d4ed8_100%)] text-[#fff] [border:none] rounded-lg font-semibold cursor-pointer text-[0.875rem] shadow-[0_2px_4px_rgba(37,_99,_235,_0.2)] [transition:all_0.15s_ease]"
         >
           <PlusIcon size={18} />
           Nueva Línea de Préstamo
@@ -111,69 +107,110 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
       </div>
 
       {error && (
-        <div style={{ padding: '0.85rem 1.25rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid #fecaca' }}>
+        <div className="p-[0.85rem_1.25rem] bg-[#fee2e2] text-[#991b1b] rounded-lg mb-5 [border:1px_solid_#fecaca]">
           {error}
         </div>
       )}
 
-      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-          <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
+      <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <table className="w-full border-collapse text-left text-[0.875rem]">
+          <thead className="bg-[#f8fafc] [border-bottom:1px_solid_#e2e8f0] text-[#475569]">
             <tr>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Código / Nombre</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Motor de Fórmula</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Tasa / IVA</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Rango Montos</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Plazos</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Condición</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Estado</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600, textAlign: 'center' }}>Acciones</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">
+                Código / Nombre
+              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">
+                Motor de Fórmula
+              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Tasa / IVA</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">
+                Rango Montos
+              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Plazos</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Condición</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Estado</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold text-center">
+                Acciones
+              </th>
             </tr>
           </thead>
           <tbody>
             {lineas.length > 0 ? (
               lineas.map((l) => (
-                <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a' }}>{l.nombre}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
-                      <code style={{ background: '#f1f5f9', padding: '0.15rem 0.35rem', borderRadius: '4px', color: '#334155', fontFamily: 'monospace' }}>{l.codigo}</code>
+                <tr
+                  key={l.id}
+                  className="[border-bottom:1px_solid_#f1f5f9] [transition:background_0.15s]"
+                >
+                  <td className="p-[1rem_1.25rem]">
+                    <div className="font-semibold text-[#0f172a]">
+                      {l.nombre}
+                    </div>
+                    <div className="text-[#64748b] text-[0.78rem] mt-[0.15rem]">
+                      <code className="bg-[#f1f5f9] p-[0.15rem_0.35rem] rounded-sm text-[#334155] [font-family:monospace]">
+                        {l.codigo}
+                      </code>
                     </div>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <div style={{ fontWeight: 600, color: '#1e293b' }}>{l.motor?.nombre || `Motor #${l.motor_id}`}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
+                  <td className="p-[1rem_1.25rem]">
+                    <div className="font-semibold text-[#1e293b]">
+                      {l.motor?.nombre || `Motor #${l.motor_id}`}
+                    </div>
+                    <div className="text-[#64748b] text-[0.78rem] mt-[0.15rem]">
                       {l.motor?.convencion_tasa} • {l.motor?.modalidad_iva}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <div style={{ fontWeight: 700, color: '#2563eb', fontSize: '0.9rem' }}>
-                      {l.tipo_tasa || (l.motor?.convencion_tasa?.includes('TEA') ? 'TEA' : 'TNA')}: {formatPct(l.tasa_default)}
+                  <td className="p-[1rem_1.25rem]">
+                    <div className="font-bold text-[#2563eb] text-[0.9rem]">
+                      {l.tipo_tasa ||
+                        (l.motor?.convencion_tasa?.includes('TEA')
+                          ? 'TEA'
+                          : 'TNA')}
+                      : {formatPct(l.tasa_default)}
                     </div>
-                    <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '0.15rem' }}>
-                      IVA: {formatPct(l.alicuota_iva)} {l.permite_override_tasa && <span style={{ color: '#059669', fontWeight: 500 }}>• Variable</span>}
+                    <div className="text-[#64748b] text-[0.78rem] mt-[0.15rem]">
+                      IVA: {formatPct(l.alicuota_iva)}{' '}
+                      {l.permite_override_tasa && (
+                        <span className="text-[#059669] font-medium">
+                          • Variable
+                        </span>
+                      )}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <div style={{ fontSize: '0.825rem', color: '#64748b' }}>
-                      Mín: <strong style={{ color: '#1e293b' }}>{formatMoney(l.monto_minimo_centavos)}</strong>
+                  <td className="p-[1rem_1.25rem]">
+                    <div className="text-[0.825rem] text-[#64748b]">
+                      Mín:{' '}
+                      <strong className="text-[#1e293b]">
+                        {formatMoney(l.monto_minimo_centavos)}
+                      </strong>
                     </div>
-                    <div style={{ fontSize: '0.825rem', color: '#64748b', marginTop: '0.1rem' }}>
-                      Máx: <strong style={{ color: '#1e293b' }}>{formatMoney(l.monto_maximo_centavos)}</strong>
+                    <div className="text-[0.825rem] text-[#64748b] mt-[0.1rem]">
+                      Máx:{' '}
+                      <strong className="text-[#1e293b]">
+                        {formatMoney(l.monto_maximo_centavos)}
+                      </strong>
                     </div>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{l.plazo_minimo_meses}</span> a <span style={{ fontWeight: 600, color: '#1e293b' }}>{l.plazo_maximo_meses}</span> cuotas
+                  <td className="p-[1rem_1.25rem]">
+                    <span className="font-semibold text-[#1e293b]">
+                      {l.plazo_minimo_meses}
+                    </span>{' '}
+                    a{' '}
+                    <span className="font-semibold text-[#1e293b]">
+                      {l.plazo_maximo_meses}
+                    </span>{' '}
+                    cuotas
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <Badge variant={l.requiere_socio_al_dia ? 'warning' : 'neutral'}>
+                  <td className="p-[1rem_1.25rem]">
+                    <Badge
+                      variant={l.requiere_socio_al_dia ? 'warning' : 'neutral'}
+                    >
                       {l.requiere_socio_al_dia ? 'Exige Al Día' : 'Flexible'}
                     </Badge>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
+                  <td className="p-[1rem_1.25rem]">
                     <span
                       onClick={() => handleToggleActivo(l)}
-                      style={{ cursor: 'pointer', display: 'inline-block' }}
+                      className="cursor-pointer [display:inline-block]"
                       title="Haz click para alternar estado"
                     >
                       <Badge variant={l.activo ? 'success' : 'danger'}>
@@ -181,24 +218,12 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
                       </Badge>
                     </span>
                   </td>
-                  <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                  <td className="p-[1rem_1.25rem] text-center">
+                    <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => handleEditar(l)}
                         title="Editar Línea"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.4rem 0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #cbd5e1',
-                          background: '#ffffff',
-                          color: '#334155',
-                          fontSize: '0.775rem',
-                          fontWeight: 500,
-                          cursor: 'pointer'
-                        }}
+                        className="inline-flex items-center gap-[0.35rem] p-[0.4rem_0.75rem] rounded-md [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#334155] text-[0.775rem] font-medium cursor-pointer"
                       >
                         <EditIcon size={14} />
                         Editar
@@ -206,19 +231,7 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
                       <button
                         onClick={() => handleEliminar(l)}
                         title="Eliminar Línea"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.4rem 0.75rem',
-                          borderRadius: '6px',
-                          border: '1px solid #fee2e2',
-                          background: '#fef2f2',
-                          color: '#991b1b',
-                          fontSize: '0.775rem',
-                          fontWeight: 500,
-                          cursor: 'pointer'
-                        }}
+                        className="inline-flex items-center gap-[0.35rem] p-[0.4rem_0.75rem] rounded-md [border:1px_solid_#fee2e2] bg-[#fef2f2] text-[#991b1b] text-[0.775rem] font-medium cursor-pointer"
                       >
                         <TrashIcon size={14} />
                         Eliminar
@@ -229,8 +242,10 @@ export const LineasPanel: React.FC<{ onNuevaLinea: () => void }> = ({ onNuevaLin
               ))
             ) : (
               <tr>
-                <td colSpan={8} style={{ padding: '3.5rem', textAlign: 'center', color: '#94a3b8' }}>
-                  {cargando ? 'Cargando líneas de préstamo...' : 'No hay líneas de crédito registradas.'}
+                <td colSpan={8} className="p-14 text-center text-[#94a3b8]">
+                  {cargando
+                    ? 'Cargando líneas de préstamo...'
+                    : 'No hay líneas de crédito registradas.'}
                 </td>
               </tr>
             )}

@@ -27,7 +27,12 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
   const cuotasPagadas = cuotas.filter((c) => c.estado === 'PAGADA').length;
 
   const handlePagarCuota = async (c: CuotaPrestamo) => {
-    if (!window.confirm(`¿Confirmás el registro de cobro para la Cuota #${c.numero_cuota} de ${formatMoney(c.cuota_total_centavos)}?`)) return;
+    if (
+      !window.confirm(
+        `¿Confirmás el cobro del saldo pendiente de la Cuota #${c.numero_cuota}: ${formatMoney(c.cuota_total_centavos - c.monto_pagado_centavos)}?`
+      )
+    )
+      return;
 
     setProcesando(true);
     setError(null);
@@ -58,11 +63,16 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
 
   const getEstadoBadgeVariant = (estado: string) => {
     switch (estado) {
-      case 'ACTIVO': return 'success';
-      case 'FINALIZADO': return 'neutral';
-      case 'CANCELADO': return 'danger';
-      case 'MORA': return 'warning';
-      default: return 'neutral';
+      case 'ACTIVO':
+        return 'success';
+      case 'FINALIZADO':
+        return 'neutral';
+      case 'CANCELADO':
+        return 'danger';
+      case 'MORA':
+        return 'warning';
+      default:
+        return 'neutral';
     }
   };
 
@@ -75,42 +85,42 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
     >
       <div>
         {error && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.875rem' }}>
+          <div className="mb-5 p-[0.85rem_1rem] bg-[#fee2e2] text-[#991b1b] rounded-lg [border:1px_solid_#fecaca] text-[0.875rem]">
             {error}
           </div>
         )}
 
         {/* Encabezado del Socio y Estado */}
-        <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="bg-[#f8fafc] p-5 rounded-xl [border:1px_solid_#e2e8f0] mb-6 flex justify-between items-center flex-wrap gap-4">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+            <div className="flex items-center gap-3">
+              <h3 className="text-[1.25rem] font-bold m-0 text-[#0f172a]">
                 {prestamo.persona_nombre || `Socio #${prestamo.persona_id}`}
               </h3>
               <Badge variant={getEstadoBadgeVariant(prestamo.estado)}>
                 {prestamo.estado}
               </Badge>
             </div>
-            <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.35rem' }}>
-              DNI: <strong>{prestamo.persona_doc || 'S/D'}</strong> • ID Socio: <strong>{prestamo.persona_id}</strong> • Otorgado el: <strong>{new Date(prestamo.fecha_alta).toLocaleDateString('es-AR')}</strong>
+            <div className="text-[#64748b] text-[0.85rem] mt-[0.35rem]">
+              DNI: <strong>{prestamo.persona_doc || 'S/D'}</strong> • ID Socio:{' '}
+              <strong>{prestamo.persona_id}</strong> • Otorgado el:{' '}
+              <strong>
+                {new Date(prestamo.fecha_alta).toLocaleDateString('es-AR')}
+              </strong>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div className="flex gap-3 items-center">
             {prestamo.estado === 'ACTIVO' && (
               <button
                 onClick={handleCancelarPrestamo}
                 disabled={procesando}
-                style={{
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '6px',
-                  border: '1px solid #fecaca',
-                  background: '#fef2f2',
-                  color: '#991b1b',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: procesando ? 'not-allowed' : 'pointer'
-                }}
+                className={[
+                  'p-[0.45rem_0.9rem] rounded-md [border:1px_solid_#fecaca] bg-[#fef2f2] text-[#991b1b] text-[0.8rem] font-semibold',
+                  procesando ? 'cursor-not-allowed' : 'cursor-pointer'
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
                 Cancelar Préstamo
               </button>
@@ -119,130 +129,193 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
         </div>
 
         {/* Tarjetas de Resumen Financiero */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Monto Solicitado</div>
-            <div style={{ color: '#0f172a', fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
+        <div className="grid grid-cols-[repeat(auto-fit,_minmax(180px,_1fr))] gap-4 mb-6">
+          <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4">
+            <div className="text-[#64748b] text-[0.75rem] font-semibold uppercase">
+              Monto Solicitado
+            </div>
+            <div className="text-[#0f172a] text-[1.25rem] font-bold mt-1">
               {formatMoney(prestamo.monto_solicitado_centavos)}
             </div>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
-              {prestamo.plazo_meses} cuotas • TNA {formatPct(prestamo.tna_pactada)}
+            <div className="text-[#64748b] text-[0.75rem] mt-[0.2rem]">
+              {prestamo.plazo_meses} cuotas • TNA{' '}
+              {formatPct(prestamo.tna_pactada)}
             </div>
           </div>
 
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Saldo Deudor Actual</div>
-            <div style={{ color: prestamo.saldo_deudor_actual_centavos > 0 ? '#dc2626' : '#16a34a', fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
+          <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4">
+            <div className="text-[#64748b] text-[0.75rem] font-semibold uppercase">
+              Saldo Deudor Actual
+            </div>
+            <div
+              className={[
+                prestamo.saldo_deudor_actual_centavos > 0
+                  ? 'text-[#dc2626]'
+                  : 'text-[#16a34a]',
+                'text-[1.25rem] font-bold mt-1'
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
               {formatMoney(prestamo.saldo_deudor_actual_centavos)}
             </div>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            <div className="text-[#64748b] text-[0.75rem] mt-[0.2rem]">
               Progreso: {cuotasPagadas} de {prestamo.plazo_meses} cuotas
             </div>
           </div>
 
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Intereses + IVA</div>
-            <div style={{ color: '#0f172a', fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
-              {formatMoney(prestamo.total_interes_centavos + prestamo.total_iva_centavos)}
+          <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4">
+            <div className="text-[#64748b] text-[0.75rem] font-semibold uppercase">
+              Intereses + IVA
             </div>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
-              Int: {formatMoney(prestamo.total_interes_centavos)} | IVA: {formatMoney(prestamo.total_iva_centavos)}
+            <div className="text-[#0f172a] text-[1.25rem] font-bold mt-1">
+              {formatMoney(
+                prestamo.total_interes_centavos + prestamo.total_iva_centavos
+              )}
+            </div>
+            <div className="text-[#64748b] text-[0.75rem] mt-[0.2rem]">
+              Int: {formatMoney(prestamo.total_interes_centavos)} | IVA:{' '}
+              {formatMoney(prestamo.total_iva_centavos)}
             </div>
           </div>
 
-          <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem' }}>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Total a Liquidar</div>
-            <div style={{ color: '#2563eb', fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
+          <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4">
+            <div className="text-[#64748b] text-[0.75rem] font-semibold uppercase">
+              Total a Liquidar
+            </div>
+            <div className="text-[#2563eb] text-[1.25rem] font-bold mt-1">
               {formatMoney(prestamo.total_a_pagar_centavos)}
             </div>
-            <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+            <div className="text-[#64748b] text-[0.75rem] mt-[0.2rem]">
               Línea: {prestamo.linea_snapshot?.linea_nombre || 'Sin línea'}
             </div>
           </div>
         </div>
 
         {prestamo.linea_snapshot && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.85rem 1.1rem', marginBottom: '1.25rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.35rem' }}>
+          <div className="bg-[#f8fafc] [border:1px_solid_#e2e8f0] rounded-[10px] p-[0.85rem_1.1rem] mb-5">
+            <div className="text-[0.75rem] font-bold text-[#475569] uppercase tracking-[0.04em] mb-[0.35rem]">
               Evidencia Legal del Contrato (Snapshot Inmutable de Línea)
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', fontSize: '0.825rem', color: '#334155' }}>
-              <div>Línea: <strong>{prestamo.linea_snapshot.linea_nombre}</strong> (<code>{prestamo.linea_snapshot.linea_codigo}</code>)</div>
-              <div>Motor: <strong>{prestamo.linea_snapshot.motor_nombre}</strong></div>
-              <div>Tasa Catálogo Vigente: <strong>{formatPct(prestamo.linea_snapshot.tasa_catalogo_vigente)}</strong></div>
-              <div>Fecha Congelamiento: <strong>{new Date(prestamo.linea_snapshot.fecha_snapshot).toLocaleDateString('es-AR')}</strong></div>
+            <div className="flex flex-wrap gap-6 text-[0.825rem] text-[#334155]">
+              <div>
+                Línea: <strong>{prestamo.linea_snapshot.linea_nombre}</strong> (
+                <code>{prestamo.linea_snapshot.linea_codigo}</code>)
+              </div>
+              <div>
+                Motor: <strong>{prestamo.linea_snapshot.motor_nombre}</strong>
+              </div>
+              <div>
+                Tasa Catálogo Vigente:{' '}
+                <strong>
+                  {formatPct(prestamo.linea_snapshot.tasa_catalogo_vigente)}
+                </strong>
+              </div>
+              <div>
+                Fecha Congelamiento:{' '}
+                <strong>
+                  {new Date(
+                    prestamo.linea_snapshot.fecha_snapshot
+                  ).toLocaleDateString('es-AR')}
+                </strong>
+              </div>
             </div>
           </div>
         )}
 
         {prestamo.observaciones && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#f1f5f9', borderRadius: '8px', fontSize: '0.85rem', color: '#334155' }}>
+          <div className="mb-5 p-[0.75rem_1rem] bg-[#f1f5f9] rounded-lg text-[0.85rem] text-[#334155]">
             <strong>Observaciones del legajo:</strong> {prestamo.observaciones}
           </div>
         )}
 
         {/* Tabla de Cronograma de Cuotas */}
-        <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '0.75rem 1rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontWeight: 600, color: '#334155', fontSize: '0.9rem' }}>
+        <div className="[border:1px_solid_#e2e8f0] rounded-[10px] overflow-hidden">
+          <div className="p-[0.75rem_1rem] bg-[#f8fafc] [border-bottom:1px_solid_#e2e8f0] font-semibold text-[#334155] text-[0.9rem]">
             Cronograma Oficial de Cuotas ({cuotas.length} cuotas)
           </div>
-          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', fontSize: '0.825rem' }}>
-              <thead style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 10, borderBottom: '1px solid #e2e8f0' }}>
+          <div className="max-h-[380px] overflow-y-auto">
+            <table className="w-full border-collapse text-right text-[0.825rem]">
+              <thead className="bg-[#f8fafc] sticky top-0 z-[10] [border-bottom:1px_solid_#e2e8f0]">
                 <tr>
-                  <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>Cuota #</th>
-                  <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>Vencimiento</th>
-                  <th style={{ padding: '0.65rem 0.75rem' }}>Saldo Inicial</th>
-                  <th style={{ padding: '0.65rem 0.75rem' }}>Capital</th>
-                  <th style={{ padding: '0.65rem 0.75rem' }}>Interés</th>
-                  <th style={{ padding: '0.65rem 0.75rem' }}>IVA s/Int</th>
-                  <th style={{ padding: '0.65rem 0.75rem', color: '#1d4ed8' }}>Cuota Total</th>
-                  <th style={{ padding: '0.65rem 0.75rem' }}>Saldo Final</th>
-                  <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>Estado</th>
-                  <th style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>Acción</th>
+                  <th className="p-[0.65rem_0.75rem] text-center">Cuota #</th>
+                  <th className="p-[0.65rem_0.75rem] text-center">
+                    Vencimiento
+                  </th>
+                  <th className="p-[0.65rem_0.75rem]">Saldo Inicial</th>
+                  <th className="p-[0.65rem_0.75rem]">Capital</th>
+                  <th className="p-[0.65rem_0.75rem]">Interés</th>
+                  <th className="p-[0.65rem_0.75rem]">IVA s/Int</th>
+                  <th className="p-[0.65rem_0.75rem] text-[#1d4ed8]">
+                    Cuota Total
+                  </th>
+                  <th className="p-[0.65rem_0.75rem]">Saldo Final</th>
+                  <th className="p-[0.65rem_0.75rem] text-center">Estado</th>
+                  <th className="p-[0.65rem_0.75rem] text-center">Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {cuotas.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9', background: c.estado === 'PAGADA' ? '#f0fdf4' : 'transparent' }}>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', fontWeight: 600 }}>{c.numero_cuota}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center', color: '#64748b' }}>
-                      {c.fecha_vencimiento ? new Date(c.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR') : `Mes ${c.numero_cuota}`}
+                  <tr
+                    key={c.id}
+                    className={[
+                      '[border-bottom:1px_solid_#f1f5f9]',
+                      c.estado === 'PAGADA' ? 'bg-[#f0fdf4]' : 'bg-transparent'
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <td className="p-[0.65rem_0.75rem] text-center font-semibold">
+                      {c.numero_cuota}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem' }}>{formatMoney(c.saldo_inicial_centavos)}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', fontWeight: 500 }}>{formatMoney(c.capital_centavos)}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#64748b' }}>{formatMoney(c.interes_centavos)}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#64748b' }}>{formatMoney(c.iva_interes_centavos)}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', fontWeight: 700, color: '#1d4ed8' }}>
+                    <td className="p-[0.65rem_0.75rem] text-center text-[#64748b]">
+                      {c.fecha_vencimiento
+                        ? new Date(
+                            c.fecha_vencimiento + 'T00:00:00'
+                          ).toLocaleDateString('es-AR')
+                        : `Mes ${c.numero_cuota}`}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem]">
+                      {formatMoney(c.saldo_inicial_centavos)}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem] font-medium">
+                      {formatMoney(c.capital_centavos)}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem] text-[#64748b]">
+                      {formatMoney(c.interes_centavos)}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem] text-[#64748b]">
+                      {formatMoney(c.iva_interes_centavos)}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem] font-bold text-[#1d4ed8]">
                       {formatMoney(c.cuota_total_centavos)}
+                      {c.monto_pagado_centavos > 0 && c.estado !== 'PAGADA' && <small className="block text-[#92400e]">Pendiente: {formatMoney(c.cuota_total_centavos - c.monto_pagado_centavos)}</small>}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#64748b' }}>{formatMoney(c.saldo_final_centavos)}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>
-                      <Badge variant={c.estado === 'PAGADA' ? 'success' : 'neutral'}>
+                    <td className="p-[0.65rem_0.75rem] text-[#64748b]">
+                      {formatMoney(c.saldo_final_centavos)}
+                    </td>
+                    <td className="p-[0.65rem_0.75rem] text-center">
+                      <Badge
+                        variant={c.estado === 'PAGADA' ? 'success' : 'neutral'}
+                      >
                         {c.estado}
                       </Badge>
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', textAlign: 'center' }}>
-                      {c.estado === 'PENDIENTE' && prestamo.estado === 'ACTIVO' ? (
+                    <td className="p-[0.65rem_0.75rem] text-center">
+                      {['PENDIENTE', 'PARCIAL', 'RECHAZADA', 'VENCIDA'].includes(c.estado) &&
+                      ['ACTIVO', 'MORA'].includes(prestamo.estado) ? (
                         <button
                           onClick={() => handlePagarCuota(c)}
                           disabled={procesando}
-                          style={{
-                            padding: '0.3rem 0.6rem',
-                            borderRadius: '4px',
-                            border: '1px solid #bbf7d0',
-                            background: '#dcfce7',
-                            color: '#15803d',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
+                          className="p-[0.3rem_0.6rem] rounded-sm [border:1px_solid_#bbf7d0] bg-[#dcfce7] text-[#15803d] text-[0.75rem] font-semibold cursor-pointer"
                         >
                           Cobrar
                         </button>
                       ) : (
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                          {c.fecha_pago ? new Date(c.fecha_pago).toLocaleDateString('es-AR') : '—'}
+                        <span className="text-[0.75rem] text-[#94a3b8]">
+                          {c.fecha_pago
+                            ? new Date(c.fecha_pago).toLocaleDateString('es-AR')
+                            : '—'}
                         </span>
                       )}
                     </td>
@@ -253,18 +326,10 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
           </div>
         </div>
 
-        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            style={{
-              padding: '0.55rem 1.25rem',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+            className="p-[0.55rem_1.25rem] rounded-lg [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#334155] font-semibold cursor-pointer"
           >
             Cerrar
           </button>

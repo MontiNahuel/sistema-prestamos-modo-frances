@@ -192,18 +192,14 @@ def test_flujo_completo_presentacion_y_rendicion_bapro():
         assert cuota.estado == "PRESENTADA"
 
         # 6. Procesar Rendición Bancaria (Respuesta OK)
-        linea_resp = (
-            f"721012202600000000998877              "
-            f"P0140123456789012345678001042000030690754386"
-            f"SERVICI014cs0000000008001                                     "
-            f"   COOPCREDITOYALTD\r\n"
-        )
-        res_resp = service.procesar_respuesta_bapro(
-            nro_archivo=res_gen.nro_archivo,
-            contenido_texto=linea_resp,
-        )
-        assert res_resp.aprobados == 1
-        assert res_resp.rechazados == 0
+        from app.features.respuestas_bancarias.service import RespuestasService
+        linea_resp = b'72' + contenido_bytes[2:]
+        respuestas = RespuestasService(db_session)
+        vista = respuestas.previsualizar('BAPRO', res_gen.nro_archivo, linea_resp, date.today())
+        res_resp = respuestas.confirmar('BAPRO', res_gen.nro_archivo, linea_resp,
+            date.today(), {}, vista['revision'], 'respuesta-test.txt', 'test')
+        assert res_resp['cobrados'] == 1
+        assert res_resp['rechazados'] == 0
 
         # Verificar cuota en estado PAGADA
         db_session.refresh(cuota)

@@ -7,7 +7,10 @@ interface PersonasBuscadorProps {
   buscando: boolean;
 }
 
-export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({ onBuscar, buscando }) => {
+export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({
+  onBuscar,
+  buscando
+}) => {
   const [texto, setTexto] = useState('');
   const [doc, setDoc] = useState('');
   const [idPersona, setIdPersona] = useState('');
@@ -25,21 +28,10 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({ onBuscar, bu
   return (
     <form
       onSubmit={handleSubmit}
-      style={{
-        background: '#ffffff',
-        padding: '1.25rem 1.5rem',
-        borderRadius: '12px',
-        border: '1px solid #e2e8f0',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-        flexWrap: 'wrap',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)'
-      }}
+      className="bg-[#ffffff] p-[1.25rem_1.5rem] rounded-xl [border:1px_solid_#e2e8f0] flex items-center gap-4 mb-6 flex-wrap shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)]"
     >
-      <div style={{ flex: '2', minWidth: '220px', position: 'relative' }}>
-        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
+      <div className="flex-[2] min-w-[220px] relative">
+        <label className="block text-[0.75rem] font-semibold text-[#64748b] mb-1">
           Apellido o Nombre
         </label>
         <input
@@ -47,21 +39,12 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({ onBuscar, bu
           placeholder="Ej: Gomez, Maria..."
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.625rem 0.875rem',
-            borderRadius: '8px',
-            border: '1px solid #cbd5e1',
-            fontSize: '0.9rem',
-            color: '#0f172a',
-            background: '#ffffff',
-            boxSizing: 'border-box'
-          }}
+          className="w-full p-[0.625rem_0.875rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.9rem] text-[#0f172a] bg-[#ffffff] box-border"
         />
       </div>
 
-      <div style={{ flex: '1', minWidth: '160px' }}>
-        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
+      <div className="flex-[1] min-w-[160px]">
+        <label className="block text-[0.75rem] font-semibold text-[#64748b] mb-1">
           N° Documento (DNI)
         </label>
         <input
@@ -69,21 +52,12 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({ onBuscar, bu
           placeholder="Ej: 30123456"
           value={doc}
           onChange={(e) => setDoc(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.625rem 0.875rem',
-            borderRadius: '8px',
-            border: '1px solid #cbd5e1',
-            fontSize: '0.9rem',
-            color: '#0f172a',
-            background: '#ffffff',
-            boxSizing: 'border-box'
-          }}
+          className="w-full p-[0.625rem_0.875rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.9rem] text-[#0f172a] bg-[#ffffff] box-border"
         />
       </div>
 
-      <div style={{ width: '130px' }}>
-        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>
+      <div className="w-[130px]">
+        <label className="block text-[0.75rem] font-semibold text-[#64748b] mb-1">
           IdPersona
         </label>
         <input
@@ -91,43 +65,21 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({ onBuscar, bu
           placeholder="Ej: 309"
           value={idPersona}
           onChange={(e) => setIdPersona(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.625rem 0.875rem',
-            borderRadius: '8px',
-            border: '1px solid #cbd5e1',
-            fontSize: '0.9rem',
-            color: '#0f172a',
-            background: '#ffffff',
-            boxSizing: 'border-box'
-          }}
+          className="w-full p-[0.625rem_0.875rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.9rem] text-[#0f172a] bg-[#ffffff] box-border"
         />
       </div>
 
-      <div style={{ paddingTop: '1.25rem' }}>
+      <div className="pt-5">
         <button
           type="submit"
           disabled={buscando}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.625rem 1.5rem',
-            background: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: buscando ? 'not-allowed' : 'pointer',
-            boxShadow: '0 1px 2px 0 rgba(37, 99, 235, 0.2)'
-          }}
-          onMouseEnter={(e) => {
-            if (!buscando) e.currentTarget.style.background = '#1d4ed8';
-          }}
-          onMouseLeave={(e) => {
-            if (!buscando) e.currentTarget.style.background = '#2563eb';
-          }}
+          className={[
+            'flex items-center gap-2 p-[0.625rem_1.5rem] bg-[#2563eb] text-[#ffffff] [border:none] rounded-lg font-semibold text-[0.9rem]',
+            buscando ? 'cursor-not-allowed' : 'cursor-pointer',
+            'shadow-[0_1px_2px_0_rgba(37,_99,_235,_0.2)] enabled:hover:bg-[#1d4ed8]'
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           <SearchIcon size={16} color="#ffffff" />
           <span>{buscando ? 'Buscando...' : 'Buscar Socios'}</span>

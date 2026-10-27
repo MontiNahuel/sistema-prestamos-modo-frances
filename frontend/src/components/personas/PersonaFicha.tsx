@@ -3,7 +3,13 @@ import { Persona, CuentaCorrienteResumen } from '../../types/persona';
 import { Prestamo } from '../../types/prestamo';
 import { getPrestamos } from '../../services/api/prestamosApi';
 import { formatPesos, formatMoney } from '../../utils/formatters';
-import { CheckCircleIcon, AlertTriangleIcon, CreditCardIcon, ArrowRightIcon, FileTextIcon } from '../common/Icons';
+import {
+  CheckCircleIcon,
+  AlertTriangleIcon,
+  CreditCardIcon,
+  ArrowRightIcon,
+  FileTextIcon
+} from '../common/Icons';
 import { CuentaCorrienteModal } from './CuentaCorrienteModal';
 
 interface PersonaFichaProps {
@@ -33,89 +39,56 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
   }, [persona]);
 
   return (
-    <div style={{
-      background: '#ffffff',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      padding: '1.5rem',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
-      position: 'sticky',
-      top: '5rem'
-    }}>
+    <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl p-6 shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)] sticky top-20">
       {/* Encabezado */}
-      <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.375rem' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#2563eb', letterSpacing: '0.05em' }}>
+      <div className="[border-bottom:1px_solid_#f1f5f9] pb-4 mb-5">
+        <div className="flex justify-between items-center mb-[0.375rem]">
+          <span className="text-[0.7rem] font-bold uppercase text-[#2563eb] tracking-[0.05em]">
             Ficha del Socio
           </span>
-          <span style={{
-            fontSize: '0.75rem',
-            background: '#eff6ff',
-            color: '#1d4ed8',
-            border: '1px solid #bfdbfe',
-            padding: '0.15rem 0.5rem',
-            borderRadius: '4px',
-            fontWeight: 700
-          }}>
+          <span className="text-[0.75rem] bg-[#eff6ff] text-[#1d4ed8] [border:1px_solid_#bfdbfe] p-[0.15rem_0.5rem] rounded-sm font-bold">
             IdPersona: #{persona.idPersona}
           </span>
         </div>
-        <h3 style={{ margin: '0.25rem 0 0.35rem', fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>
+        <h3 className="m-[0.25rem_0_0.35rem] text-[1.2rem] text-[#0f172a] font-bold">
           {persona.apellido} {persona.nombre}
         </h3>
-        <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
-          Socio N° {persona.nroSocio || '—'} · DNI {persona.numeroDoc} · CUIL {persona.cuil}
+        <p className="m-0 text-[0.8rem] text-[#64748b]">
+          Socio N° {persona.nroSocio || '—'} · DNI {persona.numeroDoc} · CUIL{' '}
+          {persona.cuil}
         </p>
       </div>
 
       {/* Resumen de Cuenta Corriente */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+      <div className="mb-5">
+        <div className="text-[0.8rem] font-semibold text-[#475569] mb-2">
           Estado Financiero (Cuenta Corriente):
         </div>
         {cargandoCc ? (
-          <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.85rem', color: '#64748b', background: '#f8fafc', borderRadius: '8px' }}>
+          <div className="p-4 text-center text-[0.85rem] text-[#64748b] bg-[#f8fafc] rounded-lg">
             Consultando cuenta corriente...
           </div>
         ) : ccResumen ? (
-          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.625rem' }}>
-              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Saldo Deudor:</span>
-              <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>
+          <div className="bg-[#f8fafc] p-4 rounded-lg [border:1px_solid_#e2e8f0]">
+            <div className="flex justify-between items-center mb-[0.625rem]">
+              <span className="text-[0.85rem] text-[#64748b]">
+                Saldo Deudor:
+              </span>
+              <span className="font-bold text-[#0f172a] text-[1rem]">
                 {formatPesos(ccResumen.totales.saldo)}
               </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Situación Crediticia:</span>
+            <div className="flex justify-between items-center">
+              <span className="text-[0.85rem] text-[#64748b]">
+                Situación Crediticia:
+              </span>
               {ccResumen.totales.algunaConMora ? (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  background: '#fef2f2',
-                  color: '#b91c1c',
-                  border: '1px solid #fecaca'
-                }}>
+                <span className="inline-flex items-center gap-[0.3rem] p-[0.2rem_0.6rem] rounded-sm text-[0.75rem] font-bold bg-[#fef2f2] text-[#b91c1c] [border:1px_solid_#fecaca]">
                   <AlertTriangleIcon size={14} color="#b91c1c" />
                   REGISTRA MORA
                 </span>
               ) : (
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.2rem 0.6rem',
-                  borderRadius: '4px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  background: '#f0fdf4',
-                  color: '#15803d',
-                  border: '1px solid #bbf7d0'
-                }}>
+                <span className="inline-flex items-center gap-[0.3rem] p-[0.2rem_0.6rem] rounded-sm text-[0.75rem] font-bold bg-[#f0fdf4] text-[#15803d] [border:1px_solid_#bbf7d0]">
                   <CheckCircleIcon size={14} color="#15803d" />
                   SOCIO AL DÍA
                 </span>
@@ -125,94 +98,77 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
             <button
               type="button"
               onClick={() => setModalCcAbierto(true)}
-              style={{
-                width: '100%',
-                marginTop: '0.75rem',
-                padding: '0.5rem',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#2563eb',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.4rem'
-              }}
+              className="w-full mt-3 p-2 rounded-md [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#2563eb] text-[0.75rem] font-semibold cursor-pointer flex items-center justify-center gap-[0.4rem]"
             >
               <FileTextIcon size={14} color="#2563eb" />
               <span>Ver Cuenta Corriente Detallada</span>
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>No se pudo obtener el resumen.</div>
+          <div className="text-[0.8rem] text-[#94a3b8]">
+            No se pudo obtener el resumen.
+          </div>
         )}
       </div>
 
       {/* Cuentas / CBU para Desembolso */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem' }}>
+      <div className="mb-5">
+        <div className="flex items-center gap-[0.4rem] text-[0.8rem] font-semibold text-[#475569] mb-2">
           <CreditCardIcon size={15} color="#64748b" />
           <span>CBU / Medios de Pago:</span>
         </div>
         {persona.mediosDePago && persona.mediosDePago.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="flex flex-col gap-2">
             {persona.mediosDePago.map((m) => (
-              <div key={m.id} style={{ background: '#f8fafc', padding: '0.625rem 0.75rem', borderRadius: '6px', fontSize: '0.8rem', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>{m.valor}</div>
-                <div style={{ color: '#64748b', fontSize: '0.725rem', marginTop: '0.15rem' }}>
-                  {m.predeterminado ? '★ CBU Principal' : 'Secundario'} {m.banco ? `· ${m.banco}` : ''}
+              <div
+                key={m.id}
+                className="bg-[#f8fafc] p-[0.625rem_0.75rem] rounded-md text-[0.8rem] [border:1px_solid_#e2e8f0]"
+              >
+                <div className="font-semibold text-[#0f172a]">{m.valor}</div>
+                <div className="text-[#64748b] text-[0.725rem] mt-[0.15rem]">
+                  {m.predeterminado ? '★ CBU Principal' : 'Secundario'}{' '}
+                  {m.banco ? `· ${m.banco}` : ''}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+          <div className="text-[0.8rem] text-[#94a3b8] [font-style:italic]">
             No registra CBU bancario.
           </div>
         )}
       </div>
 
       {/* Préstamos en Sistema Propio */}
-      <div style={{ marginBottom: '1.5rem', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+      <div className="mb-6 bg-[#f8fafc] p-[0.75rem_1rem] rounded-lg [border:1px_solid_#e2e8f0]">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-[0.4rem] text-[0.8rem] font-semibold text-[#334155]">
             <FileTextIcon size={15} color="#2563eb" />
             <span>Préstamos en Sistema:</span>
           </div>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: prestamosSocio.length > 0 ? '#1d4ed8' : '#64748b' }}>
+          <span
+            className={[
+              'text-[0.8rem] font-bold',
+              prestamosSocio.length > 0 ? 'text-[#1d4ed8]' : 'text-[#64748b]'
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             {prestamosSocio.length} operaciones
           </span>
         </div>
         {prestamosSocio.length > 0 && (
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem' }}>
-            Último: {prestamosSocio[0].linea_snapshot?.linea_nombre || 'Sin línea'} ({formatMoney(prestamosSocio[0].monto_solicitado_centavos)})
+          <div className="text-[0.75rem] text-[#64748b] mt-[0.35rem]">
+            Último:{' '}
+            {prestamosSocio[0].linea_snapshot?.linea_nombre || 'Sin línea'} (
+            {formatMoney(prestamosSocio[0].monto_solicitado_centavos)})
           </div>
         )}
       </div>
 
       <button
         onClick={() => onSimularParaSocio(persona)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          padding: '0.75rem',
-          background: '#16a34a',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: '8px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontSize: '0.875rem',
-          boxShadow: '0 1px 2px 0 rgba(22, 163, 74, 0.2)'
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#15803d'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = '#16a34a'; }}
+        className="w-full flex items-center justify-center gap-2 p-3 bg-[#16a34a] text-[#ffffff] [border:none] rounded-lg font-semibold cursor-pointer text-[0.875rem] shadow-[0_1px_2px_0_rgba(22,_163,_74,_0.2)] hover:bg-[#15803d]"
       >
         <span>Simular Préstamo</span>
         <ArrowRightIcon size={16} color="#ffffff" />

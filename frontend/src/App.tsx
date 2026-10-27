@@ -9,18 +9,22 @@ import { SimuladorForm } from './components/simulador/SimuladorForm';
 import { SimuladorTarjetas } from './components/simulador/SimuladorTarjetas';
 import { CronogramaTabla } from './components/simulador/CronogramaTabla';
 import { OtorgarPrestamoModal } from './components/simulador/OtorgarPrestamoModal';
-import { PrestamosPanel } from './components/prestamos/PrestamosPanel';
 import { MotoresPanel } from './components/abm/motores/MotoresPanel';
 import { LineasPanel } from './components/abm/lineas/LineasPanel';
 import { LineaModal } from './components/abm/lineas/LineaModal';
 import { ReportesPanel } from './features/reportes/ReportesPanel';
 import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
 import { PresentacionesBaproPanel } from './components/presentaciones_bapro/PresentacionesBaproPanel';
+import { RespuestasPanel } from './features/respuestas/RespuestasPanel';
 import { getPerfilActual } from './services/api/authApi';
 import { UserProfile } from './types/auth';
 import { createLinea } from './services/api/lineasApi';
 
-import { Persona, CuentaCorrienteResumen, PersonaBusquedaParams } from './types/persona';
+import {
+  Persona,
+  CuentaCorrienteResumen,
+  PersonaBusquedaParams
+} from './types/persona';
 import { PlanAmortizacion, SimulacionPayload } from './types/simulacion';
 import { Prestamo } from './types/prestamo';
 import { buscarPersonas, getCuentaCorriente } from './services/api/personasApi';
@@ -28,7 +32,9 @@ import { simularPrestamo } from './services/api/simuladorApi';
 import { CheckCircleIcon, FileTextIcon } from './components/common/Icons';
 
 export default function App() {
-  const [token, setToken] = useState<string>(() => localStorage.getItem('coopya_token') || '');
+  const [token, setToken] = useState<string>(
+    () => localStorage.getItem('coopya_token') || ''
+  );
   const [currentTab, setCurrentTab] = useState<TabKey>('personas');
   const [perfil, setPerfil] = useState<UserProfile | null>(null);
 
@@ -39,20 +45,31 @@ export default function App() {
       setPerfil(null);
     }
   }, [token]);
+  const [reportePrestamoId, setReportePrestamoId] = useState<
+    string | undefined
+  >();
 
   // Estado de Personas
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [buscando, setBuscando] = useState<boolean>(false);
-  const [personaSeleccionada, setPersonaSeleccionada] = useState<Persona | null>(null);
-  const [ccResumen, setCcResumen] = useState<CuentaCorrienteResumen | null>(null);
+  const [personaSeleccionada, setPersonaSeleccionada] =
+    useState<Persona | null>(null);
+  const [ccResumen, setCcResumen] = useState<CuentaCorrienteResumen | null>(
+    null
+  );
   const [cargandoCc, setCargandoCc] = useState<boolean>(false);
   const [busqError, setBusqError] = useState<string | null>(null);
-  const [modalCrearPersonaAbierto, setModalCrearPersonaAbierto] = useState(false);
+  const [modalCrearPersonaAbierto, setModalCrearPersonaAbierto] =
+    useState(false);
 
   // Estado de Simulación
   const [simulando, setSimulando] = useState<boolean>(false);
-  const [ultimoPayload, setUltimoPayload] = useState<SimulacionPayload | null>(null);
-  const [planResultado, setPlanResultado] = useState<PlanAmortizacion | null>(null);
+  const [ultimoPayload, setUltimoPayload] = useState<SimulacionPayload | null>(
+    null
+  );
+  const [planResultado, setPlanResultado] = useState<PlanAmortizacion | null>(
+    null
+  );
   const [simError, setSimError] = useState<string | null>(null);
   const [modalLineaAbierto, setModalLineaAbierto] = useState(false);
   const [lineaCreada, setLineaCreada] = useState<string | null>(null);
@@ -60,13 +77,19 @@ export default function App() {
   const [nuevaLinea, setNuevaLinea] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const revisionSimulacion = useRef(0);
-  const condicionesSimuladas = useMemo(() => ultimoPayload && planResultado && ultimoPayload.motor_id ? {
-    motor_id: ultimoPayload.motor_id,
-    tasa: Number(planResultado.tasa_anual),
-    iva: Number(planResultado.alicuota_iva),
-    monto: ultimoPayload.monto_centavos,
-    plazo: ultimoPayload.plazo_meses
-  } : undefined, [ultimoPayload, planResultado]);
+  const condicionesSimuladas = useMemo(
+    () =>
+      ultimoPayload && planResultado && ultimoPayload.motor_id
+        ? {
+            motor_id: ultimoPayload.motor_id,
+            tasa: Number(planResultado.tasa_anual),
+            iva: Number(planResultado.alicuota_iva),
+            monto: ultimoPayload.monto_centavos,
+            plazo: ultimoPayload.plazo_meses
+          }
+        : undefined,
+    [ultimoPayload, planResultado]
+  );
 
   const invalidarSimulacion = () => {
     revisionSimulacion.current += 1;
@@ -81,13 +104,15 @@ export default function App() {
   const iniciarNuevaLinea = () => {
     invalidarSimulacion();
     setNuevaLinea(true);
-    setFormVersion(v => v + 1);
+    setFormVersion((v) => v + 1);
     setCurrentTab('simulador');
   };
 
   // Modal de Otorgamiento
-  const [modalOtorgarAbierto, setModalOtorgarAbierto] = useState<boolean>(false);
-  const [prestamoOtorgadoExito, setPrestamoOtorgadoExito] = useState<Prestamo | null>(null);
+  const [modalOtorgarAbierto, setModalOtorgarAbierto] =
+    useState<boolean>(false);
+  const [prestamoOtorgadoExito, setPrestamoOtorgadoExito] =
+    useState<Prestamo | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -166,7 +191,8 @@ export default function App() {
       const plan = await simularPrestamo(payload);
       if (revision === revisionSimulacion.current) setPlanResultado(plan);
     } catch (err: any) {
-      if (revision === revisionSimulacion.current) setSimError(err.message || 'Error al calcular simulación');
+      if (revision === revisionSimulacion.current)
+        setSimError(err.message || 'Error al calcular simulación');
     } finally {
       setSimulando(false);
     }
@@ -183,47 +209,36 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f9fafb', color: '#1f2937' }}>
+    <div className="[font-family:system-ui,_sans-serif] min-h-screen bg-[#f9fafb] text-[#1f2937]">
       <Navbar
         currentTab={currentTab}
-        onTabChange={tab => {
+        onTabChange={(tab) => {
           if (tab !== currentTab) invalidarSimulacion();
+          if (tab === 'reportes') setReportePrestamoId(undefined);
           setCurrentTab(tab);
         }}
         onLogout={handleLogout}
         esAccesoCompleto={perfil?.es_acceso_completo}
       />
 
-      <main style={{ padding: '1.75rem 2.5rem', width: '100%', boxSizing: 'border-box' }}>
+      <main className="p-[1.75rem_2.5rem] w-full box-border">
         {/* Pestaña: Buscar Personas */}
         {currentTab === 'personas' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                <h2 className="text-[1.6rem] font-bold m-0 text-[#0f172a] tracking-[-0.02em]">
                   Gestión y Búsqueda de Personas
                 </h2>
-                <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-                  Consulta de socios, verificación de morosidad y cuentas bancarias en tiempo real desde CoopYa.
+                <p className="m-[0.35rem_0_0] text-[#64748b] text-[0.9rem]">
+                  Consulta de socios, verificación de morosidad y cuentas
+                  bancarias en tiempo real desde CoopYa.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalCrearPersonaAbierto(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.65rem 1.25rem',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
-                }}
+                className="flex items-center gap-[0.4rem] p-[0.65rem_1.25rem] bg-[#2563eb] text-[#ffffff] [border:none] rounded-lg font-semibold text-[0.875rem] cursor-pointer shadow-[0_1px_2px_rgba(37,_99,_235,_0.2)]"
               >
                 <span>+ Nueva Persona</span>
               </button>
@@ -232,12 +247,22 @@ export default function App() {
             <PersonasBuscador onBuscar={handleBuscar} buscando={buscando} />
 
             {busqError && (
-              <div style={{ padding: '0.85rem 1.25rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid #fecaca', fontWeight: 500 }}>
+              <div className="p-[0.85rem_1.25rem] bg-[#fee2e2] text-[#991b1b] rounded-lg mb-6 [border:1px_solid_#fecaca] font-medium">
                 {busqError}
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: personaSeleccionada ? 'minmax(0, 1fr) 460px' : '1fr', gap: '1.75rem', alignItems: 'start' }}>
+            <div
+              className={[
+                'grid',
+                personaSeleccionada
+                  ? 'grid-cols-[minmax(0,_1fr)_460px]'
+                  : 'grid-cols-[1fr]',
+                'gap-7 [align-items:start]'
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
               <PersonasTabla
                 personas={personas}
                 personaSeleccionada={personaSeleccionada}
@@ -268,67 +293,62 @@ export default function App() {
         {/* Pestaña: Simulador Francés */}
         {currentTab === 'simulador' && (
           <div>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            <div className="mb-6">
+              <h2 className="text-[1.6rem] font-bold m-0 text-[#0f172a] tracking-[-0.02em]">
                 Simulador del Sistema Francés
               </h2>
-              <p style={{ margin: '0.35rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
-                Simulá las condiciones, calculá las cuotas y creá una línea de préstamo desde el resultado.
+              <p className="m-[0.35rem_0_0] text-[#64748b] text-[0.9rem]">
+                Simulá las condiciones, calculá las cuotas y creá una línea de
+                préstamo desde el resultado.
               </p>
             </div>
 
             {/* Banner de Éxito al Otorgar */}
             {prestamoOtorgadoExito && (
-              <div style={{
-                marginBottom: '1.5rem',
-                padding: '1.25rem',
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '1rem',
-                boxShadow: '0 2px 4px rgba(22, 163, 74, 0.08)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ color: '#16a34a' }}>
+              <div className="mb-6 p-5 bg-[#f0fdf4] [border:1px_solid_#bbf7d0] rounded-xl flex justify-between items-center flex-wrap gap-4 shadow-[0_2px_4px_rgba(22,_163,_74,_0.08)]">
+                <div className="flex items-center gap-3">
+                  <div className="text-[#16a34a]">
                     <CheckCircleIcon size={28} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#166534', fontSize: '1.05rem' }}>
-                      ¡Préstamo #{prestamoOtorgadoExito.id.substring(0, 8).toUpperCase()} Otorgado con Éxito!
+                    <div className="font-bold text-[#166534] text-[1.05rem]">
+                      ¡Préstamo #
+                      {prestamoOtorgadoExito.id.substring(0, 8).toUpperCase()}{' '}
+                      Otorgado con Éxito!
                     </div>
-                    <div style={{ color: '#15803d', fontSize: '0.875rem', marginTop: '0.2rem' }}>
-                      Titular: <strong>{prestamoOtorgadoExito.persona_nombre}</strong> • Monto: <strong>${(prestamoOtorgadoExito.monto_solicitado_centavos / 100).toLocaleString('es-AR')}</strong> en <strong>{prestamoOtorgadoExito.plazo_meses} cuotas</strong>.
+                    <div className="text-[#15803d] text-[0.875rem] mt-[0.2rem]">
+                      Titular:{' '}
+                      <strong>{prestamoOtorgadoExito.persona_nombre}</strong> •
+                      Monto:{' '}
+                      <strong>
+                        $
+                        {(
+                          prestamoOtorgadoExito.monto_solicitado_centavos / 100
+                        ).toLocaleString('es-AR')}
+                      </strong>{' '}
+                      en{' '}
+                      <strong>
+                        {prestamoOtorgadoExito.plazo_meses} cuotas
+                      </strong>
+                      .
                     </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setCurrentTab('prestamos')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.6rem 1.25rem',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: '#16a34a',
-                    color: '#ffffff',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    cursor: 'pointer'
+                  onClick={() => {
+                    setReportePrestamoId(prestamoOtorgadoExito.id);
+                    setCurrentTab('reportes');
                   }}
+                  className="inline-flex items-center gap-2 p-[0.6rem_1.25rem] rounded-lg [border:none] bg-[#16a34a] text-[#ffffff] font-semibold text-[0.875rem] cursor-pointer"
                 >
                   <FileTextIcon size={16} />
-                  Ver en Préstamos Otorgados
+                  Ver en Reportes → Préstamos otorgados
                 </button>
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '380px minmax(0, 1fr)', gap: '2rem', alignItems: 'start' }}>
+            <div className="grid grid-cols-[380px_minmax(0,_1fr)] gap-8 [align-items:start]">
               <SimuladorForm
                 key={formVersion}
                 onSimular={handleSimular}
@@ -341,7 +361,7 @@ export default function App() {
 
               <div>
                 {simError && (
-                  <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1.25rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontWeight: 500 }}>
+                  <div className="mb-5 p-[0.85rem_1.25rem] bg-[#fee2e2] text-[#991b1b] rounded-lg [border:1px_solid_#fecaca] font-medium">
                     {simError}
                   </div>
                 )}
@@ -349,24 +369,12 @@ export default function App() {
                 {planResultado ? (
                   <div>
                     {/* Botón CTA para Otorgar Préstamo */}
-                    <div style={{
-                      background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                      color: '#ffffff',
-                      padding: '1.25rem 1.5rem',
-                      borderRadius: '12px',
-                      marginBottom: '1.5rem',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '1rem',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}>
+                    <div className="[background:linear-gradient(135deg,_#1e293b_0%,_#0f172a_100%)] text-[#ffffff] p-[1.25rem_1.5rem] rounded-xl mb-6 flex justify-between items-center flex-wrap gap-4 shadow-[0_4px_6px_-1px_rgba(0,_0,_0,_0.1)]">
                       <div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                        <div className="text-[1.1rem] font-bold">
                           ¿Deseas instrumentar este crédito?
                         </div>
-                        <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                        <div className="text-[#94a3b8] text-[0.85rem] mt-[0.2rem]">
                           {personaSeleccionada
                             ? `Socio titular listo: ${personaSeleccionada.apellido} ${personaSeleccionada.nombre} (DNI ${personaSeleccionada.numeroDoc})`
                             : 'Seleccioná primero un socio en "Buscar Personas" para registrar el legajo formal.'}
@@ -375,50 +383,67 @@ export default function App() {
 
                       <button
                         onClick={() => setModalOtorgarAbierto(true)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.7rem 1.5rem',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: personaSeleccionada ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : '#475569',
-                          color: '#ffffff',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          cursor: personaSeleccionada ? 'pointer' : 'default',
-                          boxShadow: personaSeleccionada ? '0 2px 4px rgba(22, 163, 74, 0.3)' : 'none'
-                        }}
+                        className={[
+                          'inline-flex items-center gap-2 p-[0.7rem_1.5rem] rounded-lg [border:none]',
+                          personaSeleccionada
+                            ? '[background:linear-gradient(135deg,_#16a34a_0%,_#15803d_100%)]'
+                            : 'bg-[#475569]',
+                          'text-[#ffffff] font-bold text-[0.9rem]',
+                          personaSeleccionada
+                            ? 'cursor-pointer'
+                            : '[cursor:default]',
+                          personaSeleccionada
+                            ? 'shadow-[0_2px_4px_rgba(22,_163,_74,_0.3)]'
+                            : 'shadow-[none]'
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
                       >
                         <FileTextIcon size={18} />
-                        {personaSeleccionada ? 'Otorgar este Préstamo Oficial' : 'Asignar Socio para Otorgar'}
+                        {personaSeleccionada
+                          ? 'Otorgar este Préstamo Oficial'
+                          : 'Asignar Socio para Otorgar'}
                       </button>
                     </div>
 
                     <SimuladorTarjetas plan={planResultado} />
                     <CronogramaTabla cronograma={planResultado.cronograma} />
                     {ultimoPayload && !ultimoPayload.linea_id && (
-                    <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px' }}>
-                      {lineaCreada ? (
-                        <p role="status" style={{ color: '#166534', margin: 0 }}>La línea “{lineaCreada}” se creó correctamente y ya está disponible en Líneas de Préstamo.</p>
-                      ) : (
-                        <>
-                          <h3 style={{ margin: '0 0 0.5rem' }}>Crear una línea con estas condiciones</h3>
-                          <p style={{ color: '#475569' }}>Guardá el motor, la tasa y el IVA calculados como una nueva línea de préstamo.</p>
-                          <button type="button" disabled={simulando || !condicionesSimuladas} onClick={() => setModalLineaAbierto(true)} style={{ padding: '0.8rem 1.25rem', border: 0, borderRadius: '8px', background: '#2563eb', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-                            Crear línea con esta simulación
-                          </button>
-                        </>
-                      )}
-                    </div>
+                      <div className="mt-6 p-6 bg-[#eff6ff] [border:1px_solid_#bfdbfe] rounded-xl">
+                        {lineaCreada ? (
+                          <p role="status" className="text-[#166534] m-0">
+                            La línea “{lineaCreada}” se creó correctamente y ya
+                            está disponible en Líneas de Préstamo.
+                          </p>
+                        ) : (
+                          <>
+                            <h3 className="m-[0_0_0.5rem]">
+                              Crear una línea con estas condiciones
+                            </h3>
+                            <p className="text-[#475569]">
+                              Guardá el motor, la tasa y el IVA calculados como
+                              una nueva línea de préstamo.
+                            </p>
+                            <button
+                              type="button"
+                              disabled={simulando || !condicionesSimuladas}
+                              onClick={() => setModalLineaAbierto(true)}
+                              className="p-[0.8rem_1.25rem] [border:0] rounded-lg bg-[#2563eb] text-[#fff] font-semibold cursor-pointer"
+                            >
+                              Crear línea con esta simulación
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '5rem 2rem', background: '#ffffff', borderRadius: '12px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 500, color: '#64748b', marginBottom: '0.5rem' }}>
+                  <div className="text-center p-[5rem_2rem] bg-[#ffffff] rounded-xl [border:2px_dashed_#e2e8f0] text-[#94a3b8]">
+                    <div className="text-[1.1rem] font-medium text-[#64748b] mb-2">
                       Ninguna simulación calculada
                     </div>
-                    Seleccioná una línea o ingresá los parámetros y presioná "Calcular Amortización".
+                    Seleccioná una línea o ingresá los parámetros y presioná
+                    "Calcular Amortización".
                   </div>
                 )}
               </div>
@@ -438,22 +463,31 @@ export default function App() {
               onClose={() => setModalLineaAbierto(false)}
               lineaParaEditar={null}
               condicionesSimuladas={condicionesSimuladas}
-              onSave={async data => {
+              onSave={async (data) => {
                 const creada = await createLinea(data);
                 setLineaCreada(creada.nombre);
-                setRevisionLineas(v => v + 1);
+                setRevisionLineas((v) => v + 1);
               }}
             />
           </div>
         )}
 
         {/* Pestaña: Préstamos Otorgados */}
-        {currentTab === 'prestamos' && <PrestamosPanel />}
-        {currentTab === 'bapro' && <PresentacionesBaproPanel />}
-        {currentTab === 'reportes' && <ReportesPanel />}
+        {currentTab === 'bapro' && <PresentacionesBaproPanel onCargarRespuesta={() => setCurrentTab('respuestas')} />}
+        {currentTab === 'respuestas' && <RespuestasPanel onAplicada={() => {
+          if (personaSeleccionada) void handleSeleccionarPersona(personaSeleccionada);
+        }} />}
+        {currentTab === 'reportes' && (
+          <ReportesPanel
+            key={reportePrestamoId ?? 'cartera'}
+            prestamoInicialId={reportePrestamoId}
+          />
+        )}
 
         {/* Pestaña: ABM Líneas de Préstamo */}
-        {currentTab === 'lineas' && <LineasPanel onNuevaLinea={iniciarNuevaLinea} />}
+        {currentTab === 'lineas' && (
+          <LineasPanel onNuevaLinea={iniciarNuevaLinea} />
+        )}
 
         {/* Pestaña: ABM Motores de Fórmulas */}
         {currentTab === 'motores' && <MotoresPanel />}

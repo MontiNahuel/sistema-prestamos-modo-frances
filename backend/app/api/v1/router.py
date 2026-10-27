@@ -8,6 +8,7 @@ from app.features.prestamos.controller import router as prestamos_router
 from app.features.auditoria.controller import router as auditoria_router
 from app.features.presentaciones_bapro.controller import router as presentaciones_bapro_router
 from app.features.empresas.controller import router as empresas_router
+from app.features.respuestas_bancarias.controller import router as respuestas_router
 
 router = APIRouter()
 
@@ -20,3 +21,4 @@ router.include_router(prestamos_router)
 router.include_router(auditoria_router)
 router.include_router(presentaciones_bapro_router)
 router.include_router(empresas_router)
+router.include_router(respuestas_router)

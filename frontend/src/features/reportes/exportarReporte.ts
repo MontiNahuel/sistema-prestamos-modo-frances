@@ -8,8 +8,9 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   const resumen = libro.addWorksheet('Resumen');
   resumen.columns = [{ width: 42 }, { width: 110 }];
   resumen.addRow([reporte.titulo]);
-  resumen.addRow(['Desde', filtros.desde]);
-  resumen.addRow(['Hasta', filtros.hasta]);
+  const todoPeriodo = filtros.tipo === 'otorgados' && filtros.todoPeriodo === true;
+  resumen.addRow(['Desde', todoPeriodo ? 'Todo el historial' : filtros.desde]);
+  resumen.addRow(['Hasta', todoPeriodo ? 'Sin límite de fecha' : filtros.hasta]);
   resumen.addRow(['Búsqueda', filtros.buscar || 'Toda la cartera']);
   resumen.addRow(['Estado préstamo', filtros.estadoPrestamo || 'Todos']);
   resumen.addRow(['Estado cuota', filtros.estadoCuota || 'Todos']);

@@ -86,3 +86,4 @@ class Cuota(Base):
     desglose_coopya_id = Column(Integer, nullable=True)
 
     prestamo = relationship("Prestamo", back_populates="cuotas")
+    respuestas_bancarias = relationship("RespuestaBancariaDetalle", back_populates="cuota")

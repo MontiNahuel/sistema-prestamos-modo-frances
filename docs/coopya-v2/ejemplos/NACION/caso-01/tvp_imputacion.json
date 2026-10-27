@@ -1,0 +1,18 @@
+[
+  {
+    "Det_SucursalCuentaCliente": "0015",
+    "Det_SistemaCuenta": "02",
+    "Det_NroCuentaCliente": "00012345678",
+    "Det_Importe": "000000001500000",
+    "CodigoRespuesta": "0",
+    "Det_DescripcionRechazo": "                              "
+  },
+  {
+    "Det_SucursalCuentaCliente": "0022",
+    "Det_SistemaCuenta": "02",
+    "Det_NroCuentaCliente": "00098765432",
+    "Det_Importe": "000000000950000",
+    "CodigoRespuesta": "9",
+    "Det_DescripcionRechazo": "FONDOS INSUFICIENTES          "
+  }
+]

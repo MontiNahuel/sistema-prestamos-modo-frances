@@ -110,6 +110,37 @@ test('Excel real: roundtrip preserva números, centavos, fechas, documentos y te
   assert.equal(hoja.views[0].ySplit, 1);
 });
 
+test('otorgados unificado: historial completo, datos de línea, progreso y saldo se actualizan con la cartera', () => {
+  const p = prestamo({ fecha_alta: '2026-09-01T12:00:00', linea_snapshot: { linea_nombre: 'Personal', motor_nombre: 'Francés' } });
+  assert.equal(generar('otorgados', [p]).filas.length, 0);
+  const r = generar('otorgados', [p], { todoPeriodo: true });
+  assert.equal(r.filas.length, 1);
+  assert.equal(r.filas[0].linea, 'Personal');
+  assert.equal(r.filas[0].motor, 'Francés');
+  assert.equal(r.filas[0].pagadas, 0);
+  assert.equal(r.filas[0].pendientes, 2);
+  assert.equal(r.resumen.at(-1).valor, 20000);
+  const pagado = { ...p, saldo_deudor_actual_centavos: 10000, cuotas: [cuota(1, { estado: 'PAGADA', monto_pagado_centavos: 11210 }), cuota(2)] };
+  const actualizado = generar('otorgados', [pagado], { todoPeriodo: true });
+  assert.equal(actualizado.filas[0].pagadas, 1);
+  assert.equal(actualizado.filas[0].pendientes, 1);
+  assert.equal(actualizado.resumen.at(-1).valor, 10000);
+  assert.equal(generar('otorgados', [{ ...p, estado: 'CANCELADO' }], { todoPeriodo: true, estadoPrestamo: 'ACTIVO' }).filas.length, 0);
+  assert.equal(generar('otorgados', [p], { todoPeriodo: true, buscar: 'no-existe' }).filas.length, 0);
+  assert.equal(generar('caida', [prestamo({ cuotas: [cuota(1, { fecha_vencimiento: '2026-09-01' })] })], { todoPeriodo: true }).filas.length, 0);
+});
+
+test('otorgados unificado: Excel conserva el alcance histórico y las nuevas columnas', async () => {
+  const f = filtros('otorgados', { todoPeriodo: true });
+  const r = construirReporte([prestamo({ fecha_alta: '2026-09-01T12:00:00', linea_snapshot: { linea_nombre: 'Personal', motor_nombre: 'Francés' } })], f);
+  const libro = await crearLibroReporte(r, f, '2026-10-26T15:00:00Z');
+  assert.equal(libro.getWorksheet('Resumen').getCell('B2').value, 'Todo el historial');
+  const detalle = libro.getWorksheet('Detalle');
+  const columnas = detalle.getRow(1).values;
+  assert.equal(detalle.getRow(2).getCell(columnas.indexOf('Línea de préstamo')).value, 'Personal');
+  assert.equal(detalle.getRow(2).getCell(columnas.indexOf('Cuotas pendientes')).value, 2);
+});
+
 test('condiciones: filtra otorgamientos y plazo, conserva cronograma completo y distingue TEA de TNA', () => {
   const p = prestamo({ plazo_meses: 6, tna_pactada: '0.795856326', tem_pactada: '0.05', alicuota_iva: '0.21', total_interes_centavos: 2000, total_iva_centavos: 420,
     linea_snapshot: { reglas_motor_json: { convencion_tasa: 'TEA_COMPUESTA' } },

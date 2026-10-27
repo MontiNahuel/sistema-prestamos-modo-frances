@@ -12,6 +12,8 @@ from app.features.auditoria.service import HistorialCambiosService
 from app.integrations.coopya_db_client import CoopYaDbClient, coopya_db_client
 from app.domain.calculadoras.sistema_frances import CalculadoraFrances, MotorConfig
 from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
+from app.features.prestamos.cobros import recalcular_saldo
+from app.features.respuestas_bancarias.service import bloquear_cobranzas
 
 
 def _resolver_config(linea, motor) -> MotorConfig:
@@ -129,6 +131,7 @@ class PrestamoService:
         return creado
 
     def cancelar(self, prestamo_id: str, usuario_operador: Optional[str] = None) -> Prestamo:
+        bloquear_cobranzas(self.repository.db)
         prestamo = self.obtener_por_id(prestamo_id)
         estado_previo = prestamo.estado
         prestamo.estado = "CANCELADO"
@@ -150,31 +153,31 @@ class PrestamoService:
         return actualizado
 
     def pagar_cuota(self, prestamo_id: str, numero_cuota: int, usuario_operador: Optional[str] = None) -> Prestamo:
+        bloquear_cobranzas(self.repository.db)
         prestamo = self.obtener_por_id(prestamo_id)
+        if prestamo.estado not in ('ACTIVO', 'MORA'):
+            raise HTTPException(400, 'El préstamo no admite cobros.')
         cuota = next((c for c in prestamo.cuotas if c.numero_cuota == numero_cuota), None)
         if not cuota:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Cuota #{numero_cuota} no encontrada.")
         if cuota.estado == "PAGADA":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta cuota ya se encuentra pagada.")
 
+        restante = cuota.cuota_total_centavos - cuota.monto_pagado_centavos
         cuota.estado = "PAGADA"
         cuota.fecha_pago = datetime.now(timezone.utc)
         cuota.monto_pagado_centavos = cuota.cuota_total_centavos
-        prestamo.saldo_deudor_actual_centavos = max(0, prestamo.saldo_deudor_actual_centavos - cuota.capital_centavos)
-
-        if all(c.estado == "PAGADA" for c in prestamo.cuotas):
-            prestamo.estado = "FINALIZADO"
-            prestamo.saldo_deudor_actual_centavos = 0
+        recalcular_saldo(prestamo)
 
         actualizado = self.repository.update(prestamo)
 
         if cuota.movimiento_coopya_id and self.coopya_db:
             try:
-                self.coopya_db.registrar_cobro_cuota(movimiento_id=cuota.movimiento_coopya_id, monto_pesos=round(cuota.cuota_total_centavos / 100.0, 2))
+                self.coopya_db.registrar_cobro_cuota(movimiento_id=cuota.movimiento_coopya_id, monto_pesos=round(restante / 100.0, 2))
             except Exception:
                 pass
 
-        self._auditar(prestamo_id, "PAGAR_CUOTA", {"cuota_numero": numero_cuota, "monto_centavos": cuota.monto_pagado_centavos}, usuario_operador, f"Cobro de cuota #{numero_cuota}")
+        self._auditar(prestamo_id, "PAGAR_CUOTA", {"cuota_numero": numero_cuota, "monto_centavos": restante}, usuario_operador, f"Cobro de cuota #{numero_cuota}")
         return actualizado
 
     def _validar_linea(self, req: PrestamoCreate):

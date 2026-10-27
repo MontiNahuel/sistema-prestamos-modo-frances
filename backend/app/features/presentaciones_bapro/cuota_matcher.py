@@ -28,12 +28,14 @@ class CuotaBaproMatcher:
         dni_hasta: Optional[int] = None,
         incluir_presentadas: bool = True,
     ) -> BuscarCuotasBaproResponse:
-        estados = ["PENDIENTE", "PRESENTADA"] if incluir_presentadas else ["PENDIENTE"]
+        estados = ['PENDIENTE', 'VENCIDA', 'PARCIAL', 'RECHAZADA']
+        if incluir_presentadas:
+            estados.append('PRESENTADA')
         q = (
             self.db.query(Cuota, Prestamo, Socio)
             .join(Prestamo, Cuota.prestamo_id == Prestamo.id)
             .join(Socio, Prestamo.persona_id == Socio.id)
-            .filter(Cuota.estado.in_(estados), Prestamo.estado == "ACTIVO")
+            .filter(Cuota.estado.in_(estados), Prestamo.estado.in_(['ACTIVO', 'MORA']))
         )
 
         if fecha_desde:
@@ -80,7 +82,10 @@ class CuotaBaproMatcher:
             elif doc and doc in self.dnis_excluidos:
                 motivo = "DNI en lista negra de débitos BAPRO"
 
-            monto_pesos = round(cuota.cuota_total_centavos / 100.0, 2)
+            saldo = max(0, cuota.cuota_total_centavos - cuota.monto_pagado_centavos)
+            if not saldo:
+                continue
+            monto_pesos = round(saldo / 100.0, 2)
             item = CuotaPresentableItem(
                 cuota_id=cuota.id,
                 prestamo_id=prestamo.id,
@@ -90,7 +95,7 @@ class CuotaBaproMatcher:
                 socio_documento=socio.documento,
                 cbu=cbu_elegido,
                 monto_pesos=monto_pesos,
-                monto_centavos=cuota.cuota_total_centavos,
+                monto_centavos=saldo,
                 fecha_vencimiento=cuota.fecha_vencimiento.isoformat() if cuota.fecha_vencimiento else None,
                 estado=cuota.estado,
                 presentable=motivo is None,
@@ -99,7 +104,7 @@ class CuotaBaproMatcher:
 
             if motivo is None:
                 presentables.append(item)
-                total_centavos += cuota.cuota_total_centavos
+                total_centavos += saldo
             else:
                 excluidas.append(item)
 

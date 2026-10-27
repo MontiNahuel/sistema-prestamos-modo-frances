@@ -20,6 +20,8 @@ def construir_cuenta_corriente_local(
     cuotas_cobradas_count = 0
     cuotas_pendientes_count = 0
     alguna_con_mora = False
+    total_rechazado = 0.0
+    cantidad_rechazados = 0
     proxima_obligacion_mensual = 0.0
 
     conceptos = []
@@ -30,9 +32,10 @@ def construir_cuenta_corriente_local(
     hoy = date.today()
 
     for p in prestamos:
-        total_p = p.total_a_pagar_centavos / 100.0
-        saldo_p = p.saldo_deudor_actual_centavos / 100.0
-        cobrado_p = (p.total_a_pagar_centavos - p.saldo_deudor_actual_centavos) / 100.0
+        # La CC incluye capital, interés e IVA; el saldo del préstamo es sólo capital.
+        total_p = sum(c.monto_pagado_centavos if c.estado == 'CANCELADA' else c.cuota_total_centavos for c in p.cuotas) / 100.0
+        cobrado_p = sum(c.monto_pagado_centavos for c in p.cuotas) / 100.0
+        saldo_p = total_p - cobrado_p
 
         totales_obligaciones += total_p
         totales_saldo += saldo_p
@@ -43,12 +46,12 @@ def construir_cuenta_corriente_local(
         cuotas_cubiertas = sum(1 for c in p.cuotas if c.estado == "PAGADA")
         cuotas_vencidas = sum(
             1 for c in p.cuotas 
-            if c.estado != "PAGADA" and c.fecha_vencimiento and c.fecha_vencimiento < hoy
+            if c.estado not in ("PAGADA", "CANCELADA") and c.fecha_vencimiento and c.fecha_vencimiento < hoy
         )
 
         # Próxima cuota pendiente
-        prox_cuota = next((c for c in p.cuotas if c.estado != "PAGADA"), None)
-        valor_mensual = (prox_cuota.cuota_total_centavos / 100.0) if prox_cuota else (
+        prox_cuota = next((c for c in p.cuotas if c.estado not in ("PAGADA", "CANCELADA")), None)
+        valor_mensual = ((prox_cuota.cuota_total_centavos - prox_cuota.monto_pagado_centavos) / 100.0) if prox_cuota else (
             (p.cuotas[0].cuota_total_centavos / 100.0) if p.cuotas else 0.0
         )
         if prox_cuota and proxima_obligacion_mensual == 0.0:
@@ -75,11 +78,18 @@ def construir_cuenta_corriente_local(
             cuota_monto = c.cuota_total_centavos / 100.0
             monto_pagado = c.monto_pagado_centavos / 100.0
             es_pagada = (c.estado == "PAGADA")
-            esta_vencida = (not es_pagada and c.fecha_vencimiento and c.fecha_vencimiento < hoy)
+            cancelada = c.estado == 'CANCELADA'
+            if cancelada:
+                cuota_monto = monto_pagado
+            esta_vencida = (not es_pagada and not cancelada and c.fecha_vencimiento and c.fecha_vencimiento < hoy)
+            eventos = getattr(c, 'respuestas_bancarias', [])
+            rechazado = sum(e.importe_centavos for e in eventos if not e.cobrado_centavos) / 100.0
+            total_rechazado += rechazado
+            cantidad_rechazados += sum(not e.cobrado_centavos for e in eventos)
 
             if es_pagada:
                 cuotas_cobradas_count += 1
-            else:
+            elif not cancelada:
                 cuotas_pendientes_count += 1
                 if esta_vencida:
                     alguna_con_mora = True
@@ -99,10 +109,15 @@ def construir_cuenta_corriente_local(
                 }
             periodos_dict[venc_str]["esperado"] += cuota_monto
             periodos_dict[venc_str]["cubierto"] += monto_pagado
+            periodos_dict[venc_str]["rechazados"] += sum(not e.cobrado_centavos for e in eventos)
+            periodos_dict[venc_str]["movimientos"] += len(eventos) + int(
+                bool(c.fecha_pago) and c.monto_pagado_centavos > sum(e.cobrado_centavos for e in eventos)
+            )
+            if 0 < monto_pagado < cuota_monto:
+                periodos_dict[venc_str]["esParcial"] = True
             if es_pagada:
                 periodos_dict[venc_str]["cobrados"] += 1
-                periodos_dict[venc_str]["movimientos"] += 1
-            else:
+            elif not cancelada:
                 periodos_dict[venc_str]["pendientes"] += 1
 
             # Desglose cuota por cuota
@@ -113,22 +128,32 @@ def construir_cuenta_corriente_local(
                 "concepto": "PRESTAMO_FRANCES",
                 "planNombre": nombre_linea,
                 "importePresentado": cuota_monto,
-                "importeCobrado": monto_pagado if es_pagada else 0.0,
-                "importeRechazado": 0.0,
-                "importePendiente": 0.0 if es_pagada else cuota_monto,
-                "estado": "COBRADO" if es_pagada else ("EN_MORA" if esta_vencida else "PENDIENTE"),
+                "importeCobrado": monto_pagado,
+                "importeRechazado": rechazado,
+                "importePendiente": max(0.0, cuota_monto - monto_pagado),
+                "estado": "CANCELADA" if cancelada else ("COBRADO" if es_pagada else ("PARCIAL" if monto_pagado else ("RECHAZADA" if c.estado == 'RECHAZADA' else ("EN_MORA" if esta_vencida else "PENDIENTE")))),
                 "origen": "SISTEMA_FRANCES"
             })
 
             # Movimientos registrados
-            if c.fecha_pago and monto_pagado > 0:
+            cobro_bancario = sum(e.cobrado_centavos for e in eventos) / 100.0
+            for e in eventos:
+                movimientos.append({
+                    'id': e.id, 'fechaImpacto': e.carga.fecha_cobro.isoformat(),
+                    'origen': e.banco, 'archivo': e.carga.nombre_archivo,
+                    'concepto': f'Cuota {c.numero_cuota}/{p.plazo_meses} · Préstamo {p.id[:8]}',
+                    'montoPesos': e.importe_centavos / 100.0,
+                    'estado': 'COBRADO' if e.cobrado_centavos else 'RECHAZADO',
+                    'explicacion': f'{e.codigo}: {e.descripcion}', 'esManual': False,
+                })
+            if c.fecha_pago and monto_pagado > cobro_bancario:
                 movimientos.append({
                     "id": c.id,
                     "fechaImpacto": c.fecha_pago.isoformat(),
                     "origen": "MICROSERVICIO",
                     "archivo": "-",
                     "concepto": f"Cuota {c.numero_cuota}/{p.plazo_meses} Préstamo",
-                    "montoPesos": monto_pagado,
+                    "montoPesos": monto_pagado - cobro_bancario,
                     "estado": "COBRADO",
                     "explicacion": "Pago de cuota francesa registrado",
                     "esManual": False
@@ -152,11 +177,11 @@ def construir_cuenta_corriente_local(
             "obligacionMensual": round(proxima_obligacion_mensual, 2),
             "totalObligaciones": round(totales_obligaciones, 2),
             "importeCobrado": round(totales_cobrado, 2),
-            "importeRechazado": 0.0,
+            "importeRechazado": round(total_rechazado, 2),
             "importePendiente": round(totales_saldo, 2),
             "movimientos": len(movimientos),
             "cobrados": cuotas_cobradas_count,
-            "rechazados": 0,
+            "rechazados": cantidad_rechazados,
             "pendientes": cuotas_pendientes_count,
             "manuales": 0,
             "algunaConMora": alguna_con_mora
@@ -212,6 +237,8 @@ def fusionar_cuenta_corriente(
             periodos_map[m]["movimientos"] = int(periodos_map[m].get("movimientos", 0)) + int(loc_p.get("movimientos", 0))
             periodos_map[m]["cobrados"] = int(periodos_map[m].get("cobrados", 0)) + int(loc_p.get("cobrados", 0))
             periodos_map[m]["pendientes"] = int(periodos_map[m].get("pendientes", 0)) + int(loc_p.get("pendientes", 0))
+            periodos_map[m]["rechazados"] = int(periodos_map[m].get("rechazados", 0)) + int(loc_p.get("rechazados", 0))
+            periodos_map[m]["esParcial"] = bool(periodos_map[m].get("esParcial") or loc_p.get("esParcial"))
         else:
             periodos_map[m] = dict(loc_p)
 

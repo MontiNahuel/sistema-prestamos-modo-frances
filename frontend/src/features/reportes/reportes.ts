@@ -11,6 +11,7 @@ export interface FiltrosReporte {
   estadoPrestamo: string;
   estadoCuota: string;
   plazo?: string;
+  todoPeriodo?: boolean;
 }
 export interface TablaReporte { titulo: string; columnas: Columna[]; filas: Record<string, Valor>[] }
 export interface Reporte {
@@ -26,7 +27,7 @@ export interface Reporte {
 export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: string }[] = [
   { id: 'caida', titulo: 'Caída de cuotas', descripcion: 'Vencimientos y cuotas a cobrar en el período.' },
   { id: 'ultimo-pago', titulo: 'Fecha del último pago', descripcion: 'Última cobranza de cada préstamo y pendientes actuales.' },
-  { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Créditos concedidos durante el período.' },
+  { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Historial, saldos, legajos y gestión de cuotas.' },
   { id: 'cobranzas', titulo: 'Cobranzas aplicadas', descripcion: 'Pagos registrados y su imputación a las cuotas.' },
   { id: 'condiciones', titulo: 'Condiciones del préstamo', descripcion: 'Capital, tasas, cuotas, intereses, IVA y costo financiero.' },
 ];
@@ -65,7 +66,8 @@ function identidad(p: Prestamo): Record<string, Valor> {
 }
 
 export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy = hoyArgentina()): Reporte {
-  if (!f.desde || !f.hasta || f.desde > f.hasta) throw new Error('Seleccioná un período válido: Desde no puede ser posterior a Hasta.');
+  const todoPeriodo = f.tipo === 'otorgados' && f.todoPeriodo === true;
+  if (!todoPeriodo && (!f.desde || !f.hasta || f.desde > f.hasta)) throw new Error('Seleccioná un período válido: Desde no puede ser posterior a Hasta.');
   const enPeriodo = (fechaValor: string | null | undefined) => {
     const dia = fechaArgentina(fechaValor);
     return Boolean(dia && dia >= f.desde && dia <= f.hasta);
@@ -117,12 +119,17 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     if (filas.some(r => r.vencidas === null)) advertencias.push('Hay cuotas pendientes sin vencimiento: no se puede determinar la cantidad total de vencidas de esos préstamos. Se informa No disponible.');
   } else if (f.tipo === 'otorgados') {
     columnas = [fecha('otorgamiento', 'Otorgamiento'), ...identificacion, dinero('capital', 'Capital otorgado'), { key: 'tasa', titulo: 'Tasa anual aplicada', tipo: 'porcentaje' }, numero('plazo', 'Plazo (meses)'), dinero('primeraCuota', 'Primera cuota mensual'), dinero('ultimaCuota', 'Última cuota mensual'), dinero('gastos', 'Gastos administrativos'), dinero('total', 'Total a devolver'), dinero('saldo', 'Capital pendiente actual'), { key: 'estado', titulo: 'Estado préstamo' }];
-    for (const p of cartera.filter(p => enPeriodo(p.fecha_alta))) {
+    columnas.push({ key: 'linea', titulo: 'Línea de préstamo' }, { key: 'motor', titulo: 'Motor de cálculo' }, numero('pagadas', 'Cuotas pagadas'), numero('pendientes', 'Cuotas pendientes'));
+    for (const p of cartera.filter(p => todoPeriodo || enPeriodo(p.fecha_alta))) {
       const cuotas = [...p.cuotas ?? []].sort((a, b) => a.numero_cuota - b.numero_cuota);
       filas.push({ ...identidad(p), otorgamiento: fechaArgentina(p.fecha_alta), capital: p.monto_solicitado_centavos, tasa: Number(p.tna_pactada), plazo: p.plazo_meses, primeraCuota: cuotas[0]?.cuota_total_centavos ?? null,
-        ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null, gastos: null, total: p.total_a_pagar_centavos, saldo: p.saldo_deudor_actual_centavos, estado: p.estado });
+        ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null, gastos: null, total: p.total_a_pagar_centavos, saldo: p.saldo_deudor_actual_centavos, estado: p.estado,
+        linea: p.linea_snapshot?.linea_nombre ?? 'Sin línea', motor: p.linea_snapshot?.motor_nombre ?? null,
+        pagadas: cuotas.filter(c => c.estado === 'PAGADA').length, pendientes: cuotas.filter(c => c.estado !== 'PAGADA').length });
     }
     resumen = [{ titulo: 'Préstamos otorgados', valor: filas.length }, { titulo: 'Capital otorgado', valor: suma('capital'), dinero: true }, { titulo: 'Total a devolver', valor: suma('total'), dinero: true }];
+    resumen.push({ titulo: 'Capital pendiente actual', valor: suma('saldo'), dinero: true });
+    notas.push(todoPeriodo ? 'Se incluye todo el historial de otorgamientos, según los filtros de búsqueda y estado.' : 'El período corresponde a la fecha de otorgamiento del préstamo.');
     notas.push('Se muestran primera y última cuota porque el IVA puede variar mes a mes. Los gastos administrativos efectivamente cobrados no se exponen en la API: se informan como No disponible, no como cero.');
   } else if (f.tipo === 'condiciones') {
     columnas = [fecha('otorgamiento', 'Otorgamiento'), ...identificacion,

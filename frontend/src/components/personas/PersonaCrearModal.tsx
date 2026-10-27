@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { Banco, PersonaCreatePayload, PersonaCreateResponse } from '../../types/persona';
+import {
+  Banco,
+  PersonaCreatePayload,
+  PersonaCreateResponse
+} from '../../types/persona';
 import { getBancos, crearPersona } from '../../services/api/personasApi';
 import { CheckCircleIcon, AlertTriangleIcon } from '../common/Icons';
 
@@ -37,7 +41,9 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
     if (isOpen) {
       setErrorMsg(null);
       setExitoMsg(null);
-      getBancos().then(setBancos).catch(() => setBancos([]));
+      getBancos()
+        .then(setBancos)
+        .catch(() => setBancos([]));
     }
   }, [isOpen]);
 
@@ -58,7 +64,11 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
     setErrorMsg(null);
     setExitoMsg(null);
 
-    if (!form.documento.trim() || !form.nombre.trim() || !form.apellido.trim()) {
+    if (
+      !form.documento.trim() ||
+      !form.nombre.trim() ||
+      !form.apellido.trim()
+    ) {
       setErrorMsg('DNI, Nombre y Apellido son obligatorios.');
       return;
     }
@@ -84,30 +94,37 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Alta de Persona (Dual: Oracle + CoopYa)" maxWidth="640px">
-      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1.25rem', background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-        <strong>Flujo estricto:</strong> Se inserta primero en la <strong>DB Legacy Oracle</strong> (modo thick). Si es exitoso, replica en el <strong>Monolito CoopYa</strong> y almacena el CBU localmente.
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Alta de Persona (Dual: Oracle + CoopYa)"
+      maxWidth="640px"
+    >
+      <div className="text-[0.8rem] text-[#64748b] mb-5 bg-[#f8fafc] p-3 rounded-lg [border:1px_solid_#e2e8f0]">
+        <strong>Flujo estricto:</strong> Se inserta primero en la{' '}
+        <strong>DB Legacy Oracle</strong> (modo thick). Si es exitoso, replica
+        en el <strong>Monolito CoopYa</strong> y almacena el CBU localmente.
       </div>
 
       {errorMsg && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="bg-[#fef2f2] [border:1px_solid_#fecaca] text-[#991b1b] p-[0.75rem_1rem] rounded-lg text-[0.85rem] mb-4 flex items-center gap-2">
           <AlertTriangleIcon size={18} color="#b91c1c" />
           <span>{errorMsg}</span>
         </div>
       )}
 
       {exitoMsg && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="bg-[#f0fdf4] [border:1px_solid_#bbf7d0] text-[#166534] p-[0.75rem_1rem] rounded-lg text-[0.85rem] mb-4 flex items-center gap-2">
           <CheckCircleIcon size={18} color="#16a34a" />
           <span>{exitoMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Fila 1: DNI y CUIL */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               DNI / Documento *
             </label>
             <input
@@ -116,11 +133,11 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.documento}
               onChange={(e) => setForm({ ...form, documento: e.target.value })}
               placeholder="Ej: 34567890"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               CUIL
             </label>
             <input
@@ -128,15 +145,15 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.cuil}
               onChange={(e) => setForm({ ...form, cuil: e.target.value })}
               placeholder="Ej: 20345678904"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
         </div>
 
         {/* Fila 2: Apellido y Nombre */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               Apellido *
             </label>
             <input
@@ -145,11 +162,11 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.apellido}
               onChange={(e) => setForm({ ...form, apellido: e.target.value })}
               placeholder="Ej: Pérez"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               Nombre *
             </label>
             <input
@@ -158,15 +175,15 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               placeholder="Ej: Juan Carlos"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
         </div>
 
         {/* Fila 3: Email y Teléfono */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               Email
             </label>
             <input
@@ -174,11 +191,11 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               placeholder="correo@ejemplo.com"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               Teléfono
             </label>
             <input
@@ -186,14 +203,14 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
               value={form.telefono}
               onChange={(e) => setForm({ ...form, telefono: e.target.value })}
               placeholder="Ej: 1155443322"
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
             />
           </div>
         </div>
 
         {/* Domicilio */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+          <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
             Domicilio
           </label>
           <input
@@ -201,18 +218,18 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
             value={form.domicilio}
             onChange={(e) => setForm({ ...form, domicilio: e.target.value })}
             placeholder="Calle y número"
-            style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+            className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
           />
         </div>
 
         {/* Datos Bancarios */}
-        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.875rem', marginTop: '0.25rem' }}>
-          <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.6rem' }}>
+        <div className="[border-top:1px_solid_#e2e8f0] pt-[0.875rem] mt-1">
+          <div className="text-[0.825rem] font-bold text-[#1e293b] mb-[0.6rem]">
             Datos Bancarios (CBU / Desembolso)
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
+          <div className="grid grid-cols-[1.4fr_1fr] gap-4 mb-3">
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
                 CBU (22 dígitos numéricos)
               </label>
               <input
@@ -221,31 +238,38 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
                 value={form.cbu}
                 onChange={(e) => handleCbuChange(e.target.value)}
                 placeholder="0140000000000000000012"
-                style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
                 Alias CBU
               </label>
               <input
                 type="text"
                 value={form.alias_cbu}
-                onChange={(e) => setForm({ ...form, alias_cbu: e.target.value.toUpperCase() })}
+                onChange={(e) =>
+                  setForm({ ...form, alias_cbu: e.target.value.toUpperCase() })
+                }
                 placeholder="SOCIO.TEST.CBU"
-                style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-1">
               Banco Oficial
             </label>
             <select
               value={form.banco_id || ''}
-              onChange={(e) => setForm({ ...form, banco_id: e.target.value ? Number(e.target.value) : null })}
-              style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.875rem', background: '#ffffff', boxSizing: 'border-box' }}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  banco_id: e.target.value ? Number(e.target.value) : null
+                })
+              }
+              className="w-full p-[0.6rem] rounded-md [border:1px_solid_#cbd5e1] text-[0.875rem] bg-[#ffffff] box-border"
             >
               <option value="">Seleccione o autodetecte con el CBU...</option>
               {bancos.map((b) => (
@@ -258,19 +282,27 @@ export const PersonaCrearModal: React.FC<PersonaCrearModalProps> = ({
         </div>
 
         {/* Botones */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+        <div className="flex justify-end gap-3 mt-4 [border-top:1px_solid_#e2e8f0] pt-4">
           <button
             type="button"
             disabled={enviando}
             onClick={onClose}
-            style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
+            className="p-[0.6rem_1.25rem] rounded-md [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#475569] font-semibold cursor-pointer text-[0.875rem]"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={enviando}
-            style={{ padding: '0.6rem 1.25rem', borderRadius: '6px', border: 'none', background: enviando ? '#94a3b8' : '#2563eb', color: '#ffffff', fontWeight: 700, cursor: enviando ? 'not-allowed' : 'pointer', fontSize: '0.875rem' }}
+            className={[
+              'p-[0.6rem_1.25rem] rounded-md [border:none]',
+              enviando ? 'bg-[#94a3b8]' : 'bg-[#2563eb]',
+              'text-[#ffffff] font-bold',
+              enviando ? 'cursor-not-allowed' : 'cursor-pointer',
+              'text-[0.875rem]'
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             {enviando ? 'Verificando con Oracle...' : 'Crear Persona'}
           </button>

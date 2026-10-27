@@ -81,6 +81,8 @@ class PresentacionBaproService:
     def generar_presentacion_bapro(
         self, req: GenerarPresentacionBaproRequest, usuario_id: Optional[int] = None
     ) -> Tuple[GenerarPresentacionBaproResponse, bytes]:
+        from app.features.respuestas_bancarias.service import bloquear_cobranzas
+        bloquear_cobranzas(self.db)
         if not req.cuota_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debe seleccionar al menos una cuota")
 
@@ -117,12 +119,15 @@ class PresentacionBaproService:
         total_centavos = 0
 
         for cuota, prestamo, socio in cuotas:
+            saldo = cuota.cuota_total_centavos - cuota.monto_pagado_centavos
+            if prestamo.estado not in ('ACTIVO', 'MORA') or cuota.estado in ('PAGADA', 'CANCELADA') or saldo <= 0:
+                raise HTTPException(409, 'Una cuota seleccionada ya no admite débitos. Actualice la búsqueda.')
             cbu = CuotaBaproMatcher.resolver_cbu_bapro(socio)
             if not cbu:
                 continue
 
-            desglosar = req.aplicar_desglose and cuota.cuota_total_centavos >= min_desglose_centavos
-            partes = RepartidorDePartes.repartir(cuota.cuota_total_centavos, 2) if desglosar else [cuota.cuota_total_centavos]
+            desglosar = req.aplicar_desglose and saldo >= min_desglose_centavos and saldo >= 2
+            partes = RepartidorDePartes.repartir(saldo, 2) if desglosar else [saldo]
 
             for parte_centavos in partes:
                 ref_debito = f"{nro_archivo}{str(numero_op).zfill(6)}"
@@ -189,50 +194,7 @@ class PresentacionBaproService:
     def procesar_respuesta_bapro(
         self, nro_archivo: int, contenido_texto: str, usuario_id: Optional[int] = None
     ) -> ProcesarRespuestaBaproResponse:
-        archivo = self.repo.obtener_archivo_por_nro(nro_archivo)
-        if not archivo:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No existe el archivo BAPRO Lote #{nro_archivo}")
-
-        aprobados, rechazados, no_encontrados, total = 0, 0, 0, 0
-        for linea in contenido_texto.splitlines():
-            p = ParseadorRespuestaBapro.parsear_linea(linea)
-            if not p:
-                continue
-            total += 1
-            op_num = p["numero_operacion"]
-            auditoria = self.db.query(PresentacionBaproAuditoria).filter_by(nro_archivo=nro_archivo, numero_operacion=op_num).first() if op_num else None
-            if not auditoria and p.get("referencia_debito"):
-                auditoria = self.db.query(PresentacionBaproAuditoria).filter_by(nro_archivo=nro_archivo, referencia_debito=p["referencia_debito"]).first()
-            if not auditoria:
-                no_encontrados += 1
-                continue
-
-            auditoria.codigo_respuesta = p["codigo_respuesta"]
-            auditoria.fecha_respuesta = datetime.utcnow()
-            if auditoria.cuota_id:
-                cuota = self.db.query(Cuota).filter_by(id=auditoria.cuota_id).first()
-                if cuota:
-                    if p["es_ok"]:
-                        cuota.estado = "PAGADA"
-                        cuota.fecha_pago = datetime.utcnow()
-                        cuota.monto_pagado_centavos = p["importe_centavos"]
-                        aprobados += 1
-                    else:
-                        cuota.estado = "RECHAZADA"
-                        rechazados += 1
-
-        archivo.estado = "RENDIDO"
-        self.db.commit()
-
-        self.auditoria_service.auditar_presentacion_bapro(
-            accion="IMPUTAR_RESPUESTA", nro_archivo=nro_archivo, presentacion_archivo_id=archivo.id,
-            total_registros=total, total_monto=archivo.total_monto,
-            registros_aprobados=aprobados, registros_rechazados=rechazados,
-            usuario_operador=str(usuario_id) if usuario_id else "SISTEMA",
-            detalles_json={"aprobados": aprobados, "rechazados": rechazados, "no_encontrados": no_encontrados},
-        )
-
-        return ProcesarRespuestaBaproResponse(
-            nro_archivo=nro_archivo, total_procesados=total,
-            aprobados=aprobados, rechazados=rechazados, no_encontrados=no_encontrados,
+        raise HTTPException(
+            status_code=410,
+            detail='Use Carga de respuesta: previsualizar y confirmar. La imputación directa fue reemplazada para evitar duplicados y saldos incorrectos.',
         )

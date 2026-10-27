@@ -38,30 +38,42 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   const [cargandoLineas, setCargandoLineas] = useState(true);
 
   useEffect(() => {
-    getMotores(true).then((data) => {
-      setMotores(data);
-      setMotorId(data[0]?.id ?? '');
-    }).catch(() => setCargaError('No se pudieron cargar los motores. Recargá la página para reintentar.'))
+    getMotores(true)
+      .then((data) => {
+        setMotores(data);
+        setMotorId(data[0]?.id ?? '');
+      })
+      .catch(() =>
+        setCargaError(
+          'No se pudieron cargar los motores. Recargá la página para reintentar.'
+        )
+      )
       .finally(() => setCargandoMotores(false));
   }, []);
 
   useEffect(() => {
-    getLineas(true).then((data) => {
-      setLineas(data);
-      if (data.length > 0 && !nuevaLinea && revisionLineas === 0) {
-        const primera = data[0];
-        setSelectedLineaId(primera.id);
-        setTnaPorcentaje(Number(primera.tasa_default) * 100);
-        setIvaPorcentaje(Number(primera.alicuota_iva) * 100);
-      }
-    }).catch(() => setCargaError('No se pudieron cargar las líneas. Recargá la página para reintentar.'))
+    getLineas(true)
+      .then((data) => {
+        setLineas(data);
+        if (data.length > 0 && !nuevaLinea && revisionLineas === 0) {
+          const primera = data[0];
+          setSelectedLineaId(primera.id);
+          setTnaPorcentaje(Number(primera.tasa_default) * 100);
+          setIvaPorcentaje(Number(primera.alicuota_iva) * 100);
+        }
+      })
+      .catch(() =>
+        setCargaError(
+          'No se pudieron cargar las líneas. Recargá la página para reintentar.'
+        )
+      )
       .finally(() => setCargandoLineas(false));
   }, [nuevaLinea, revisionLineas]);
 
   const handleLineaChange = (lineaId: number | '') => {
     setSelectedLineaId(lineaId);
     if (!lineaId) return;
-    const l = lineas.find(x => x.id === lineaId);
+    const l = lineas.find((x) => x.id === lineaId);
     if (l) {
       setTnaPorcentaje(Number(l.tasa_default) * 100);
       setIvaPorcentaje(Number(l.alicuota_iva) * 100);
@@ -69,8 +81,10 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       const maxP = l.monto_maximo_centavos / 100;
       if (montoPesos < minP) setMontoPesos(minP);
       if (montoPesos > maxP) setMontoPesos(maxP);
-      if (plazoMeses < l.plazo_minimo_meses) setPlazoMeses(l.plazo_minimo_meses);
-      if (plazoMeses > l.plazo_maximo_meses) setPlazoMeses(l.plazo_maximo_meses);
+      if (plazoMeses < l.plazo_minimo_meses)
+        setPlazoMeses(l.plazo_minimo_meses);
+      if (plazoMeses > l.plazo_maximo_meses)
+        setPlazoMeses(l.plazo_maximo_meses);
     }
   };
 
@@ -82,77 +96,97 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       tna: tnaPorcentaje / 100,
       alicuota_iva: ivaPorcentaje / 100,
       linea_id: selectedLineaId ? Number(selectedLineaId) : null,
-      motor_id: selectedLineaId ? lineas.find(l => l.id === selectedLineaId)?.motor_id : Number(motorId)
+      motor_id: selectedLineaId
+        ? lineas.find((l) => l.id === selectedLineaId)?.motor_id
+        : Number(motorId)
     });
   };
 
-  const lineaActiva = lineas.find(x => x.id === selectedLineaId);
+  const lineaActiva = lineas.find((x) => x.id === selectedLineaId);
 
   return (
-    <form onSubmit={handleSubmit} onChange={onParametrosChange} style={{
-      background: '#ffffff',
-      padding: '1.5rem',
-      borderRadius: '12px',
-      border: '1px solid #e2e8f0',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.04)',
-      position: 'sticky',
-      top: '5rem'
-    }}>
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1.05rem', color: '#0f172a', fontWeight: 700 }}>
+    <form
+      onSubmit={handleSubmit}
+      onChange={onParametrosChange}
+      className="bg-[#ffffff] p-6 rounded-xl [border:1px_solid_#e2e8f0] shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)] sticky top-20"
+    >
+      <h3 className="m-[0_0_1rem] text-[1.05rem] text-[#0f172a] font-bold">
         Parámetros de Simulación
       </h3>
-      {cargaError && <p role="alert" style={{ color: '#991b1b' }}>{cargaError}</p>}
+      {cargaError && (
+        <p role="alert" className="text-[#991b1b]">
+          {cargaError}
+        </p>
+      )}
 
       {personaSeleccionada && (
-        <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: '8px', marginBottom: '1.25rem', border: '1px solid #bfdbfe' }}>
-          <div style={{ fontSize: '0.725rem', color: '#1d4ed8', fontWeight: 600, textTransform: 'uppercase' }}>Socio Asignado:</div>
-          <div style={{ fontWeight: 700, color: '#1e3a8a', fontSize: '0.9rem', marginTop: '0.15rem' }}>
+        <div className="bg-[#eff6ff] p-3 rounded-lg mb-5 [border:1px_solid_#bfdbfe]">
+          <div className="text-[0.725rem] text-[#1d4ed8] font-semibold uppercase">
+            Socio Asignado:
+          </div>
+          <div className="font-bold text-[#1e3a8a] text-[0.9rem] mt-[0.15rem]">
             {personaSeleccionada.apellido} {personaSeleccionada.nombre}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            IdPersona: #{personaSeleccionada.idPersona} · DNI: {personaSeleccionada.numeroDoc}
+          <div className="text-[0.75rem] text-[#64748b]">
+            IdPersona: #{personaSeleccionada.idPersona} · DNI:{' '}
+            {personaSeleccionada.numeroDoc}
           </div>
         </div>
       )}
 
       {/* Selector de Línea de Crédito */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+      <div className="mb-5">
+        <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
           Línea de Crédito / Plan
         </label>
         <select
           value={selectedLineaId}
-          onChange={(e) => handleLineaChange(e.target.value ? Number(e.target.value) : '')}
-          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.875rem', background: '#fff', color: '#0f172a' }}
+          onChange={(e) =>
+            handleLineaChange(e.target.value ? Number(e.target.value) : '')
+          }
+          className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] bg-[#fff] text-[#0f172a]"
         >
           <option value="">Personalizado / Sin Línea</option>
-          {lineas.map(l => (
+          {lineas.map((l) => (
             <option key={l.id} value={l.id}>
               {l.nombre} ({l.tipo_tasa} {Number(l.tasa_default) * 100}%)
             </option>
           ))}
         </select>
         {lineaActiva && (
-          <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#64748b', background: '#f8fafc', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-            Fórmula: <strong>{lineaActiva.motor?.nombre || 'Francés Estándar'}</strong>
+          <div className="mt-[0.4rem] text-[0.75rem] text-[#64748b] bg-[#f8fafc] p-2 rounded-md [border:1px_solid_#e2e8f0]">
+            Fórmula:{' '}
+            <strong>{lineaActiva.motor?.nombre || 'Francés Estándar'}</strong>
             <br />
-            Rango: {formatMoney(lineaActiva.monto_minimo_centavos)} a {formatMoney(lineaActiva.monto_maximo_centavos)}
+            Rango: {formatMoney(lineaActiva.monto_minimo_centavos)} a{' '}
+            {formatMoney(lineaActiva.monto_maximo_centavos)}
           </div>
         )}
       </div>
 
       {!selectedLineaId && (
-        <label style={{ display: 'block', marginBottom: '1.25rem', fontSize: '0.8rem', fontWeight: 600 }}>
+        <label className="block mb-5 text-[0.8rem] font-semibold">
           Motor de cálculo
-          <select required value={motorId} onChange={e => setMotorId(Number(e.target.value))} style={{ width: '100%', padding: '0.625rem', marginTop: '0.35rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-            <option value="" disabled>Seleccioná un motor</option>
-            {motores.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+          <select
+            required
+            value={motorId}
+            onChange={(e) => setMotorId(Number(e.target.value))}
+            className="w-full p-[0.625rem] mt-[0.35rem] rounded-lg [border:1px_solid_#cbd5e1]"
+          >
+            <option value="" disabled>
+              Seleccioná un motor
+            </option>
+            {motores.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nombre}
+              </option>
+            ))}
           </select>
         </label>
       )}
 
-      <div style={{ marginBottom: '1.15rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+      <div className="mb-[1.15rem]">
+        <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
           Monto a Financiar ($)
         </label>
         <input
@@ -161,16 +195,16 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           step="100"
           value={montoPesos}
           onChange={(e) => setMontoPesos(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+          className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.95rem] box-border"
           required
         />
-        <div style={{ color: '#64748b', fontSize: '0.725rem', marginTop: '0.2rem' }}>
+        <div className="text-[#64748b] text-[0.725rem] mt-[0.2rem]">
           Equivale a {montoPesos * 100} centavos
         </div>
       </div>
 
-      <div style={{ marginBottom: '1.15rem' }}>
-        <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+      <div className="mb-[1.15rem]">
+        <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
           Cantidad de Cuotas (Meses)
         </label>
         <input
@@ -179,14 +213,14 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           max="120"
           value={plazoMeses}
           onChange={(e) => setPlazoMeses(Number(e.target.value))}
-          style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+          className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.95rem] box-border"
           required
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      <div className="grid grid-cols-[1fr_1fr] gap-3 mb-6">
         <div>
-          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+          <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
             Tasa Anual (%)
           </label>
           <input
@@ -195,13 +229,13 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
             step="0.01"
             value={tnaPorcentaje}
             onChange={(e) => setTnaPorcentaje(Number(e.target.value))}
-            style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+            className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.95rem] box-border"
             required
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '0.35rem', color: '#475569' }}>
+          <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
             IVA s/Int (%)
           </label>
           <input
@@ -210,7 +244,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
             step="0.5"
             value={ivaPorcentaje}
             onChange={(e) => setIvaPorcentaje(Number(e.target.value))}
-            style={{ width: '100%', padding: '0.625rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+            className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.95rem] box-border"
             required
           />
         </div>
@@ -218,25 +252,19 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
 
       <button
         type="submit"
-        disabled={simulando || cargandoMotores || cargandoLineas || (!selectedLineaId && !motorId)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem',
-          padding: '0.75rem',
-          background: '#2563eb',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: '8px',
-          fontWeight: 600,
-          fontSize: '0.9rem',
-          cursor: simulando ? 'not-allowed' : 'pointer',
-          boxShadow: '0 1px 2px 0 rgba(37, 99, 235, 0.2)'
-        }}
-        onMouseEnter={(e) => { if (!simulando) e.currentTarget.style.background = '#1d4ed8'; }}
-        onMouseLeave={(e) => { if (!simulando) e.currentTarget.style.background = '#2563eb'; }}
+        disabled={
+          simulando ||
+          cargandoMotores ||
+          cargandoLineas ||
+          (!selectedLineaId && !motorId)
+        }
+        className={[
+          'w-full flex items-center justify-center gap-2 p-3 bg-[#2563eb] text-[#ffffff] [border:none] rounded-lg font-semibold text-[0.9rem]',
+          simulando ? 'cursor-not-allowed' : 'cursor-pointer',
+          'shadow-[0_1px_2px_0_rgba(37,_99,_235,_0.2)] enabled:hover:bg-[#1d4ed8]'
+        ]
+          .filter(Boolean)
+          .join(' ')}
       >
         <CalculatorIcon size={16} color="#ffffff" />
         <span>{simulando ? 'Calculando...' : 'Calcular Amortización'}</span>

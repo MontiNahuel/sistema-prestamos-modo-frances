@@ -1,0 +1,16 @@
+[
+  {
+    "Orden": 1,
+    "ReferenciaDebito": "014cs0000000101",
+    "IdentificadorCliente": "100052",
+    "CodigoRespuesta": "OK",
+    "EsReversion": false
+  },
+  {
+    "Orden": 2,
+    "ReferenciaDebito": "014cs0000000102",
+    "IdentificadorCliente": "100088",
+    "CodigoRespuesta": "R10",
+    "EsReversion": false
+  }
+]

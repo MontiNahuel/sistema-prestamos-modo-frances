@@ -9,7 +9,13 @@ interface LineaModalProps {
   onClose: () => void;
   onSave: (data: LineaPrestamoCreate) => Promise<void>;
   lineaParaEditar: LineaPrestamo | null;
-  condicionesSimuladas?: { motor_id: number; tasa: number; iva: number; monto: number; plazo: number };
+  condicionesSimuladas?: {
+    motor_id: number;
+    tasa: number;
+    iva: number;
+    monto: number;
+    plazo: number;
+  };
 }
 
 export const LineaModal: React.FC<LineaModalProps> = ({
@@ -42,12 +48,14 @@ export const LineaModal: React.FC<LineaModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    getMotores(true).then((m) => {
-      setMotores(m);
-      if (m.length > 0 && !lineaParaEditar && !condicionesSimuladas) {
-        setMotorId(m[0].id);
-      }
-    }).catch(console.error);
+    getMotores(true)
+      .then((m) => {
+        setMotores(m);
+        if (m.length > 0 && !lineaParaEditar && !condicionesSimuladas) {
+          setMotorId(m[0].id);
+        }
+      })
+      .catch(console.error);
   }, [isOpen, lineaParaEditar, condicionesSimuladas]);
 
   useEffect(() => {
@@ -70,12 +78,20 @@ export const LineaModal: React.FC<LineaModalProps> = ({
       setCodigo('');
       setNombre('');
       setDescripcion('');
-      setTasaPorcentaje(condicionesSimuladas ? condicionesSimuladas.tasa * 100 : 60);
-      setIvaPorcentaje(condicionesSimuladas ? condicionesSimuladas.iva * 100 : 21);
+      setTasaPorcentaje(
+        condicionesSimuladas ? condicionesSimuladas.tasa * 100 : 60
+      );
+      setIvaPorcentaje(
+        condicionesSimuladas ? condicionesSimuladas.iva * 100 : 21
+      );
       if (condicionesSimuladas) setMotorId(condicionesSimuladas.motor_id);
       setPermiteOverride(true);
-      setMontoMinPesos(condicionesSimuladas ? condicionesSimuladas.monto / 100 : 10000);
-      setMontoMaxPesos(condicionesSimuladas ? condicionesSimuladas.monto / 100 : 1500000);
+      setMontoMinPesos(
+        condicionesSimuladas ? condicionesSimuladas.monto / 100 : 10000
+      );
+      setMontoMaxPesos(
+        condicionesSimuladas ? condicionesSimuladas.monto / 100 : 1500000
+      );
       setMontoPasoPesos(condicionesSimuladas ? 0.01 : 1000);
       setPlazoMin(condicionesSimuladas?.plazo ?? 3);
       setPlazoMax(condicionesSimuladas?.plazo ?? 36);
@@ -87,12 +103,27 @@ export const LineaModal: React.FC<LineaModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (montoMinPesos <= 0 || montoMaxPesos < montoMinPesos || montoPasoPesos <= 0 || plazoMax < plazoMin) {
-      setError('Revisá los límites: los máximos deben ser mayores o iguales a los mínimos y el paso debe ser positivo.');
+    if (
+      montoMinPesos <= 0 ||
+      montoMaxPesos < montoMinPesos ||
+      montoPasoPesos <= 0 ||
+      plazoMax < plazoMin
+    ) {
+      setError(
+        'Revisá los límites: los máximos deben ser mayores o iguales a los mínimos y el paso debe ser positivo.'
+      );
       return;
     }
-    if (condicionesSimuladas && (condicionesSimuladas.monto < Math.round(montoMinPesos * 100) || condicionesSimuladas.monto > Math.round(montoMaxPesos * 100) || condicionesSimuladas.plazo < plazoMin || condicionesSimuladas.plazo > plazoMax)) {
-      setError('Los límites de la línea deben incluir el monto y el plazo que simulaste.');
+    if (
+      condicionesSimuladas &&
+      (condicionesSimuladas.monto < Math.round(montoMinPesos * 100) ||
+        condicionesSimuladas.monto > Math.round(montoMaxPesos * 100) ||
+        condicionesSimuladas.plazo < plazoMin ||
+        condicionesSimuladas.plazo > plazoMax)
+    ) {
+      setError(
+        'Los límites de la línea deben incluir el monto y el plazo que simulaste.'
+      );
       return;
     }
     setGuardando(true);
@@ -127,21 +158,31 @@ export const LineaModal: React.FC<LineaModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={lineaParaEditar ? `Editar Línea: ${lineaParaEditar.nombre}` : 'Nueva Línea de Préstamo'}
+      title={
+        lineaParaEditar
+          ? `Editar Línea: ${lineaParaEditar.nombre}`
+          : 'Nueva Línea de Préstamo'
+      }
       maxWidth="680px"
     >
       <form onSubmit={handleSubmit}>
-        {condicionesSimuladas && <p style={{ color: '#475569', marginTop: 0 }}>Las condiciones financieras corresponden al cálculo realizado. Completá la identificación y los límites comerciales para crear la línea.</p>}
+        {condicionesSimuladas && (
+          <p className="text-[#475569] mt-0">
+            Las condiciones financieras corresponden al cálculo realizado.
+            Completá la identificación y los límites comerciales para crear la
+            línea.
+          </p>
+        )}
         {error && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', fontSize: '0.85rem', border: '1px solid #fecaca' }}>
+          <div className="mb-5 p-[0.75rem_1rem] bg-[#fee2e2] text-[#991b1b] rounded-lg text-[0.85rem] [border:1px_solid_#fecaca]">
             {error}
           </div>
         )}
 
         {/* 1. Identificación */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem', marginBottom: '1rem' }}>
+        <div className="grid grid-cols-[1fr_1.5fr] gap-4 mb-4">
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
               Código Único
             </label>
             <input
@@ -151,21 +192,18 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               placeholder="EJ: PERS_RAPIDO"
               maxLength={50}
               disabled={Boolean(lineaParaEditar)}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.875rem',
-                boxSizing: 'border-box',
-                background: lineaParaEditar ? '#f8fafc' : '#ffffff'
-              }}
+              className={[
+                'w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] box-border',
+                lineaParaEditar ? 'bg-[#f8fafc]' : 'bg-[#ffffff]'
+              ]
+                .filter(Boolean)
+                .join(' ')}
               required
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
               Nombre Comercial
             </label>
             <input
@@ -174,29 +212,22 @@ export const LineaModal: React.FC<LineaModalProps> = ({
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Préstamo Personal Socios"
               maxLength={100}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.875rem',
-                boxSizing: 'border-box'
-              }}
+              className="w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] box-border"
               required
             />
           </div>
         </div>
 
         {/* Motor de Fórmula */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+        <div className="mb-5">
+          <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
             Motor de Fórmula Matemática Asociado
           </label>
           <select
             value={motorId}
             disabled={Boolean(condicionesSimuladas)}
             onChange={(e) => setMotorId(Number(e.target.value))}
-            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.875rem', background: '#fff' }}
+            className="w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] bg-[#fff]"
             required
           >
             {motores.map((m) => (
@@ -208,23 +239,27 @@ export const LineaModal: React.FC<LineaModalProps> = ({
         </div>
 
         {/* 2. Tasas e IVA */}
-        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <div className="bg-[#f8fafc] p-4 rounded-[10px] [border:1px_solid_#e2e8f0] mb-5">
+          <div className="text-[0.8rem] font-bold text-[#475569] mb-3 uppercase tracking-[0.04em]">
             Condiciones Financieras
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+          <div className="grid grid-cols-[1fr_1fr_1fr] gap-4">
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Tipo Tasa (del Motor)
               </label>
-              <div style={{ padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#f1f5f9', fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>
-                {motores.find((m) => m.id === motorId)?.convencion_tasa.includes('TEA') ? 'TEA (Efectiva)' : 'TNA (Nominal)'}
+              <div className="p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#e2e8f0] bg-[#f1f5f9] text-[0.85rem] text-[#1e293b] font-semibold">
+                {motores
+                  .find((m) => m.id === motorId)
+                  ?.convencion_tasa.includes('TEA')
+                  ? 'TEA (Efectiva)'
+                  : 'TNA (Nominal)'}
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Tasa Default (%)
               </label>
               <input
@@ -233,13 +268,13 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 value={tasaPorcentaje}
                 disabled={Boolean(condicionesSimuladas)}
                 onChange={(e) => setTasaPorcentaje(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Alícuota IVA (%)
               </label>
               <input
@@ -248,7 +283,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 value={ivaPorcentaje}
                 disabled={Boolean(condicionesSimuladas)}
                 onChange={(e) => setIvaPorcentaje(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
@@ -256,14 +291,14 @@ export const LineaModal: React.FC<LineaModalProps> = ({
         </div>
 
         {/* 3. Límites de Montos ($) y Plazos */}
-        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <div className="bg-[#f8fafc] p-4 rounded-[10px] [border:1px_solid_#e2e8f0] mb-5">
+          <div className="text-[0.8rem] font-bold text-[#475569] mb-3 uppercase tracking-[0.04em]">
             Límites Comerciales de Crédito
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="grid grid-cols-[1fr_1fr_1fr] gap-4 mb-4">
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Monto Mínimo ($)
               </label>
               <input
@@ -271,13 +306,13 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 value={montoMinPesos}
                 step="0.01"
                 onChange={(e) => setMontoMinPesos(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Monto Máximo ($)
               </label>
               <input
@@ -285,13 +320,13 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 value={montoMaxPesos}
                 step="0.01"
                 onChange={(e) => setMontoMaxPesos(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Salto / Paso ($)
               </label>
               <input
@@ -299,15 +334,15 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 value={montoPasoPesos}
                 step="0.01"
                 onChange={(e) => setMontoPasoPesos(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="grid grid-cols-[1fr_1fr] gap-4">
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Plazo Mínimo (Meses)
               </label>
               <input
@@ -315,13 +350,13 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 min="1"
                 value={plazoMin}
                 onChange={(e) => setPlazoMin(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
                 Plazo Máximo (Meses)
               </label>
               <input
@@ -329,7 +364,7 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 min="1"
                 value={plazoMax}
                 onChange={(e) => setPlazoMax(Number(e.target.value))}
-                style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border"
                 required
               />
             </div>
@@ -337,61 +372,62 @@ export const LineaModal: React.FC<LineaModalProps> = ({
         </div>
 
         {/* 4. Flags */}
-        <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', fontWeight: 500 }}>
+        <div className="mb-6 flex flex-col gap-[0.6rem]">
+          <label className="flex items-center gap-[0.6rem] text-[0.85rem] text-[#334155] cursor-pointer font-medium">
             <input
               type="checkbox"
               checked={permiteOverride}
               onChange={(e) => setPermiteOverride(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
+              className="w-[16px] h-[16px] [accent-color:#2563eb]"
             />
             Permitir al operador modificar la tasa al simular / otorgar
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', fontWeight: 500 }}>
+          <label className="flex items-center gap-[0.6rem] text-[0.85rem] text-[#334155] cursor-pointer font-medium">
             <input
               type="checkbox"
               checked={requiereSocioAlDia}
               onChange={(e) => setRequiereSocioAlDia(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
+              className="w-[16px] h-[16px] [accent-color:#2563eb]"
             />
             Exigir que el socio esté al día en CoopYa (sin deuda ni morosidad)
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', fontWeight: 500 }}>
+          <label className="flex items-center gap-[0.6rem] text-[0.85rem] text-[#334155] cursor-pointer font-medium">
             <input
               type="checkbox"
               checked={activo}
               onChange={(e) => setActivo(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
+              className="w-[16px] h-[16px] [accent-color:#2563eb]"
             />
             Línea de crédito activa comercialmente
           </label>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+        <div className="flex justify-end gap-3 pt-2 [border-top:1px_solid_#f1f5f9]">
           <button
             type="button"
             onClick={onClose}
-            style={{ padding: '0.55rem 1.1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontWeight: 500 }}
+            className="p-[0.55rem_1.1rem] rounded-lg [border:1px_solid_#cbd5e1] bg-[#fff] text-[#475569] cursor-pointer font-medium"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={guardando}
-            style={{
-              padding: '0.55rem 1.4rem',
-              borderRadius: '8px',
-              border: 'none',
-              background: '#2563eb',
-              color: '#fff',
-              fontWeight: 600,
-              cursor: guardando ? 'not-allowed' : 'pointer',
-              boxShadow: '0 1px 2px rgba(37,99,235,0.2)'
-            }}
+            className={[
+              'p-[0.55rem_1.4rem] rounded-lg [border:none] bg-[#2563eb] text-[#fff] font-semibold',
+              guardando ? 'cursor-not-allowed' : 'cursor-pointer',
+              'shadow-[0_1px_2px_rgba(37,99,235,0.2)]'
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
-            {guardando ? 'Guardando...' : condicionesSimuladas ? 'Crear Línea de Préstamo' : 'Guardar Línea'}
+            {guardando
+              ? 'Guardando...'
+              : condicionesSimuladas
+                ? 'Crear Línea de Préstamo'
+                : 'Guardar Línea'}
           </button>
         </div>
       </form>

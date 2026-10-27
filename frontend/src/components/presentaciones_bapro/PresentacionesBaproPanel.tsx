@@ -10,10 +10,9 @@ import {
 } from '../../services/api/presentacionesBaproApi';
 import { FiltrosBapro } from './FiltrosBapro';
 import { EmpresasModal } from './EmpresasModal';
-import { CargarRespuestaModal } from './CargarRespuestaModal';
 import { Badge } from '../common/Badge';
 
-export const PresentacionesBaproPanel: React.FC = () => {
+export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void }> = ({ onCargarRespuesta }) => {
   const [empresas, setEmpresas] = useState<EmpresaOriginante[]>([]);
   const [empresaId, setEmpresaId] = useState<number | undefined>();
   const [dniDesde, setDniDesde] = useState<number | ''>('');
@@ -37,7 +36,6 @@ export const PresentacionesBaproPanel: React.FC = () => {
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
 
   const [modalEmpresas, setModalEmpresas] = useState(false);
-  const [modalRespuesta, setModalRespuesta] = useState(false);
 
   const armarNombreArchivo = useCallback((empId?: number, nro?: number | '') => {
     const emp = empresas.find((e) => e.id === empId);
@@ -155,7 +153,7 @@ export const PresentacionesBaproPanel: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => setModalEmpresas(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>⚙ Empresas Originantes</button>
-          <button onClick={() => setModalRespuesta(true)} style={{ padding: '0.45rem 0.85rem', borderRadius: '6px', border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: '0.8125rem', fontWeight: 600, cursor: 'pointer' }}>📥 Cargar Rendición</button>
+          <button onClick={onCargarRespuesta} className="px-3 py-2 rounded-md [border:1px_solid_#16a34a] bg-[#f0fdf4] text-[#16a34a] text-sm font-semibold cursor-pointer">📥 Cargar respuesta</button>
         </div>
       </div>
 
@@ -225,7 +223,6 @@ export const PresentacionesBaproPanel: React.FC = () => {
       </div>
 
       <EmpresasModal isOpen={modalEmpresas} onClose={() => setModalEmpresas(false)} onEmpresasChanged={cargarDatosIniciales} />
-      <CargarRespuestaModal isOpen={modalRespuesta} onClose={() => setModalRespuesta(false)} onRespuestaProcesada={handleBuscar} />
     </div>
   );
 };

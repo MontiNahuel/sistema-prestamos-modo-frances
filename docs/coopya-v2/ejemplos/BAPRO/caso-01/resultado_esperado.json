@@ -1,0 +1,263 @@
+{
+  "descripcion": "Resultados exactos de sp_GetCuentaCorrienteResumen tras procesar la respuesta",
+  "persona_100052_cobrado": {
+    "ResultSet_1_Cabecera": [
+      {
+        "Id": 100052,
+        "NroSocio": 100052,
+        "Apellido": "GONZALEZ",
+        "Nombre": "CARLOS ALBERTO",
+        "NumeroDoc": "20123456",
+        "Cuil": "20201234562",
+        "Estado": 1,
+        "FechaAsociado": "2026-10-01T00:00:00",
+        "FechaServicio": null,
+        "FechaServicioAsistodo": null,
+        "UltimoPago": "2026-10-27T00:00:00",
+        "UltimaRespuesta": "2026-10-27T10:30:00"
+      }
+    ],
+    "ResultSet_2_Totales": [
+      {
+        "Movimientos": 1,
+        "Cobrados": 1,
+        "Rechazados": 0,
+        "Pendientes": 0,
+        "Manuales": 0,
+        "ImporteCobrado": 12500.0,
+        "ImporteRechazado": 0.0,
+        "ImportePendiente": 0.0,
+        "ObligacionMensual": 12500.0,
+        "TotalObligaciones": 12500.0,
+        "CargosExtra": 0.0,
+        "Cobertura": 12500.0,
+        "Saldo": 0.0,
+        "MesesCubiertos": 1,
+        "MesesConObligacion": 1,
+        "MesesEstimados": 0,
+        "ConceptosSinFecha": 0,
+        "MovimientosSinPeriodo": 0,
+        "MovimientosSinDesglose": 0,
+        "CoberturaSinConcepto": 0.0,
+        "AlgunaConMora": 1
+      }
+    ],
+    "ResultSet_3_Conceptos": [
+      {
+        "Concepto": "CUOTA_SOCIAL",
+        "Etiqueta": "Cuota Social",
+        "PlanId": 1,
+        "PlanNombre": "Plan Socio Pleno BAPRO",
+        "ValorMensual": 12500.0,
+        "FechaInicio": "2026-10-01T00:00:00",
+        "CuotasDelPlan": null,
+        "SinFechaInicio": 0,
+        "CuotasEsperadas": 1,
+        "CoberturaDelConcepto": 12500.0,
+        "CuotasCubiertas": 1,
+        "CuotasVencidas": 0,
+        "CuotasAdelantadas": 0,
+        "ProximoPeriodo": "2026-11-01T00:00:00",
+        "ImporteProximaCuota": 12500.0,
+        "DeudaDelConcepto": 0.0
+      }
+    ],
+    "ResultSet_4_Calendario": [
+      {
+        "Mes": "2026-10-01T00:00:00",
+        "Esperado": 12500.0,
+        "Estimado": false,
+        "EsperadoEstimado": 0.0,
+        "Movimientos": 1,
+        "Cobrados": 1,
+        "Rechazados": 0,
+        "Pendientes": 0,
+        "Manuales": 0,
+        "Cubierto": 12500.0,
+        "EsParcial": 0
+      }
+    ],
+    "ResultSet_5_Movimientos": [
+      {
+        "Id": 901,
+        "Banco": "BAPRO",
+        "MontoPesos": 12500.0,
+        "PresentacionId_Det": 501,
+        "FechaImpacto": "2026-10-27T00:00:00",
+        "Resultado": "OK",
+        "Estado": "COBRADO",
+        "NroArchivo": 1205,
+        "TipoImporte": "CuotaSocial",
+        "SumarMora": true,
+        "EsManual": 0,
+        "TipoMovimiento": null,
+        "Concepto": null,
+        "PeriodoCubierto": null,
+        "Motivo": null,
+        "IdMovimientoOrigen": null,
+        "Cobertura": 12500.0,
+        "CargoExtra": 0.0,
+        "TieneDesglose": 1,
+        "Usuario": null,
+        "FechaInsert": "2026-10-27T09:00:00",
+        "FechaModif": "2026-10-27T10:30:00",
+        "UsuarioGenero": "pgurvicius",
+        "FechaGeneracion": "2026-10-27T09:00:00"
+      }
+    ],
+    "ResultSet_6_Desglose": [
+      {
+        "Id": 1201,
+        "IdMovimiento": 901,
+        "Banco": "BAPRO",
+        "NroArchivo": 1205,
+        "PresentacionId_Det": 501,
+        "Concepto": "CUOTA_SOCIAL",
+        "PlanId": 1,
+        "NumeroCuota": 1,
+        "CantidadCuotas": null,
+        "PeriodoObligacion": "2026-10-01T00:00:00",
+        "ImporteTeorico": 12500.0,
+        "ImportePresentado": 12500.0,
+        "ImporteCobrado": 12500.0,
+        "ImporteRechazado": 0.0,
+        "ImportePendiente": 0.0,
+        "Origen": "BANCARIO",
+        "Motivo": null,
+        "Estado": "COBRADO",
+        "FechaGeneracion": "2026-10-27T09:00:00",
+        "PlanNombre": "Plan Socio Pleno BAPRO"
+      }
+    ]
+  },
+  "persona_100088_rechazado": {
+    "ResultSet_1_Cabecera": [
+      {
+        "Id": 100088,
+        "NroSocio": 100088,
+        "Apellido": "FERNANDEZ",
+        "Nombre": "MARIA LAURA",
+        "NumeroDoc": "27891234",
+        "Cuil": "27278912344",
+        "Estado": 1,
+        "FechaAsociado": "2026-10-01T00:00:00",
+        "FechaServicio": null,
+        "FechaServicioAsistodo": null,
+        "UltimoPago": null,
+        "UltimaRespuesta": "2026-10-27T10:30:00"
+      }
+    ],
+    "ResultSet_2_Totales": [
+      {
+        "Movimientos": 1,
+        "Cobrados": 0,
+        "Rechazados": 1,
+        "Pendientes": 0,
+        "Manuales": 0,
+        "ImporteCobrado": 0.0,
+        "ImporteRechazado": 8300.0,
+        "ImportePendiente": 0.0,
+        "ObligacionMensual": 8300.0,
+        "TotalObligaciones": 8300.0,
+        "CargosExtra": 0.0,
+        "Cobertura": 0.0,
+        "Saldo": 8300.0,
+        "MesesCubiertos": 0,
+        "MesesConObligacion": 1,
+        "MesesEstimados": 0,
+        "ConceptosSinFecha": 0,
+        "MovimientosSinPeriodo": 0,
+        "MovimientosSinDesglose": 0,
+        "CoberturaSinConcepto": 0.0,
+        "AlgunaConMora": 1
+      }
+    ],
+    "ResultSet_3_Conceptos": [
+      {
+        "Concepto": "CUOTA_SOCIAL",
+        "Etiqueta": "Cuota Social",
+        "PlanId": 1,
+        "PlanNombre": "Plan Socio Pleno BAPRO",
+        "ValorMensual": 8300.0,
+        "FechaInicio": "2026-10-01T00:00:00",
+        "CuotasDelPlan": null,
+        "SinFechaInicio": 0,
+        "CuotasEsperadas": 1,
+        "CoberturaDelConcepto": 0.0,
+        "CuotasCubiertas": 0,
+        "CuotasVencidas": 1,
+        "CuotasAdelantadas": 0,
+        "ProximoPeriodo": "2026-10-01T00:00:00",
+        "ImporteProximaCuota": 8300.0,
+        "DeudaDelConcepto": 8300.0
+      }
+    ],
+    "ResultSet_4_Calendario": [
+      {
+        "Mes": "2026-10-01T00:00:00",
+        "Esperado": 8300.0,
+        "Estimado": false,
+        "EsperadoEstimado": 0.0,
+        "Movimientos": 1,
+        "Cobrados": 0,
+        "Rechazados": 1,
+        "Pendientes": 0,
+        "Manuales": 0,
+        "Cubierto": 0.0,
+        "EsParcial": 0
+      }
+    ],
+    "ResultSet_5_Movimientos": [
+      {
+        "Id": 902,
+        "Banco": "BAPRO",
+        "MontoPesos": 8300.0,
+        "PresentacionId_Det": 502,
+        "FechaImpacto": "2026-10-27T00:00:00",
+        "Resultado": "R10",
+        "Estado": "RECHAZADO",
+        "NroArchivo": 1205,
+        "TipoImporte": "CuotaSocial",
+        "SumarMora": true,
+        "EsManual": 0,
+        "TipoMovimiento": null,
+        "Concepto": null,
+        "PeriodoCubierto": null,
+        "Motivo": null,
+        "IdMovimientoOrigen": null,
+        "Cobertura": 0.0,
+        "CargoExtra": 0.0,
+        "TieneDesglose": 1,
+        "Usuario": null,
+        "FechaInsert": "2026-10-27T09:00:00",
+        "FechaModif": "2026-10-27T10:30:00",
+        "UsuarioGenero": "pgurvicius",
+        "FechaGeneracion": "2026-10-27T09:00:00"
+      }
+    ],
+    "ResultSet_6_Desglose": [
+      {
+        "Id": 1202,
+        "IdMovimiento": 902,
+        "Banco": "BAPRO",
+        "NroArchivo": 1205,
+        "PresentacionId_Det": 502,
+        "Concepto": "CUOTA_SOCIAL",
+        "PlanId": 1,
+        "NumeroCuota": 1,
+        "CantidadCuotas": null,
+        "PeriodoObligacion": "2026-10-01T00:00:00",
+        "ImporteTeorico": 8300.0,
+        "ImportePresentado": 8300.0,
+        "ImporteCobrado": 0.0,
+        "ImporteRechazado": 8300.0,
+        "ImportePendiente": 0.0,
+        "Origen": "BANCARIO",
+        "Motivo": null,
+        "Estado": "RECHAZADO",
+        "FechaGeneracion": "2026-10-27T09:00:00",
+        "PlanNombre": "Plan Socio Pleno BAPRO"
+      }
+    ]
+  }
+}

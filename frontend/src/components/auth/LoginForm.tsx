@@ -31,34 +31,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#f3f4f6',
-      fontFamily: 'system-ui, sans-serif'
-    }}>
-      <div style={{
-        background: '#ffffff',
-        padding: '2.5rem',
-        borderRadius: '12px',
-        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ margin: 0, color: '#111827', fontSize: '1.5rem', fontWeight: 700 }}>
+    <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] [font-family:system-ui,_sans-serif]">
+      <div className="bg-[#ffffff] p-10 rounded-xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] w-full max-w-[400px]">
+        <div className="text-center mb-8">
+          <h2 className="m-0 text-[#111827] text-[1.5rem] font-bold">
             Sistema de Préstamos
           </h2>
-          <p style={{ margin: '0.5rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+          <p className="m-[0.5rem_0_0] text-[#6b7280] text-[0.875rem]">
             Autenticación centralizada con CoopYa
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
+          <div className="mb-5">
+            <label className="block font-semibold text-[0.875rem] mb-[0.375rem] text-[#374151]">
               Usuario
             </label>
             <input
@@ -66,14 +52,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               placeholder="Ingresá tu usuario"
-              style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.625rem] rounded-md [border:1px_solid_#d1d5db] text-[1rem] box-border"
               required
               autoFocus
             />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.375rem', color: '#374151' }}>
+          <div className="mb-6">
+            <label className="block font-semibold text-[0.875rem] mb-[0.375rem] text-[#374151]">
               Contraseña
             </label>
             <input
@@ -81,7 +67,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
               value={contrasena}
               onChange={(e) => setContrasena(e.target.value)}
               placeholder="Ingresá tu contraseña"
-              style={{ width: '100%', padding: '0.625rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', boxSizing: 'border-box' }}
+              className="w-full p-[0.625rem] rounded-md [border:1px_solid_#d1d5db] text-[1rem] box-border"
               required
             />
           </div>
@@ -89,23 +75,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '1rem',
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
+            className={[
+              'w-full p-3 bg-[#2563eb] text-[#ffffff] [border:none] rounded-md font-semibold text-[1rem]',
+              loading ? 'cursor-not-allowed' : 'cursor-pointer'
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
 
           {error && (
-            <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: '#fee2e2', color: '#991b1b', borderRadius: '6px', fontSize: '0.875rem', textAlign: 'center' }}>
+            <div className="mt-5 p-3 bg-[#fee2e2] text-[#991b1b] rounded-md text-[0.875rem] text-center">
               {error}
             </div>
           )}

@@ -81,101 +81,110 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
     >
       <form onSubmit={handleSubmit}>
         {error && (
-          <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', border: '1px solid #fecaca', fontSize: '0.875rem' }}>{error}</div>
+          <div className="mb-5 p-[0.85rem_1rem] bg-[#fee2e2] text-[#991b1b] rounded-lg [border:1px_solid_#fecaca] text-[0.875rem]">
+            {error}
+          </div>
         )}
 
         {/* Ficha del Socio Destinatario */}
-        <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>
+        <div className="bg-[#f8fafc] p-4 rounded-[10px] [border:1px_solid_#e2e8f0] mb-5">
+          <div className="text-[0.75rem] font-bold text-[#475569] uppercase tracking-[0.04em] mb-2">
             Titular del Préstamo (Socio CoopYa)
           </div>
 
           {persona ? (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="[display:flex] [justify-content:space-between] [align-items:center]">
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#0f172a' }}>
+                  <div className="[font-weight:700] [font-size:1.05rem] [color:#0f172a]">
                     {persona.apellido} {persona.nombre}
                   </div>
-                  <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.15rem' }}>
+                  <div className="[color:#64748b] [font-size:0.85rem] [margin-top:0.15rem]">
                     DNI: <strong>{persona.numeroDoc}</strong> • IdPersona: <strong>{persona.idPersona}</strong>
                   </div>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#16a34a', fontSize: '0.8rem', fontWeight: 600, background: '#dcfce7', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
+                <div className="[display:inline-flex] [align-items:center] [gap:0.35rem] [color:#16a34a] [font-size:0.8rem] [font-weight:600] [background:#dcfce7] [padding:0.25rem_0.6rem] [border-radius:6px]">
                   <CheckCircleIcon size={14} /> Socio Verificado
                 </div>
               </div>
 
               {cbuPredeterminado ? (
-                <div style={{ marginTop: '0.65rem', padding: '0.45rem 0.75rem', background: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe', fontSize: '0.8rem', color: '#1e40af', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="[margin-top:0.65rem] [padding:0.45rem_0.75rem] [background:#eff6ff] [border-radius:6px] [border:1px_solid_#bfdbfe] [font-size:0.8rem] [color:#1e40af] [display:flex] [align-items:center] [justify-content:space-between]">
                   <span>CBU para cobro: <strong>{cbuPredeterminado}</strong></span>
                   {cbuPredeterminado.startsWith('014') && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', background: '#dcfce7', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                    <span className="[font-size:0.72rem] [font-weight:700] [color:#15803d] [background:#dcfce7] [padding:0.15rem_0.45rem] [border-radius:4px]">
                       BAPRO
                     </span>
                   )}
                 </div>
               ) : (
-                <div style={{ marginTop: '0.65rem', padding: '0.45rem 0.75rem', background: '#fffbeb', borderRadius: '6px', border: '1px solid #fde68a', fontSize: '0.8rem', color: '#92400e' }}>
+                <div className="[margin-top:0.65rem] [padding:0.45rem_0.75rem] [background:#fffbeb] [border-radius:6px] [border:1px_solid_#fde68a] [font-size:0.8rem] [color:#92400e]">
                   ⚠️ Sin CBU registrado en el padrón central.
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#b45309', background: '#fef3c7', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem' }}>
+            <div className="flex items-center gap-2 text-[#b45309] bg-[#fef3c7] p-3 rounded-lg text-[0.85rem]">
               <AlertTriangleIcon size={18} />
-              <span>No hay socio seleccionado. Regresá a la pestaña "Buscar Personas" para asociar un socio.</span>
+              <span>
+                No hay socio seleccionado. Regresá a la pestaña "Buscar
+                Personas" para asociar un socio.
+              </span>
             </div>
           )}
         </div>
 
         {/* Condiciones de la Simulación a Instrumentar */}
-        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1rem', marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.75rem' }}>
+        <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4 mb-5">
+          <div className="text-[0.75rem] font-bold text-[#475569] uppercase tracking-[0.04em] mb-3">
             Condiciones Financieras de Amortización
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+          <div className="grid grid-cols-[1fr_1fr] gap-3 text-[0.875rem]">
             <div>
-              <span style={{ color: '#64748b' }}>Capital a Desembolsar:</span>
-              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0f172a' }}>
+              <span className="text-[#64748b]">Capital a Desembolsar:</span>
+              <div className="font-bold text-[1.1rem] text-[#0f172a]">
                 {formatMoney(plan.monto_solicitado_centavos)}
               </div>
             </div>
 
             <div>
-              <span style={{ color: '#64748b' }}>Plazo Acordado:</span>
-              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#2563eb' }}>
+              <span className="text-[#64748b]">Plazo Acordado:</span>
+              <div className="font-bold text-[1.1rem] text-[#2563eb]">
                 {plan.plazo_meses} cuotas mensuales
               </div>
             </div>
 
             <div>
-              <span style={{ color: '#64748b' }}>Tasa Nominal Anual (TNA):</span>
-              <div style={{ fontWeight: 600, color: '#0f172a' }}>
+              <span className="text-[#64748b]">Tasa Nominal Anual (TNA):</span>
+              <div className="font-semibold text-[#0f172a]">
                 {formatPct(plan.tasa_anual)}
               </div>
             </div>
 
             <div>
-              <span style={{ color: '#64748b' }}>Modalidad / Fórmula:</span>
-              <div style={{ fontWeight: 600, color: '#0f172a' }}>
+              <span className="text-[#64748b]">Modalidad / Fórmula:</span>
+              <div className="font-semibold text-[#0f172a]">
                 {plan.convencion_tasa}
               </div>
             </div>
 
             <div>
-              <span style={{ color: '#64748b' }}>Total a Devolver (con IVA):</span>
-              <div style={{ fontWeight: 700, color: '#0f172a' }}>
+              <span className="text-[#64748b]">
+                Total a Devolver (con IVA):
+              </span>
+              <div className="font-bold text-[#0f172a]">
                 {formatMoney(plan.total_a_pagar_centavos)}
               </div>
             </div>
 
             <div>
-              <span style={{ color: '#64748b' }}>Primer Vencimiento:</span>
-              <div style={{ fontWeight: 600, color: '#0f172a' }}>
+              <span className="text-[#64748b]">Primer Vencimiento:</span>
+              <div className="font-semibold text-[#0f172a]">
                 {plan.cronograma[0]?.fecha_vencimiento
-                  ? new Date(plan.cronograma[0].fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR')
+                  ? new Date(
+                      plan.cronograma[0].fecha_vencimiento + 'T00:00:00'
+                    ).toLocaleDateString('es-AR')
                   : '30 días desde otorgamiento'}
               </div>
             </div>
@@ -183,8 +192,8 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
         </div>
 
         {/* Observaciones */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+        <div className="mb-6">
+          <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
             Observaciones o Referencia del Legajo (Opcional)
           </label>
           <textarea
@@ -192,35 +201,35 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
             onChange={(e) => setObservaciones(e.target.value)}
             rows={2}
             placeholder="Ej: Destino del préstamo, verificación telefónica efectuada, sucursal..."
-            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box', resize: 'vertical' }}
+            className="w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] box-border [resize:vertical]"
           />
         </div>
 
         {/* Botones de Acción */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9' }}>
+        <div className="flex justify-end gap-3 pt-3 [border-top:1px_solid_#f1f5f9]">
           <button
             type="button"
             onClick={onClose}
-            style={{ padding: '0.6rem 1.1rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#475569', cursor: 'pointer', fontWeight: 500 }}
+            className="p-[0.6rem_1.1rem] rounded-lg [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#475569] cursor-pointer font-medium"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={otorgando || !persona}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.6rem 1.4rem',
-              borderRadius: '8px',
-              border: 'none',
-              background: persona ? 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' : '#94a3b8',
-              color: '#ffffff',
-              fontWeight: 600,
-              cursor: (otorgando || !persona) ? 'not-allowed' : 'pointer',
-              boxShadow: persona ? '0 2px 4px rgba(22, 163, 74, 0.25)' : 'none'
-            }}
+            className={[
+              'inline-flex items-center gap-2 p-[0.6rem_1.4rem] rounded-lg [border:none]',
+              persona
+                ? '[background:linear-gradient(135deg,_#16a34a_0%,_#15803d_100%)]'
+                : 'bg-[#94a3b8]',
+              'text-[#ffffff] font-semibold',
+              otorgando || !persona ? 'cursor-not-allowed' : 'cursor-pointer',
+              persona
+                ? 'shadow-[0_2px_4px_rgba(22,_163,_74,_0.25)]'
+                : 'shadow-[none]'
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             {otorgando ? 'Instrumentando...' : 'Confirmar y Otorgar Préstamo'}
           </button>

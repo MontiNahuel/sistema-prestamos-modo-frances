@@ -5,32 +5,30 @@ interface BadgeProps {
   variant?: 'success' | 'danger' | 'warning' | 'info' | 'neutral';
 }
 
-export const Badge: React.FC<BadgeProps> = ({ children, variant = 'neutral' }) => {
-  const styles: Record<string, { bg: string; color: string; border: string }> = {
-    success: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-    danger: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
-    warning: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-    info: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-    neutral: { bg: '#f8fafc', color: '#475569', border: '#e2e8f0' }
+export const Badge: React.FC<BadgeProps> = ({
+  children,
+  variant = 'neutral'
+}) => {
+  const variants = {
+    success: 'bg-[#f0fdf4] text-[#15803d] [border:1px_solid_#bbf7d0]',
+    danger: 'bg-[#fef2f2] text-[#b91c1c] [border:1px_solid_#fecaca]',
+    warning: 'bg-[#fffbeb] text-[#b45309] [border:1px_solid_#fde68a]',
+    info: 'bg-[#eff6ff] text-[#1d4ed8] [border:1px_solid_#bfdbfe]',
+    neutral: 'bg-[#f8fafc] text-[#475569] [border:1px_solid_#e2e8f0]'
   };
 
-  const current = styles[variant] || styles.neutral;
+  const current = variants[variant] || variants.neutral;
 
   return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '0.25rem',
-      padding: '0.15rem 0.5rem',
-      borderRadius: '4px',
-      fontSize: '0.75rem',
-      fontWeight: 600,
-      background: current.bg,
-      color: current.color,
-      border: `1px solid ${current.border}`,
-      letterSpacing: '0.01em',
-      whiteSpace: 'nowrap'
-    }}>
+    <span
+      className={[
+        'inline-flex items-center gap-1 p-[0.15rem_0.5rem] rounded-sm text-[0.75rem] font-semibold',
+        current,
+        'tracking-[0.01em] whitespace-nowrap'
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {children}
     </span>
   );
