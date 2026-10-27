@@ -65,6 +65,61 @@ def ensure_sqlserver_db_exists(url: str, retries: int = 15, delay: int = 3):
     raise RuntimeError(f"Fallo de conexión a SQL Server tras {retries} intentos.")
 
 
+def _asegurar_columnas_criticas(db_engine):
+    """Aplica DDL defensivo e idempotente para columnas agregadas recientemente."""
+    sql_patches = [
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'cuotas')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('cuotas') AND name = 'movimiento_coopya_id')
+                ALTER TABLE cuotas ADD movimiento_coopya_id INT NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('cuotas') AND name = 'desglose_coopya_id')
+                ALTER TABLE cuotas ADD desglose_coopya_id INT NULL;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'socios')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cbu')
+                ALTER TABLE socios ADD cbu VARCHAR(22) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'alias_cbu')
+                ALTER TABLE socios ADD alias_cbu VARCHAR(50) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'banco_nombre')
+                ALTER TABLE socios ADD banco_nombre VARCHAR(100) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'titular_verificado')
+                ALTER TABLE socios ADD titular_verificado BIT NOT NULL CONSTRAINT DF_socios_titular_verificado DEFAULT 0;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'respuestas_bancarias_archivos')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_archivos') AND name = 'archivo_original')
+                ALTER TABLE respuestas_bancarias_archivos ADD archivo_original VARBINARY(MAX) NULL;
+        END
+        """
+    ]
+    try:
+        with db_engine.begin() as conn:
+            for patch in sql_patches:
+                conn.execute(text(patch))
+        logger.info("Verificación de columnas críticas completada con éxito.")
+    except Exception as e:
+        logger.warning(f"Aviso al verificar columnas críticas: {e}")
+
+
+def _ejecutar_migraciones_alembic():
+    """Ejecuta programáticamente las migraciones de Alembic si existen."""
+    try:
+        from alembic.config import Config
+        from alembic import command
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Migraciones de Alembic aplicadas exitosamente.")
+    except Exception as e:
+        logger.warning(f"Aviso al correr migraciones Alembic automáticamente: {e}")
+
+
 def init_db(base, db_engine, retries: int = 10, delay: int = 2):
     """Espera a que SQL Server esté listo y crea todas las tablas declaradas."""
     ensure_sqlserver_db_exists(settings.DATABASE_URL)
@@ -72,6 +127,8 @@ def init_db(base, db_engine, retries: int = 10, delay: int = 2):
     for attempt in range(1, retries + 1):
         try:
             base.metadata.create_all(bind=db_engine)
+            _asegurar_columnas_criticas(db_engine)
+            _ejecutar_migraciones_alembic()
             logger.info("Tablas de la base de datos creadas/verificadas correctamente.")
             return
         except Exception as e:

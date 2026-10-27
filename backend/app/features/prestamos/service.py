@@ -86,21 +86,7 @@ class PrestamoService:
         )
         prestamo_id = str(uuid.uuid4())
 
-        # Sincronización en el Monolito Central CoopYa (PersonasRepositorio + CuentaCorrienteDesglose)
-        cuotas_raw = [
-            {"numero_cuota": c.numero_cuota, "fecha_vencimiento": c.fecha_vencimiento,
-             "cuota_total_centavos": c.cuota_total_centavos, "capital_centavos": c.capital_centavos,
-             "interes_centavos": c.interes_centavos, "iva_interes_centavos": c.iva_interes_centavos}
-            for c in plan.cronograma
-        ]
-        vinculos_map: Dict[int, Dict[str, Any]] = {}
-        if self.coopya_db:
-            try:
-                vinculos = self.coopya_db.impactar_cuotas_prestamo(persona_id=req.persona_id, prestamo_id=prestamo_id, cuotas=cuotas_raw)
-                vinculos_map = {v["numero_cuota"]: v for v in vinculos}
-            except Exception as e:
-                raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Fallo al registrar cuotas en Monolito CoopYa: {str(e)}")
-
+        # 1. Crear contrato y cuotas en la base de datos local (Local-First)
         nuevo_prestamo = Prestamo(
             id=prestamo_id, persona_id=req.persona_id, persona_nombre=req.persona_nombre, persona_doc=req.persona_doc,
             monto_solicitado_centavos=req.monto_solicitado_centavos, plazo_meses=req.plazo_meses,
@@ -120,13 +106,41 @@ class PrestamoService:
                 iva_interes_centavos=c.iva_interes_centavos, cuota_pura_centavos=c.cuota_pura_centavos,
                 cuota_total_centavos=c.cuota_total_centavos, saldo_final_centavos=c.saldo_final_centavos,
                 estado="PENDIENTE", monto_pagado_centavos=0,
-                movimiento_coopya_id=vinculos_map.get(c.numero_cuota, {}).get("movimiento_id"),
-                desglose_coopya_id=vinculos_map.get(c.numero_cuota, {}).get("desglose_id")
+                movimiento_coopya_id=None, desglose_coopya_id=None
             )
             for c in plan.cronograma
         ]
 
+        # 2. Persistir PRIMERO en la base de datos local
         creado = self.repository.create(nuevo_prestamo, cuotas, snapshot=snapshot)
+
+        # 3. Solo si la base local persistió con éxito, sincronizar con el Monolito CoopYa
+        if self.coopya_db and getattr(self.coopya_db, "enabled", True):
+            cuotas_raw = [
+                {"numero_cuota": c.numero_cuota, "fecha_vencimiento": c.fecha_vencimiento,
+                 "cuota_total_centavos": c.cuota_total_centavos, "capital_centavos": c.capital_centavos,
+                 "interes_centavos": c.interes_centavos, "iva_interes_centavos": c.iva_interes_centavos}
+                for c in plan.cronograma
+            ]
+            try:
+                vinculos = self.coopya_db.impactar_cuotas_prestamo(persona_id=req.persona_id, prestamo_id=prestamo_id, cuotas=cuotas_raw)
+                vinculos_map = {v["numero_cuota"]: v for v in vinculos}
+                for c in creado.cuotas:
+                    v = vinculos_map.get(c.numero_cuota)
+                    if v:
+                        c.movimiento_coopya_id = v.get("movimiento_id")
+                        c.desglose_coopya_id = v.get("desglose_id")
+                self.repository.db.commit()
+            except Exception as e:
+                try:
+                    self.repository.db.delete(creado)
+                    self.repository.db.commit()
+                except Exception:
+                    self.repository.db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Fallo al sincronizar cuotas con Monolito CoopYa (operación local revertida): {str(e)}"
+                )
         self._auditar(prestamo_id, "CREATE", {"monto_centavos": creado.monto_solicitado_centavos, "plazo": creado.plazo_meses, "socio_id": creado.persona_id}, usuario_operador, "Otorgamiento de préstamo formal")
         return creado
 

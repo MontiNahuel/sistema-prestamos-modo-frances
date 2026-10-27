@@ -44,6 +44,8 @@ class OracleClient:
         try:
             if self.lib_dir and os.path.exists(self.lib_dir):
                 oracledb.init_oracle_client(lib_dir=self.lib_dir)
+            elif os.path.exists("/opt/oracle/instantclient_19_24"):
+                oracledb.init_oracle_client(lib_dir="/opt/oracle/instantclient_19_24")
             else:
                 oracledb.init_oracle_client()
             OracleClient._thick_initialized = True

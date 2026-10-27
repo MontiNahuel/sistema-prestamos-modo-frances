@@ -1,5 +1,6 @@
+import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, Header, status
+from fastapi import APIRouter, Depends, Query, Header, status, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.features.prestamos.schemas import PrestamoCreate, PrestamoResponse
@@ -13,6 +14,7 @@ from app.features.auditoria.service import HistorialCambiosService
 from app.features.prestamos.service import PrestamoService
 
 router = APIRouter(prefix="/prestamos", tags=["Préstamos Otorgados"])
+logger = logging.getLogger("PrestamosController")
 
 
 def get_prestamo_service(db: Session = Depends(get_db)) -> PrestamoService:
@@ -43,7 +45,16 @@ def otorgar_prestamo(
     Otorga un préstamo formalmente: calcula el plan de amortización exacto en centavos,
     persiste el contrato junto con sus cuotas y el snapshot legal inmutable, y audita el evento.
     """
-    return service.otorgar_prestamo(req, usuario_operador=x_user)
+    try:
+        return service.otorgar_prestamo(req, usuario_operador=x_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error inesperado al otorgar préstamo: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error inesperado al otorgar préstamo: {str(e)}"
+        )
 
 
 @router.get("", response_model=List[PrestamoResponse], summary="Listar préstamos otorgados")

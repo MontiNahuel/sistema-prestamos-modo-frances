@@ -33,15 +33,19 @@ services:
       COOPYA_DB_PASSWORD: ${COOPYA_DB_PASSWORD:-Yacoop*2025;}
       COOPYA_DB_ENABLED: ${COOPYA_DB_ENABLED:-True}
       # Integración Oracle (se pasa siempre por variables de entorno)
-      ORACLE_ENABLED: ${ORACLE_ENABLED:-False}
-      ORACLE_USER: ${ORACLE_USER:-}
-      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-}
-      ORACLE_HOST: ${ORACLE_HOST:-}
+      ORACLE_ENABLED: ${ORACLE_ENABLED:-True}
+      ORACLE_USER: ${ORACLE_USER:-nmonti}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-HNi$$uFe3Tym}
+      ORACLE_HOST: ${ORACLE_HOST:-172.17.1.3}
       ORACLE_PORT: ${ORACLE_PORT:-1521}
       ORACLE_SERVICE: ${ORACLE_SERVICE:-orcl}
       ORACLE_DSN: ${ORACLE_DSN:-}
       ORACLE_CLIENT_LIB_DIR: ${ORACLE_CLIENT_LIB_DIR:-}
       ORACLE_TABLA_PERSONAS: ${ORACLE_TABLA_PERSONAS:-PRESTAPROD.PERSONA}
+
+    # Persistencia de presentaciones y respuestas bancarias
+    volumes:
+      - ./storage:/app/storage
 
     # 5. Red aislada dedicada: Se comunica con la DB y con el Gateway/Caddy
     networks:
