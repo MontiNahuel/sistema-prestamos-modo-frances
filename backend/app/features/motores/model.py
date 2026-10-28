@@ -16,6 +16,7 @@ class MotorCalculo(Base):
     base_dias = Column(String(50), default="COMERCIAL_30_360", nullable=False)
     modalidad_iva = Column(String(50), default="IVA_DECRECIENTE", nullable=False)
     ajuste_residual = Column(String(50), default="ULTIMA_CUOTA", nullable=False)
+    redondeo_cuota = Column(String(50), default="CON_CENTAVOS", nullable=True)
 
     activo = Column(Boolean, default=True, nullable=False)
     es_sistema = Column(Boolean, default=False, nullable=False)  # Si es True, no se puede borrar

@@ -178,7 +178,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
             </option>
             {motores.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.nombre}
+                {m.nombre} ({m.codigo})
               </option>
             ))}
           </select>
@@ -221,7 +221,10 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       <div className="grid grid-cols-[1fr_1fr] gap-3 mb-6">
         <div>
           <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
-            Tasa Anual (%)
+            {lineaActiva?.motor?.convencion_tasa === 'TASA_ROMI_COMERCIAL_365' ||
+            motores.find((m) => m.id === motorId)?.convencion_tasa === 'TASA_ROMI_COMERCIAL_365'
+              ? 'Tasa Anual Comercial con IVA (%)'
+              : 'Tasa Anual (%)'}
           </label>
           <input
             type="number"
@@ -232,6 +235,12 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
             className="w-full p-[0.625rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.95rem] box-border"
             required
           />
+          {(lineaActiva?.motor?.convencion_tasa === 'TASA_ROMI_COMERCIAL_365' ||
+            motores.find((m) => m.id === motorId)?.convencion_tasa === 'TASA_ROMI_COMERCIAL_365') && (
+            <div className="text-[0.72rem] text-[#2563eb] font-medium mt-[0.2rem]">
+              Base comercial 365/30 con IVA incluido (ej: 414.59%)
+            </div>
+          )}
         </div>
 
         <div>

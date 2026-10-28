@@ -2,12 +2,24 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.features.motores.model import MotorCalculo
 from app.features.lineas.model import LineaPrestamo
-from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
+from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
 
 
 def seed_motores_y_lineas(db: Session):
     """Crea los motores y líneas iniciales del sistema si no existen."""
     motores_data = [
+        {
+            "codigo": "TASA_ROMI_COMERCIAL_365",
+            "nombre": "Romi Tasa Comercial con IVA (Base 365/30)",
+            "descripcion": "Calcula cuota plana Romi recibiendo la TNA comercial con IVA (ej: 414,59%). Desgrava internamente a TEM neta.",
+            "convencion_tasa": ConvencionTasa.TASA_ROMI_COMERCIAL_365.value,
+            "base_dias": BaseDias.COMERCIAL_30_360.value,
+            "modalidad_iva": ModalidadIva.CUOTA_TOTAL_PLANA.value,
+            "ajuste_residual": AjusteResidual.ULTIMA_CUOTA.value,
+            "redondeo_cuota": RedondeoCuota.PESOS_ENTEROS.value,
+            "es_sistema": True,
+            "activo": True,
+        },
         {
             "codigo": "TASA_ESTILO_ROMI",
             "nombre": "tasa estilo-romi",
@@ -74,12 +86,32 @@ def seed_motores_y_lineas(db: Session):
             db.flush()
             motores_creados[m["codigo"]] = nuevo
         else:
+            if hasattr(existente, "redondeo_cuota") and "redondeo_cuota" in m:
+                existente.redondeo_cuota = m["redondeo_cuota"]
             motores_creados[m["codigo"]] = existente
 
     db.commit()
 
     # Sembrar líneas de préstamo si no existen
     lineas_data = [
+        {
+            "codigo": "ROMI_COMERCIAL_414",
+            "nombre": "Crédito Comercial Romi (414,59% con IVA)",
+            "descripcion": "Línea con cuota total plana e ingreso de tasa anual comercial con IVA de la planilla central.",
+            "motor_id": motores_creados["TASA_ROMI_COMERCIAL_365"].id,
+            "tasa_default": Decimal("4.1459"),
+            "alicuota_iva": Decimal("0.2100"),
+            "permite_override_tasa": True,
+            "monto_minimo_centavos": 1000000,
+            "monto_maximo_centavos": 50000000,
+            "monto_paso_centavos": 100000,
+            "plazo_minimo_meses": 1,
+            "plazo_maximo_meses": 24,
+            "requiere_socio_al_dia": True,
+            "gasto_otorgamiento_pct": Decimal("0.0000"),
+            "seguro_vida_mensual_pct": Decimal("0.0000"),
+            "activo": True
+        },
         {
             "codigo": "PERS_TRADICIONAL",
             "nombre": "Préstamo Personal Tradicional",

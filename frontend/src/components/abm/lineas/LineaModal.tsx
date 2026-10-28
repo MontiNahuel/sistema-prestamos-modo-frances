@@ -250,11 +250,13 @@ export const LineaModal: React.FC<LineaModalProps> = ({
                 Tipo Tasa (del Motor)
               </label>
               <div className="p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#e2e8f0] bg-[#f1f5f9] text-[0.85rem] text-[#1e293b] font-semibold">
-                {motores
-                  .find((m) => m.id === motorId)
-                  ?.convencion_tasa.includes('TEA')
-                  ? 'TEA (Efectiva)'
-                  : 'TNA (Nominal)'}
+                {(() => {
+                  const conv = motores.find((m) => m.id === motorId)?.convencion_tasa;
+                  if (conv?.includes('TEA')) return 'TEA (Efectiva)';
+                  if (conv === 'TASA_ROMI_COMERCIAL_365') return 'TNA Comercial (c/IVA)';
+                  if (conv === 'TASA_ESTILO_ROMI') return 'TNA Romi (s/IVA)';
+                  return 'TNA (Nominal)';
+                })()}
               </div>
             </div>
 

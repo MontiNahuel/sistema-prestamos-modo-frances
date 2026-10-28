@@ -3,7 +3,7 @@ from app.features.simulaciones.schemas import SimulacionRequest
 from app.features.lineas.repository import LineaPrestamoRepository
 from app.features.motores.repository import MotorCalculoRepository
 from app.domain.calculadoras.sistema_frances import CalculadoraFrances, PlanAmortizacion, MotorConfig
-from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
+from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
 
 
 class SimulacionService:
@@ -28,7 +28,8 @@ class SimulacionService:
                     convencion_tasa=ConvencionTasa(linea.motor.convencion_tasa),
                     base_dias=BaseDias(linea.motor.base_dias),
                     modalidad_iva=ModalidadIva(linea.motor.modalidad_iva),
-                    ajuste_residual=AjusteResidual(linea.motor.ajuste_residual)
+                    ajuste_residual=AjusteResidual(linea.motor.ajuste_residual),
+                    redondeo_cuota=RedondeoCuota(getattr(linea.motor, "redondeo_cuota", None) or "CON_CENTAVOS")
                 )
 
         # Si se especificó un motor puntual, tiene precedencia
@@ -39,7 +40,8 @@ class SimulacionService:
                     convencion_tasa=ConvencionTasa(motor.convencion_tasa),
                     base_dias=BaseDias(motor.base_dias),
                     modalidad_iva=ModalidadIva(motor.modalidad_iva),
-                    ajuste_residual=AjusteResidual(motor.ajuste_residual)
+                    ajuste_residual=AjusteResidual(motor.ajuste_residual),
+                    redondeo_cuota=RedondeoCuota(getattr(motor, "redondeo_cuota", None) or "CON_CENTAVOS")
                 )
 
         try:

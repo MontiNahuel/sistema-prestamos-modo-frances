@@ -5,7 +5,8 @@ import {
   ConvencionTasa,
   BaseDias,
   ModalidadIva,
-  AjusteResidual
+  AjusteResidual,
+  RedondeoCuota
 } from '../../../types/motor';
 import { Modal } from '../../common/Modal';
 
@@ -25,37 +26,25 @@ export const MotorModal: React.FC<MotorModalProps> = ({
   const [codigo, setCodigo] = useState('');
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [convencionTasa, setConvencionTasa] =
-    useState<ConvencionTasa>('TNA_PROPORCIONAL');
+  const [convencionTasa, setConvencionTasa] = useState<ConvencionTasa>('TNA_PROPORCIONAL');
   const [baseDias, setBaseDias] = useState<BaseDias>('COMERCIAL_30_360');
-  const [modalidadIva, setModalidadIva] =
-    useState<ModalidadIva>('IVA_DECRECIENTE');
-  const [ajusteResidual, setAjusteResidual] =
-    useState<AjusteResidual>('ULTIMA_CUOTA');
+  const [modalidadIva, setModalidadIva] = useState<ModalidadIva>('IVA_DECRECIENTE');
+  const [ajusteResidual, setAjusteResidual] = useState<AjusteResidual>('ULTIMA_CUOTA');
+  const [redondeoCuota, setRedondeoCuota] = useState<RedondeoCuota>('CON_CENTAVOS');
   const [activo, setActivo] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (motorParaEditar) {
-      setCodigo(motorParaEditar.codigo);
-      setNombre(motorParaEditar.nombre);
-      setDescripcion(motorParaEditar.descripcion || '');
-      setConvencionTasa(motorParaEditar.convencion_tasa);
-      setBaseDias(motorParaEditar.base_dias);
-      setModalidadIva(motorParaEditar.modalidad_iva);
-      setAjusteResidual(motorParaEditar.ajuste_residual);
-      setActivo(motorParaEditar.activo);
-    } else {
-      setCodigo('');
-      setNombre('');
-      setDescripcion('');
-      setConvencionTasa('TNA_PROPORCIONAL');
-      setBaseDias('COMERCIAL_30_360');
-      setModalidadIva('IVA_DECRECIENTE');
-      setAjusteResidual('ULTIMA_CUOTA');
-      setActivo(true);
-    }
+    setCodigo(motorParaEditar?.codigo || '');
+    setNombre(motorParaEditar?.nombre || '');
+    setDescripcion(motorParaEditar?.descripcion || '');
+    setConvencionTasa(motorParaEditar?.convencion_tasa || 'TNA_PROPORCIONAL');
+    setBaseDias(motorParaEditar?.base_dias || 'COMERCIAL_30_360');
+    setModalidadIva(motorParaEditar?.modalidad_iva || 'IVA_DECRECIENTE');
+    setAjusteResidual(motorParaEditar?.ajuste_residual || 'ULTIMA_CUOTA');
+    setRedondeoCuota(motorParaEditar?.redondeo_cuota || 'CON_CENTAVOS');
+    setActivo(motorParaEditar?.activo ?? true);
     setError(null);
   }, [motorParaEditar, isOpen]);
 
@@ -73,6 +62,7 @@ export const MotorModal: React.FC<MotorModalProps> = ({
         base_dias: baseDias,
         modalidad_iva: modalidadIva,
         ajuste_residual: ajusteResidual,
+        redondeo_cuota: redondeoCuota,
         activo
       });
       onClose();
@@ -87,11 +77,7 @@ export const MotorModal: React.FC<MotorModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={
-        motorParaEditar
-          ? `Editar Motor: ${motorParaEditar.nombre}`
-          : 'Nuevo Motor de Fórmula Financiera'
-      }
+      title={motorParaEditar ? `Editar Motor: ${motorParaEditar.nombre}` : 'Nuevo Motor de Fórmula Financiera'}
       maxWidth="620px"
     >
       <form onSubmit={handleSubmit}>
@@ -103,29 +89,20 @@ export const MotorModal: React.FC<MotorModalProps> = ({
 
         <div className="grid grid-cols-[1fr_1.5fr] gap-4 mb-5">
           <div>
-            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-              Código Único
-            </label>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">Código Único</label>
             <input
               type="text"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
               placeholder="EJ: FRANCES_CUSTOM"
               disabled={Boolean(motorParaEditar?.es_sistema)}
-              className={[
-                'w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] box-border',
-                motorParaEditar?.es_sistema ? 'bg-[#f8fafc]' : 'bg-[#ffffff]'
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              className={`w-full p-[0.6rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.875rem] box-border ${motorParaEditar?.es_sistema ? 'bg-[#f8fafc]' : 'bg-[#ffffff]'}`}
               required
             />
           </div>
 
           <div>
-            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-              Nombre Visible
-            </label>
+            <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">Nombre Visible</label>
             <input
               type="text"
               value={nombre}
@@ -138,9 +115,7 @@ export const MotorModal: React.FC<MotorModalProps> = ({
         </div>
 
         <div className="mb-5">
-          <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-            Descripción
-          </label>
+          <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">Descripción</label>
           <textarea
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
@@ -157,84 +132,75 @@ export const MotorModal: React.FC<MotorModalProps> = ({
 
           <div className="grid grid-cols-[1fr_1fr] gap-4 mb-4">
             <div>
-              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-                1. Convención de Tasa
-              </label>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">1. Convención de Tasa</label>
               <select
                 value={convencionTasa}
-                onChange={(e) =>
-                  setConvencionTasa(e.target.value as ConvencionTasa)
-                }
+                onChange={(e) => setConvencionTasa(e.target.value as ConvencionTasa)}
                 className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
               >
-                <option value="TNA_PROPORCIONAL">
-                  TNA Proporcional (TNA / 12)
-                </option>
-                <option value="TEA_COMPUESTA">
-                  TEA Compuesta ((1+TEA)^(1/12) - 1)
-                </option>
+                <option value="TNA_PROPORCIONAL">TNA Proporcional (TNA / 12)</option>
+                <option value="TEA_COMPUESTA">TEA Compuesta ((1+TEA)^(1/12) - 1)</option>
                 <option value="TNA_DIAS_REALES">TNA Base Días Reales</option>
+                <option value="TASA_ROMI_COMERCIAL_365">TASA_ROMI_COMERCIAL_365 (Romi con IVA Base 365/30)</option>
+                <option value="TASA_ESTILO_ROMI">TASA_ESTILO_ROMI (Romi Tasa Neta sin IVA TNA/12)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-                2. Base de Días / Calendario
-              </label>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">2. Base de Días / Calendario</label>
               <select
                 value={baseDias}
                 onChange={(e) => setBaseDias(e.target.value as BaseDias)}
                 className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
               >
-                <option value="COMERCIAL_30_360">
-                  Comercial 30/360 (Mes fijo)
-                </option>
+                <option value="COMERCIAL_30_360">Comercial 30/360 (Mes fijo)</option>
                 <option value="ACTUAL_365">Actual / 365 (Días reales)</option>
-                <option value="ACTUAL_360">
-                  Actual / 360 (Días reales base 360)
-                </option>
+                <option value="ACTUAL_360">Actual / 360 (Días reales base 360)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[1fr_1fr] gap-4 mb-4">
+            <div>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">3. Modalidad de IVA</label>
+              <select
+                value={modalidadIva}
+                onChange={(e) => setModalidadIva(e.target.value as ModalidadIva)}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
+              >
+                <option value="IVA_DECRECIENTE">IVA s/Interés Decreciente (Estándar)</option>
+                <option value="CUOTA_TOTAL_PLANA">Cuota Total Fija con IVA Incluido</option>
+                <option value="EXENTO">Exento de IVA (0%)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">4. Centavo Residual</label>
+              <select
+                value={ajusteResidual}
+                onChange={(e) => setAjusteResidual(e.target.value as AjusteResidual)}
+                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
+              >
+                <option value="ULTIMA_CUOTA">Absorber en Última Cuota (Recomendado)</option>
+                <option value="PRIMERA_CUOTA">Absorber en Primera Cuota</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-[1fr_1fr] gap-4">
             <div>
-              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-                3. Modalidad de IVA
-              </label>
+              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">5. Redondeo de Cuota Final</label>
               <select
-                value={modalidadIva}
-                onChange={(e) =>
-                  setModalidadIva(e.target.value as ModalidadIva)
-                }
+                value={redondeoCuota}
+                onChange={(e) => setRedondeoCuota(e.target.value as RedondeoCuota)}
                 className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
               >
-                <option value="IVA_DECRECIENTE">
-                  IVA s/Interés Decreciente (Estándar)
-                </option>
-                <option value="CUOTA_TOTAL_PLANA">
-                  Cuota Total Fija con IVA Incluido
-                </option>
-                <option value="EXENTO">Exento de IVA (0%)</option>
+                <option value="CON_CENTAVOS">Con Centavos (Estándar, ej: $55.045,30)</option>
+                <option value="PESOS_ENTEROS">Pesos Enteros (Comercial, ej: $55.045,00)</option>
               </select>
             </div>
-
-            <div>
-              <label className="block text-[0.8rem] font-semibold text-[#334155] mb-[0.35rem]">
-                4. Centavo Residual
-              </label>
-              <select
-                value={ajusteResidual}
-                onChange={(e) =>
-                  setAjusteResidual(e.target.value as AjusteResidual)
-                }
-                className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#fff]"
-              >
-                <option value="ULTIMA_CUOTA">
-                  Absorber en Última Cuota (Recomendado)
-                </option>
-                <option value="PRIMERA_CUOTA">Absorber en Primera Cuota</option>
-              </select>
+            <div className="flex items-center text-[0.78rem] text-[#64748b] pt-3">
+              Pesos Enteros redondea al entero más cercano y amortiza el capital sin desfasaje contable.
             </div>
           </div>
         </div>
@@ -247,10 +213,7 @@ export const MotorModal: React.FC<MotorModalProps> = ({
             onChange={(e) => setActivo(e.target.checked)}
             className="w-[16px] h-[16px] [accent-color:#2563eb] cursor-pointer"
           />
-          <label
-            htmlFor="chkActivoMotor"
-            className="text-[0.875rem] text-[#334155] cursor-pointer font-medium"
-          >
+          <label htmlFor="chkActivoMotor" className="text-[0.875rem] text-[#334155] cursor-pointer font-medium">
             Motor habilitado y disponible para nuevas líneas
           </label>
         </div>
@@ -266,13 +229,7 @@ export const MotorModal: React.FC<MotorModalProps> = ({
           <button
             type="submit"
             disabled={guardando}
-            className={[
-              'p-[0.55rem_1.4rem] rounded-lg [border:none] bg-[#2563eb] text-[#fff] font-semibold',
-              guardando ? 'cursor-not-allowed' : 'cursor-pointer',
-              'shadow-[0_1px_2px_rgba(37,99,235,0.2)]'
-            ]
-              .filter(Boolean)
-              .join(' ')}
+            className={`p-[0.55rem_1.4rem] rounded-lg [border:none] bg-[#2563eb] text-[#fff] font-semibold shadow-[0_1px_2px_rgba(37,99,235,0.2)] ${guardando ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           >
             {guardando ? 'Guardando...' : 'Guardar Motor'}
           </button>

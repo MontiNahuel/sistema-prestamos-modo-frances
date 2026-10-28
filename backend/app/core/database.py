@@ -98,6 +98,14 @@ def _asegurar_columnas_criticas(db_engine):
             IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_archivos') AND name = 'archivo_original')
                 ALTER TABLE respuestas_bancarias_archivos ADD archivo_original VARBINARY(MAX) NULL;
         END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'motores_calculo')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('motores_calculo') AND name = 'redondeo_cuota')
+                ALTER TABLE motores_calculo ADD redondeo_cuota VARCHAR(50) NULL;
+            UPDATE motores_calculo SET redondeo_cuota = 'CON_CENTAVOS' WHERE redondeo_cuota IS NULL;
+        END
         """
     ]
     try:

@@ -71,9 +71,23 @@ la API ofrece ambas. El motor anterior cobraba $7.176,04 en la última cuota.
 
 ## Uso por API
 
-Consultar `GET /api/v1/motores`, localizar el código `TASA_ESTILO_ROMI` y usar su
-ID en `POST /api/v1/simulaciones`, o asignarlo a una línea existente/nueva.
+Se ofrecen dos variantes del motor en el catálogo:
+1. `TASA_ESTILO_ROMI`: espera la tasa anual neta sin IVA (`TNA = TEM_sin_iva * 12`, ej: `3.288` o `3.3794`).
+2. `TASA_ROMI_COMERCIAL_365`: espera la tasa anual comercial con IVA incluido de la planilla (`TNA = TEM_con_iva * 365 / 30`, ej: `4.1459`). Desgrava internamente a cuota plana exacta.
 
+Ejemplo con `TASA_ROMI_COMERCIAL_365` (ej: $150.000 en 9 cuotas al 414,59% comercial con IVA):
+```json
+{
+  "motor_id": 7,
+  "monto_centavos": 15000000,
+  "plazo_meses": 9,
+  "tna": "4.1459",
+  "alicuota_iva": "0.21"
+}
+```
+Arroja las 9 cuotas fijas de **$55.045,00** con desglose idéntico a la planilla central.
+
+Ejemplo con `TASA_ESTILO_ROMI`:
 ```json
 {
   "motor_id": 123,

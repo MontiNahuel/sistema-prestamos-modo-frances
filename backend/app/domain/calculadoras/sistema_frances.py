@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from datetime import date, timedelta
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
+from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
 from app.domain.calculadoras.tasas import calcular_tasa_periodica
 from app.domain.calculadoras.romi import CuotaRomiExacta, TotalesRomiExactos, calcular_romi
 
@@ -34,6 +34,7 @@ class PlanAmortizacion(BaseModel):
     base_dias: BaseDias
     modalidad_iva: ModalidadIva
     alicuota_iva: Decimal
+    redondeo_cuota: RedondeoCuota = RedondeoCuota.CON_CENTAVOS
     cuota_pura_teorica_centavos: int
     total_capital_centavos: int
     total_interes_centavos: int
@@ -57,6 +58,7 @@ class MotorConfig(BaseModel):
     base_dias: BaseDias = BaseDias.COMERCIAL_30_360
     modalidad_iva: ModalidadIva = ModalidadIva.IVA_DECRECIENTE
     ajuste_residual: AjusteResidual = AjusteResidual.ULTIMA_CUOTA
+    redondeo_cuota: RedondeoCuota = RedondeoCuota.CON_CENTAVOS
 
 
 class CalculadoraFrances:
@@ -86,7 +88,10 @@ class CalculadoraFrances:
             raise ValueError("La alícuota de IVA no puede ser negativa.")
 
         cfg = config or MotorConfig()
-        es_romi = cfg.convencion_tasa == ConvencionTasa.TASA_ESTILO_ROMI
+        es_romi = cfg.convencion_tasa in (
+            ConvencionTasa.TASA_ESTILO_ROMI,
+            ConvencionTasa.TASA_ROMI_COMERCIAL_365,
+        )
         if es_romi:
             # Romi define una cuota final plana por períodos mensuales, como Excel.
             cfg = cfg.model_copy(update={
@@ -107,14 +112,17 @@ class CalculadoraFrances:
             tasa_anual=tasa_anual,
             convencion=cfg.convencion_tasa,
             dias_periodo=30,
-            base_dias=cfg.base_dias
+            base_dias=cfg.base_dias,
+            alicuota_iva=alicuota_iva_efectiva,
         )
 
+        es_pesos_enteros = cfg.redondeo_cuota == RedondeoCuota.PESOS_ENTEROS
         cuotas_exactas = None
         totales_exactos = None
         if es_romi:
             cuotas_exactas, totales_exactos = calcular_romi(
-                monto_centavos, plazo_meses, tasa_mensual_base, alicuota_iva_efectiva
+                monto_centavos, plazo_meses, tasa_mensual_base, alicuota_iva_efectiva,
+                redondear_pesos_enteros=es_pesos_enteros,
             )
 
         # 2. Cálculo de cuota teórica según modalidad de IVA
@@ -133,6 +141,10 @@ class CalculadoraFrances:
                 cuota_plana_con_iva_centavos = round_cents(monto_dec * (tasa_gravada * factor_iva) / (factor_iva - Decimal("1")))
             else:
                 cuota_plana_con_iva_centavos = cuota_pura_teorica_centavos
+
+        if es_pesos_enteros:
+            cuota_pura_teorica_centavos = round_cents(Decimal(cuota_pura_teorica_centavos) / Decimal("100")) * 100
+            cuota_plana_con_iva_centavos = round_cents(Decimal(cuota_plana_con_iva_centavos) / Decimal("100")) * 100
 
         cronograma: List[CuotaItem] = []
         saldo_actual_centavos = monto_centavos
@@ -249,6 +261,7 @@ class CalculadoraFrances:
             base_dias=cfg.base_dias,
             modalidad_iva=cfg.modalidad_iva,
             alicuota_iva=alicuota_iva_efectiva,
+            redondeo_cuota=cfg.redondeo_cuota,
             cuota_pura_teorica_centavos=cuota_pura_teorica_centavos,
             total_capital_centavos=total_capital_centavos,
             total_interes_centavos=total_interes_centavos,

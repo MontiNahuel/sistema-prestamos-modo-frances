@@ -4,7 +4,7 @@ Los valores exactos están en pesos. Nunca se realimentan con los centavos
 proyectados para la cuenta corriente. Decimal evita propagar errores binarios;
 la equivalencia con Excel se verifica a centavos y con tolerancia subcentavo.
 """
-from decimal import Decimal, localcontext
+from decimal import Decimal, localcontext, ROUND_HALF_UP
 
 from pydantic import BaseModel
 
@@ -31,12 +31,17 @@ class TotalesRomiExactos(BaseModel):
 
 
 def calcular_romi(
-    monto_centavos: int, plazo_meses: int, tasa_mensual: Decimal, iva: Decimal
+    monto_centavos: int,
+    plazo_meses: int,
+    tasa_mensual: Decimal,
+    iva: Decimal,
+    redondear_pesos_enteros: bool = False,
 ) -> tuple[list[CuotaRomiExacta], TotalesRomiExactos]:
     """Cuota total plana con IVA y precisión conservada durante todo el plan.
 
     La tasa recibida no incluye IVA. Equivale a las columnas C, E, F y G del
     Excel. La columna D es interés + IVA, no el interés neto de IVA.
+    Si redondear_pesos_enteros es True, redondea la cuota al peso entero más cercano.
     """
     with localcontext() as contexto:
         contexto.prec = 50
@@ -47,6 +52,9 @@ def calcular_romi(
             cuota = monto * tasa_gravada * factor / (factor - 1)
         else:
             cuota = monto / plazo_meses
+
+        if redondear_pesos_enteros:
+            cuota = cuota.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
         saldo = monto
         cronograma = []

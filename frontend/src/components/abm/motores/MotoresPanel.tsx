@@ -15,8 +15,7 @@ export const MotoresPanel: React.FC = () => {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [motorSeleccionado, setMotorSeleccionado] =
-    useState<MotorCalculo | null>(null);
+  const [motorSeleccionado, setMotorSeleccionado] = useState<MotorCalculo | null>(null);
 
   const cargarMotores = async () => {
     setCargando(true);
@@ -68,8 +67,7 @@ export const MotoresPanel: React.FC = () => {
       alert('Los motores estándar del sistema no pueden eliminarse.');
       return;
     }
-    if (!window.confirm(`¿Estás seguro de eliminar el motor "${m.nombre}"?`))
-      return;
+    if (!window.confirm(`¿Estás seguro de eliminar el motor "${m.nombre}"?`)) return;
 
     try {
       await deleteMotor(m.id);
@@ -92,8 +90,7 @@ export const MotoresPanel: React.FC = () => {
                 Motores de Fórmulas Financieras
               </h2>
               <p className="m-[0.2rem_0_0] text-[#64748b] text-[0.875rem]">
-                Estrategias de amortización francesa, base de cálculo de días,
-                tratamiento de IVA y redondeos de centavos.
+                Estrategias de amortización francesa, base de cálculo de días, tratamiento de IVA y redondeos.
               </p>
             </div>
           </div>
@@ -101,7 +98,7 @@ export const MotoresPanel: React.FC = () => {
 
         <button
           onClick={handleNuevo}
-          className="inline-flex items-center gap-2 p-[0.65rem_1.25rem] [background:linear-gradient(135deg,_#2563eb_0%,_#1d4ed8_100%)] text-[#fff] [border:none] rounded-lg font-semibold cursor-pointer text-[0.875rem] shadow-[0_2px_4px_rgba(37,_99,_235,_0.2)] [transition:all_0.15s_ease]"
+          className="inline-flex items-center gap-2 p-[0.65rem_1.25rem] [background:linear-gradient(135deg,_#2563eb_0%,_#1d4ed8_100%)] text-[#fff] [border:none] rounded-lg font-semibold cursor-pointer text-[0.875rem] shadow-[0_2px_4px_rgba(37,_99,_235,_0.2)]"
         >
           <PlusIcon size={18} />
           Nuevo Motor de Cálculo
@@ -118,37 +115,22 @@ export const MotoresPanel: React.FC = () => {
         <table className="w-full border-collapse text-left text-[0.875rem]">
           <thead className="bg-[#f8fafc] [border-bottom:1px_solid_#e2e8f0] text-[#475569]">
             <tr>
-              <th className="p-[0.85rem_1.25rem] font-semibold">
-                Código / Nombre
-              </th>
-              <th className="p-[0.85rem_1.25rem] font-semibold">
-                Convención Tasa
-              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Código / Nombre</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Convención Tasa</th>
               <th className="p-[0.85rem_1.25rem] font-semibold">Base Días</th>
-              <th className="p-[0.85rem_1.25rem] font-semibold">
-                Modalidad IVA
-              </th>
-              <th className="p-[0.85rem_1.25rem] font-semibold">
-                Centavo Residual
-              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Modalidad IVA</th>
+              <th className="p-[0.85rem_1.25rem] font-semibold">Ajuste y Redondeo</th>
               <th className="p-[0.85rem_1.25rem] font-semibold">Estado</th>
-              <th className="p-[0.85rem_1.25rem] font-semibold text-center">
-                Acciones
-              </th>
+              <th className="p-[0.85rem_1.25rem] font-semibold text-center">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {motores.length > 0 ? (
               motores.map((m) => (
-                <tr
-                  key={m.id}
-                  className="[border-bottom:1px_solid_#f1f5f9] [transition:background_0.15s]"
-                >
+                <tr key={m.id} className="[border-bottom:1px_solid_#f1f5f9] hover:bg-[#f8fafc]">
                   <td className="p-[1rem_1.25rem]">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-[#0f172a]">
-                        {m.nombre}
-                      </span>
+                      <span className="font-semibold text-[#0f172a]">{m.nombre}</span>
                       {m.es_sistema && (
                         <span className="bg-[#e0f2fe] text-[#0369a1] text-[0.7rem] p-[0.15rem_0.45rem] rounded-sm font-semibold">
                           Sistema
@@ -159,34 +141,31 @@ export const MotoresPanel: React.FC = () => {
                       <code className="bg-[#f1f5f9] p-[0.15rem_0.35rem] rounded-sm text-[#334155] [font-family:monospace]">
                         {m.codigo}
                       </code>
-                      {m.descripcion && (
-                        <span className="ml-2">— {m.descripcion}</span>
-                      )}
+                      {m.descripcion && <span className="ml-2">— {m.descripcion}</span>}
                     </div>
                   </td>
                   <td className="p-[1rem_1.25rem]">
                     <Badge variant="info">{m.convencion_tasa}</Badge>
                   </td>
                   <td className="p-[1rem_1.25rem]">
-                    <span className="text-[0.825rem] text-[#334155] font-medium">
-                      {m.base_dias}
-                    </span>
+                    <span className="text-[0.825rem] text-[#334155] font-medium">{m.base_dias}</span>
                   </td>
                   <td className="p-[1rem_1.25rem]">
-                    <Badge
-                      variant={
-                        m.modalidad_iva === 'CUOTA_TOTAL_PLANA'
-                          ? 'warning'
-                          : 'neutral'
-                      }
-                    >
+                    <Badge variant={m.modalidad_iva === 'CUOTA_TOTAL_PLANA' ? 'warning' : 'neutral'}>
                       {m.modalidad_iva}
                     </Badge>
                   </td>
                   <td className="p-[1rem_1.25rem] text-[0.825rem] text-[#475569]">
-                    {m.ajuste_residual === 'ULTIMA_CUOTA'
-                      ? 'Última Cuota'
-                      : 'Primera Cuota'}
+                    <div>{m.ajuste_residual === 'ULTIMA_CUOTA' ? 'Última Cuota' : 'Primera Cuota'}</div>
+                    {m.redondeo_cuota === 'PESOS_ENTEROS' ? (
+                      <span className="inline-block mt-1 bg-[#f0fdf4] text-[#166534] [border:1px_solid_#bbf7d0] text-[0.7rem] px-1.5 py-0.5 rounded font-medium">
+                        Pesos Enteros
+                      </span>
+                    ) : (
+                      <span className="inline-block mt-1 bg-[#f8fafc] text-[#64748b] [border:1px_solid_#e2e8f0] text-[0.7rem] px-1.5 py-0.5 rounded">
+                        Con Centavos
+                      </span>
+                    )}
                   </td>
                   <td className="p-[1rem_1.25rem]">
                     <span
@@ -226,9 +205,7 @@ export const MotoresPanel: React.FC = () => {
             ) : (
               <tr>
                 <td colSpan={7} className="p-14 text-center text-[#94a3b8]">
-                  {cargando
-                    ? 'Cargando motores de cálculo...'
-                    : 'No hay motores registrados.'}
+                  {cargando ? 'Cargando motores de cálculo...' : 'No hay motores registrados.'}
                 </td>
               </tr>
             )}

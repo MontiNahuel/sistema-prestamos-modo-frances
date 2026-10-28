@@ -57,4 +57,6 @@ class LineaPrestamoResponse(LineaPrestamoBase):
     def tipo_tasa(self) -> str:
         if self.motor and "TEA" in self.motor.convencion_tasa:
             return "TEA"
+        if self.motor and self.motor.convencion_tasa == "TASA_ROMI_COMERCIAL_365":
+            return "TNA (c/IVA)"
         return "TNA"

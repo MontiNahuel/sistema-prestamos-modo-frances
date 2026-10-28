@@ -11,7 +11,7 @@ from app.features.socios.service import SocioService
 from app.features.auditoria.service import HistorialCambiosService
 from app.integrations.coopya_db_client import CoopYaDbClient, coopya_db_client
 from app.domain.calculadoras.sistema_frances import CalculadoraFrances, MotorConfig
-from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual
+from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
 from app.features.prestamos.cobros import recalcular_saldo
 from app.features.respuestas_bancarias.service import bloquear_cobranzas
 
@@ -24,7 +24,8 @@ def _resolver_config(linea, motor) -> MotorConfig:
         convencion_tasa=ConvencionTasa(m.convencion_tasa),
         base_dias=BaseDias(m.base_dias),
         modalidad_iva=ModalidadIva(m.modalidad_iva),
-        ajuste_residual=AjusteResidual(m.ajuste_residual)
+        ajuste_residual=AjusteResidual(m.ajuste_residual),
+        redondeo_cuota=RedondeoCuota(getattr(m, "redondeo_cuota", None) or "CON_CENTAVOS")
     )
 
 
