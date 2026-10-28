@@ -18,9 +18,13 @@ jobs:
     steps:
       - name: Actualizar frontend en el servidor
         run: |
+          set -euo pipefail
           cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
-          git stash -u || true
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "El checkout del servidor tiene cambios locales; se conserva sin reemplazar."
+            exit 1
+          fi
           git fetch origin main
-          git reset --hard origin/main
+          git merge --ff-only origin/main
           docker compose restart caddy
           echo "Frontend actualizado y Caddy reiniciado exitosamente."

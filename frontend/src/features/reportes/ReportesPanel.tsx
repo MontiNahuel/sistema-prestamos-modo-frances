@@ -307,7 +307,7 @@ export function ReportesPanel({
         className="reportes-filtros"
       >
         {otorgados && (
-          <label>
+          <label className="reportes-check">
             <input
               type="checkbox"
               checked={todoPeriodo}

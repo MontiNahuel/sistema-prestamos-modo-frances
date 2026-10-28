@@ -47,7 +47,13 @@
   .reportes-filtros .reportes-busqueda {
     @apply flex-[2_1_200px];
   }
-  .reportes input,
+  .reportes-filtros .reportes-check {
+    @apply flex-row items-center gap-2 min-h-[40px] cursor-pointer;
+  }
+  .reportes-filtros .reportes-check input {
+    @apply w-4 h-4 shrink-0 [accent-color:#2563eb];
+  }
+  .reportes input:not([type='checkbox']),
   .reportes select {
     @apply min-w-0 p-[.65rem] [border:1px_solid_#cbd5e1] rounded-[7px] bg-white text-[#334155] [font:inherit] min-h-[40px] box-border;
   }
