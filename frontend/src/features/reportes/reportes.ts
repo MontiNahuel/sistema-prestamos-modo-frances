@@ -1,6 +1,6 @@
 import type { CuotaPrestamo, Prestamo } from '../../types/prestamo';
 
-export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones';
+export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones' | 'padron';
 export type Valor = string | number | null;
 export interface Columna { key: string; titulo: string; tipo?: 'dinero' | 'fecha' | 'porcentaje' | 'numero' }
 export interface FiltrosReporte {
@@ -25,6 +25,7 @@ export interface Reporte {
 }
 
 export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: string }[] = [
+  { id: 'padron', titulo: 'Padrón socios cooperativa', descripcion: 'Personas registradas en el padrón de May.' },
   { id: 'caida', titulo: 'Caída de cuotas', descripcion: 'Vencimientos y cuotas a cobrar en el período.' },
   { id: 'ultimo-pago', titulo: 'Fecha del último pago', descripcion: 'Última cobranza de cada préstamo y pendientes actuales.' },
   { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Historial, saldos, legajos y gestión de cuotas.' },

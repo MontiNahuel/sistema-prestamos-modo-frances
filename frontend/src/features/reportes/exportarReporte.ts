@@ -9,14 +9,16 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   resumen.columns = [{ width: 42 }, { width: 110 }];
   resumen.addRow([reporte.titulo]);
   const todoPeriodo = filtros.tipo === 'otorgados' && filtros.todoPeriodo === true;
+  if (filtros.tipo !== 'padron') {
   resumen.addRow(['Desde', todoPeriodo ? 'Todo el historial' : filtros.desde]);
   resumen.addRow(['Hasta', todoPeriodo ? 'Sin límite de fecha' : filtros.hasta]);
   resumen.addRow(['Búsqueda', filtros.buscar || 'Toda la cartera']);
   resumen.addRow(['Estado préstamo', filtros.estadoPrestamo || 'Todos']);
   resumen.addRow(['Estado cuota', filtros.estadoCuota || 'Todos']);
+  } else resumen.addRow(['Búsqueda', filtros.buscar || 'Todos los socios']);
   if (filtros.tipo === 'condiciones') resumen.addRow(['Plazo (meses)', filtros.plazo ? Number(filtros.plazo) : 'Todos']);
   resumen.addRow(['Generado (Buenos Aires)', new Date(generado).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })]);
-  resumen.addRow(['Fuente', 'API /api/v1/prestamos y detalle de cuotas. Consulta completa paginada.']);
+  resumen.addRow(['Fuente', filtros.tipo === 'padron' ? 'CoopYa: dbo.Personas.' : 'API /api/v1/prestamos y detalle de cuotas. Consulta completa paginada.']);
   resumen.addRow([]);
   for (const dato of reporte.resumen) {
     const fila = resumen.addRow([dato.titulo, dato.dinero ? dato.valor / 100 : dato.valor]);

@@ -1,5 +1,7 @@
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, Query, Header, status
+from fastapi import APIRouter, Depends, Query, Header, status, HTTPException
+from app.integrations.coopya_db_client import coopya_db_client
+from app.features.respuestas_bancarias.controller import operador
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.integrations.coopya_client import coopya_client
@@ -24,6 +26,20 @@ def get_personas_service(db: Session = Depends(get_db)) -> PersonasService:
         auditoria_repo=AuditoriaRepository(db),
         socio_repo=SocioRepository(db)
     )
+
+
+@router.get("/padron-cooperativa", summary="Consultar padrón de socios")
+def consultar_padron_cooperativa(usuario: str = Depends(operador)):
+    """Consulta las personas marcadas en el padrón de May en CoopYa."""
+    try:
+        with coopya_db_client._connection() as conn:
+            if conn is None:
+                raise RuntimeError("Conexión deshabilitada")
+            cursor = conn.cursor()
+            cursor.execute("SELECT Id, NroSocio, Apellido, Nombre, NumeroDoc, Cuil, Observaciones FROM dbo.Personas WHERE Observaciones COLLATE Latin1_General_CI_AI LIKE ? ORDER BY Apellido, Nombre, Id", ('%En Padrón de May%',))
+            return [dict(zip(('id', 'socio', 'apellido', 'nombre', 'documento', 'cuil', 'observacion'), row)) for row in cursor]
+    except Exception:
+        raise HTTPException(status_code=503, detail="No se pudo consultar el padrón en CoopYa.") from None
 
 
 @router.post("/buscar", summary="Buscar personas/socios en el Monolito CoopYa")

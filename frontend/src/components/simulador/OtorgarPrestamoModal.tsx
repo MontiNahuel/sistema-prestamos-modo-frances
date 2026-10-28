@@ -1,16 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { Persona } from '../../types/persona';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Persona, PersonaBusquedaParams } from '../../types/persona';
 import { PlanAmortizacion, SimulacionPayload } from '../../types/simulacion';
 import { Prestamo } from '../../types/prestamo';
 import { Modal } from '../common/Modal';
 import { formatMoney, formatPct } from '../../utils/formatters';
 import { otorgarPrestamo } from '../../services/api/prestamosApi';
-import { AlertTriangleIcon, CheckCircleIcon } from '../common/Icons';
+import { buscarPersonas } from '../../services/api/personasApi';
+import { PersonasBuscador } from '../personas/PersonasBuscador';
+import { PersonasTabla } from '../personas/PersonasTabla';
+import { CheckCircleIcon } from '../common/Icons';
 
 interface OtorgarPrestamoModalProps {
   isOpen: boolean;
   onClose: () => void;
   persona: Persona | null;
+  onSeleccionarPersona: (persona: Persona) => void;
   payload: SimulacionPayload | null;
   plan: PlanAmortizacion | null;
   onOtorgado: (p: Prestamo) => void;
@@ -20,6 +24,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
   isOpen,
   onClose,
   persona,
+  onSeleccionarPersona,
   payload,
   plan,
   onOtorgado
@@ -27,6 +32,56 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
   const [observaciones, setObservaciones] = useState('');
   const [otorgando, setOtorgando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
+  const [resultados, setResultados] = useState<Persona[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [busquedaRealizada, setBusquedaRealizada] = useState(false);
+  const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
+  const revisionBusqueda = useRef(0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      revisionBusqueda.current += 1;
+      setBuscadorAbierto(false);
+      setResultados([]);
+      setBuscando(false);
+      setBusquedaRealizada(false);
+      setErrorBusqueda(null);
+      setError(null);
+    }
+  }, [isOpen]);
+
+  const handleBuscarPersona = async (params: PersonaBusquedaParams) => {
+    const revision = ++revisionBusqueda.current;
+    setBuscando(true);
+    setErrorBusqueda(null);
+    setBusquedaRealizada(false);
+    setResultados([]);
+    try {
+      const personas = await buscarPersonas(params);
+      if (revision === revisionBusqueda.current) {
+        setResultados(personas);
+        setBusquedaRealizada(true);
+      }
+    } catch (err: any) {
+      if (revision === revisionBusqueda.current) {
+        setErrorBusqueda(err.message || 'No se pudo buscar personas.');
+      }
+    } finally {
+      if (revision === revisionBusqueda.current) setBuscando(false);
+    }
+  };
+
+  const seleccionarPersona = (seleccionada: Persona) => {
+    revisionBusqueda.current += 1;
+    setBuscando(false);
+    setBuscadorAbierto(false);
+    setResultados([]);
+    setBusquedaRealizada(false);
+    setErrorBusqueda(null);
+    setError(null);
+    onSeleccionarPersona(seleccionada);
+  };
 
   const cbuPredeterminado = useMemo(() => {
     if (!persona?.mediosDePago?.length) return '';
@@ -41,6 +96,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (otorgando || buscadorAbierto) return;
     if (!persona) {
       setError('Debes tener un socio seleccionado para otorgar un préstamo.');
       return;
@@ -82,7 +138,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
       title="Confirmar y Otorgar Préstamo Oficial"
       maxWidth="620px"
     >
-      <form onSubmit={handleSubmit}>
+      <>
         {error && (
           <div className="mb-5 p-[0.85rem_1rem] bg-[#fee2e2] text-[#991b1b] rounded-lg [border:1px_solid_#fecaca] text-[0.875rem]">
             {error}
@@ -125,18 +181,57 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
                   ⚠️ Sin CBU registrado en el padrón central.
                 </div>
               )}
+              <button
+                type="button"
+                disabled={otorgando}
+                onClick={() => {
+                  if (buscadorAbierto) {
+                    revisionBusqueda.current += 1;
+                    setResultados([]);
+                    setBusquedaRealizada(false);
+                    setBuscando(false);
+                    setErrorBusqueda(null);
+                  }
+                  setBuscadorAbierto((abierto) => !abierto);
+                }}
+                className="mt-3 rounded-md border border-[#bfdbfe] bg-white px-3 py-1.5 text-[0.8rem] font-semibold text-[#1d4ed8] cursor-pointer hover:bg-[#eff6ff] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {buscadorAbierto ? 'Cancelar búsqueda' : 'Cambiar titular'}
+              </button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 text-[#b45309] bg-[#fef3c7] p-3 rounded-lg text-[0.85rem]">
-              <AlertTriangleIcon size={18} />
-              <span>
-                No hay socio seleccionado. Regresá a la pestaña "Buscar
-                Personas" para asociar un socio.
-              </span>
+          ) : null}
+
+          {(!persona || buscadorAbierto) && (
+            <div className="mt-3">
+              <p className="mb-3 text-[0.85rem] text-[#475569]">
+                Buscá y seleccioná la persona titular del préstamo.
+              </p>
+              <PersonasBuscador onBuscar={handleBuscarPersona} buscando={buscando} />
+              {errorBusqueda && (
+                <div role="alert" className="mb-3 rounded-lg bg-[#fee2e2] p-3 text-[0.85rem] text-[#991b1b]">
+                  {errorBusqueda}
+                </div>
+              )}
+              {busquedaRealizada && resultados.length === 0 ? (
+                <p role="status" className="text-[0.85rem] text-[#64748b]">
+                  No se encontraron personas con esos datos.
+                </p>
+              ) : (buscando || resultados.length > 0) ? (
+                <div className="max-h-[250px] overflow-auto">
+                  <PersonasTabla
+                    personas={resultados}
+                    personaSeleccionada={persona}
+                    onSeleccionar={seleccionarPersona}
+                    buscando={buscando}
+                    textoAccion="Seleccionar"
+                  />
+                </div>
+              ) : null}
             </div>
           )}
         </div>
 
+        <form onSubmit={handleSubmit}>
         {/* Condiciones de la Simulación a Instrumentar */}
         <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-[10px] p-4 mb-5">
           <div className="text-[0.75rem] font-bold text-[#475569] uppercase tracking-[0.04em] mb-3">
@@ -217,14 +312,14 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
           </button>
           <button
             type="submit"
-            disabled={otorgando || !persona}
+            disabled={otorgando || !persona || buscadorAbierto}
             className={[
               'inline-flex items-center gap-2 p-[0.6rem_1.4rem] rounded-lg [border:none]',
               persona
                 ? '[background:linear-gradient(135deg,_#16a34a_0%,_#15803d_100%)]'
                 : 'bg-[#94a3b8]',
               'text-[#ffffff] font-semibold',
-              otorgando || !persona ? 'cursor-not-allowed' : 'cursor-pointer',
+              otorgando || !persona || buscadorAbierto ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
               persona
                 ? 'shadow-[0_2px_4px_rgba(22,_163,_74,_0.25)]'
                 : 'shadow-[none]'
@@ -236,6 +331,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
           </button>
         </div>
       </form>
+      </>
     </Modal>
   );
 };

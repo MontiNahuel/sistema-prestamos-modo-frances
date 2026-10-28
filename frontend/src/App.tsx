@@ -389,7 +389,7 @@ export default function App() {
                         <div className="text-[#94a3b8] text-[0.85rem] mt-[0.2rem]">
                           {personaSeleccionada
                             ? `Socio titular listo: ${personaSeleccionada.apellido} ${personaSeleccionada.nombre} (DNI ${personaSeleccionada.numeroDoc})`
-                            : 'Seleccioná un socio en el simulador o en "Buscar Personas" para registrar el legajo formal.'}
+                            : 'Buscá y seleccioná al titular al confirmar el préstamo.'}
                         </div>
                       </div>
 
@@ -401,9 +401,7 @@ export default function App() {
                             ? '[background:linear-gradient(135deg,_#16a34a_0%,_#15803d_100%)]'
                             : 'bg-[#475569]',
                           'text-[#ffffff] font-bold text-[0.9rem]',
-                          personaSeleccionada
-                            ? 'cursor-pointer'
-                            : '[cursor:default]',
+                          'cursor-pointer',
                           personaSeleccionada
                             ? 'shadow-[0_2px_4px_rgba(22,_163,_74,_0.3)]'
                             : 'shadow-[none]'
@@ -466,6 +464,7 @@ export default function App() {
               isOpen={modalOtorgarAbierto}
               onClose={() => setModalOtorgarAbierto(false)}
               persona={personaSeleccionada}
+              onSeleccionarPersona={handleSeleccionarPersona}
               payload={ultimoPayload}
               plan={planResultado}
               onOtorgado={handlePrestamoOtorgado}

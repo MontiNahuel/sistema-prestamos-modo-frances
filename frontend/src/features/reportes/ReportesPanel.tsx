@@ -157,7 +157,7 @@ export function ReportesPanel({
 
   const consultar = useCallback(async (consulta: FiltrosReporte) => {
     if (
-      !(consulta.tipo === 'otorgados' && consulta.todoPeriodo) &&
+      consulta.tipo !== 'padron' && !(consulta.tipo === 'otorgados' && consulta.todoPeriodo) &&
       (!consulta.desde || !consulta.hasta || consulta.desde > consulta.hasta)
     ) {
       setError('Seleccioná un período válido.');
@@ -172,6 +172,14 @@ export function ReportesPanel({
     setProgreso(0);
     setPagina(1);
     try {
+      if (consulta.tipo === 'padron') {
+        const personas = await apiClient<{ id: number; socio: number | null; apellido: string | null; nombre: string; documento: string | null; cuil: string | null; observacion: string }[]>('/api/v1/personas/padron-cooperativa', { signal: control.signal });
+        if (control.signal.aborted) return;
+        const buscar = consulta.buscar.trim().toLocaleLowerCase('es');
+        const filas = personas.filter(p => !buscar || [p.id, p.socio, p.apellido, p.nombre, p.documento, p.cuil].some(v => String(v ?? '').toLocaleLowerCase('es').includes(buscar))).map(p => ({ ...p }));
+        setResultado({ reporte: { titulo: 'Padrón socios cooperativa', columnas: [{ key: 'id', titulo: 'ID persona', tipo: 'numero' }, { key: 'socio', titulo: 'N° socio', tipo: 'numero' }, { key: 'apellido', titulo: 'Apellido' }, { key: 'nombre', titulo: 'Nombre' }, { key: 'documento', titulo: 'Documento' }, { key: 'cuil', titulo: 'CUIL' }, { key: 'observacion', titulo: 'Observación' }], filas, resumen: [{ titulo: 'Socios', valor: filas.length }], notas: ['Personas cuya observación contiene En Padrón de May.'], advertencias: [] }, filtros: { ...consulta }, generado: new Date().toISOString(), cartera: [] });
+        return;
+      }
       const cartera = await cargarCartera(control.signal, (cantidad) => {
         if (!control.signal.aborted) setProgreso(cantidad);
       });
@@ -320,7 +328,7 @@ export function ReportesPanel({
             Todo el historial
           </label>
         )}
-        <label>
+        {filtros.tipo !== 'padron' && <><label>
           Mes de referencia
           <input
             type="month"
@@ -358,6 +366,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ hasta: e.target.value })}
           />
         </label>
+        </>}
         <label className="reportes-busqueda">
           Asociado o préstamo
           <input
@@ -367,7 +376,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ buscar: e.target.value })}
           />
         </label>
-        <label>
+        {filtros.tipo !== 'padron' && <label>
           Estado del préstamo
           <select
             value={filtros.estadoPrestamo}
@@ -379,7 +388,7 @@ export function ReportesPanel({
             <option value="FINALIZADO">Finalizado</option>
             <option value="CANCELADO">Cancelado</option>
           </select>
-        </label>
+        </label>}
         {(filtros.tipo === 'caida' || filtros.tipo === 'cobranzas') && (
           <label>
             Estado de la cuota
@@ -439,7 +448,7 @@ export function ReportesPanel({
       )}
       {cargando && (
         <div className="reportes-vacio" role="status">
-          Consultando la cartera completa… {progreso} préstamos recuperados.
+          {filtros.tipo === 'padron' ? 'Consultando el padrón…' : `Consultando la cartera completa… ${progreso} préstamos recuperados.`}
         </div>
       )}
       {!cargando && !resultado && (

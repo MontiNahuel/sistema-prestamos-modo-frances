@@ -29,7 +29,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
     { key: 'bapro', label: 'Presentación BAPRO', icon: <BuildingIcon size={17} /> },
-    { key: 'bna', label: 'Presentación BNA', icon: <BuildingIcon size={17} /> },
     { key: 'respuestas', label: 'Carga de respuesta', icon: <FileTextIcon size={17} /> },
     { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
@@ -58,6 +57,37 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Navigation Tabs */}
         <nav className="flex gap-[0.375rem] flex-wrap">
           {tabs.map((t) => {
+            if (t.key === 'bapro') {
+              const active = currentTab === 'bapro' || currentTab === 'bna';
+              return (
+                <div
+                  key="presentaciones"
+                  className={`flex items-center gap-2 px-3.5 rounded-md ${active ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'text-[#475569]'}`}
+                >
+                  <BuildingIcon size={17} />
+                  <details className="relative group">
+                    <summary className="list-none py-2 text-[0.85rem] font-medium cursor-pointer select-none [&::-webkit-details-marker]:hidden">
+                      Presentaciones <span aria-hidden="true" className="ml-1 text-xs">▾</span>
+                    </summary>
+                    <div className="absolute left-0 top-full z-[60] mt-1 min-w-52 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                      {(['bapro', 'bna'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={(event) => {
+                            onTabChange(tab);
+                            event.currentTarget.closest('details')?.removeAttribute('open');
+                          }}
+                          className="block w-full rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600"
+                        >
+                          {tab === 'bapro' ? 'Presentaciones BAPRO' : 'Presentaciones BNA'}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            }
             const active = currentTab === t.key;
             return (
               <button

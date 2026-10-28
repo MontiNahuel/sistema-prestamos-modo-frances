@@ -8,13 +8,15 @@ interface PersonasTablaProps {
   personaSeleccionada: Persona | null;
   onSeleccionar: (p: Persona) => void;
   buscando: boolean;
+  textoAccion?: string;
 }
 
 export const PersonasTabla: React.FC<PersonasTablaProps> = ({
   personas,
   personaSeleccionada,
   onSeleccionar,
-  buscando
+  buscando,
+  textoAccion = 'Ver Ficha'
 }) => {
   return (
     <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl overflow-hidden shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)]">
@@ -85,6 +87,7 @@ export const PersonasTabla: React.FC<PersonasTablaProps> = ({
                   </td>
                   <td className="p-[0.85rem_1rem] text-center">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSeleccionar(p);
@@ -101,7 +104,7 @@ export const PersonasTabla: React.FC<PersonasTablaProps> = ({
                         .filter(Boolean)
                         .join(' ')}
                     >
-                      {esSeleccionado ? 'Seleccionado' : 'Ver Ficha'}
+                      {esSeleccionado ? 'Seleccionado' : textoAccion}
                     </button>
                   </td>
                 </tr>
