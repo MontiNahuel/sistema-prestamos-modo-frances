@@ -13,6 +13,7 @@ import { formatMoney, formatPct } from '../../utils/formatters';
 import { apiClient } from '../../services/api/client';
 import type { Prestamo } from '../../types/prestamo';
 import { PrestamoDetalleModal } from '../../components/prestamos/PrestamoDetalleModal';
+import { PadronGestion } from './PadronGestion';
 import './reportes.css';
 
 function mostrar(valor: Valor | undefined, columna: Columna): string {
@@ -311,6 +312,7 @@ export function ReportesPanel({
         ))}
       </div>
 
+      {filtros.tipo === 'padron' && <PadronGestion onActualizado={() => void consultar(filtros)} />}
       <form
         onSubmit={(e) => {
           e.preventDefault();

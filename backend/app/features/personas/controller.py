@@ -15,8 +15,80 @@ from app.features.personas.schemas import (
     PersonaCreateResponse
 )
 from app.features.personas.service import PersonasService
+from pydantic import BaseModel, Field
+from typing import Literal
+import re
 
 router = APIRouter(prefix="/personas", tags=["Personas"])
+
+
+class CambioPadron(BaseModel):
+    ids: List[int] = Field(min_length=1, max_length=5000)
+    accion: Literal['agregar', 'quitar']
+    aplicar: bool = False
+    observaciones_previas: Optional[Dict[int, str]] = None
+
+
+def observacion_padron(texto: str | None, accion: str) -> str:
+    """Agrega o quita la marca sin borrar el resto de la observación."""
+    original = texto or ''
+    patron = re.compile(r'en\s+padr[oó]n\s+de\s+may', re.IGNORECASE)
+    if accion == 'agregar':
+        if patron.search(original):
+            return original
+        return f'{original} | En Padrón de May' if original else 'En Padrón de May'
+    if not patron.search(original):
+        return original
+    resultado = patron.sub('', original)
+    resultado = re.sub(r'\s*\|\s*\|\s*', ' | ', resultado).strip(' |')
+    return resultado
+
+
+@router.post('/padron-cooperativa/cambios')
+def cambiar_padron(req: CambioPadron, usuario: str = Depends(operador)):
+    """Previsualiza o aplica en una transacción los cambios solicitados al padrón."""
+    ids = list(dict.fromkeys(req.ids))
+    if any(i <= 0 for i in ids):
+        raise HTTPException(422, 'Los ID deben ser enteros positivos.')
+    try:
+        with coopya_db_client._connection() as conn:
+            if conn is None:
+                raise RuntimeError('Conexión deshabilitada')
+            cursor = conn.cursor()
+            encontrados = {}
+            for inicio in range(0, len(ids), 500):
+                lote = ids[inicio:inicio + 500]
+                marcas = ','.join('?' for _ in lote)
+                cursor.execute(f'SELECT Id, Apellido, Nombre, NumeroDoc, Observaciones FROM dbo.Personas WITH (UPDLOCK, HOLDLOCK) WHERE Id IN ({marcas})', lote)
+                for fila in cursor:
+                    encontrados[fila[0]] = fila
+            faltantes = [i for i in ids if i not in encontrados]
+            filas = []
+            for i in ids:
+                if i not in encontrados:
+                    continue
+                fila = encontrados[i]
+                anterior = fila[4] or ''
+                nuevo = observacion_padron(anterior, req.accion)
+                if len(nuevo.encode('cp1252')) > 300:
+                    raise HTTPException(422, f'La observación de la persona {i} supera 300 caracteres.')
+                filas.append({'id': i, 'apellido': fila[1], 'nombre': fila[2], 'documento': fila[3], 'anterior': anterior, 'nuevo': nuevo, 'cambia': nuevo != anterior})
+            if req.aplicar:
+                if faltantes:
+                    raise HTTPException(422, 'Hay ID inexistentes; corregí el archivo antes de aplicar.')
+                if req.observaciones_previas is None or any(req.observaciones_previas.get(fila['id']) != fila['anterior'] for fila in filas):
+                    raise HTTPException(409, 'Las observaciones cambiaron. Volvé a revisar antes de confirmar.')
+                for fila in filas:
+                    if fila['cambia']:
+                        cursor.execute('UPDATE dbo.Personas SET Observaciones = ? WHERE Id = ?', (fila['nuevo'] or None, fila['id']))
+                conn.commit()
+            else:
+                conn.rollback()
+            return {'personas': filas, 'faltantes': faltantes, 'aplicado': req.aplicar}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, 'No se pudo procesar el padrón en CoopYa.') from None
 
 
 def get_personas_service(db: Session = Depends(get_db)) -> PersonasService:
