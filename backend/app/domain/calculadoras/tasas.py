@@ -17,16 +17,12 @@ def calcular_tasa_periodica(
         return Decimal("0")
 
     if convencion == ConvencionTasa.TASA_ROMI_COMERCIAL_365:
-        with localcontext() as contexto:
-            contexto.prec = 50
-            tasa_mensual_gravada = (tasa_anual * Decimal(dias_periodo)) / Decimal("365")
-            divisor = Decimal("1") + alicuota_iva
-            return tasa_mensual_gravada / divisor if divisor > Decimal("0") else tasa_mensual_gravada
+        tasa_mensual_gravada = (tasa_anual * Decimal(dias_periodo)) / Decimal("365")
+        divisor = Decimal("1") + alicuota_iva
+        return tasa_mensual_gravada / divisor if divisor > Decimal("0") else tasa_mensual_gravada
 
     if convencion == ConvencionTasa.TASA_ESTILO_ROMI:
-        with localcontext() as contexto:
-            contexto.prec = 50
-            return tasa_anual / Decimal("12")
+        return tasa_anual / Decimal("12")
 
     if convencion == ConvencionTasa.TNA_PROPORCIONAL:
         # Tasa nominal anual proporcional a 12 meses

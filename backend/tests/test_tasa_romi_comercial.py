@@ -117,3 +117,33 @@ def test_romi_comercial_catalogo_y_simulacion_api():
             app.dependency_overrides.clear()
             app.dependency_overrides.update(anteriores)
     engine.dispose()
+
+
+def test_romi_comercial_otorgar_prestamo_sin_overflow_tem():
+    """Valida que tem_pactada y tna_pactada se guarden con escala acotada al crear el préstamo."""
+    client = TestClient(app)
+    lineas = client.get("/api/v1/lineas").json()
+    linea = next((l for l in lineas if l["codigo"] == "ROMI_COMERCIAL_414"), None)
+    assert linea is not None, "La línea ROMI_COMERCIAL_414 debe existir"
+
+    payload = {
+        "persona_id": 9999,
+        "persona_nombre": "PETRUCELLI ROSA BLANCA",
+        "persona_doc": "997873",
+        "monto_solicitado_centavos": 15000000,
+        "plazo_meses": 9,
+        "linea_id": linea["id"],
+        "tna_pactada": float(linea["tasa_default"]),
+        "alicuota_iva": float(linea["alicuota_iva"]),
+    }
+    resp = client.post("/api/v1/prestamos", json=payload)
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    assert data["monto_solicitado_centavos"] == 15000000
+    assert len(data["cuotas"]) == 9
+    assert data["cuotas"][0]["cuota_total_centavos"] == 5504500
+    assert data["cuotas"][-1]["cuota_total_centavos"] == 5504500
+    tem_str = str(data["tem_pactada"])
+    partes = tem_str.split(".")
+    if len(partes) > 1:
+        assert len(partes[1]) <= 6

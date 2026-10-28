@@ -155,5 +155,7 @@ def seed_motores_y_lineas(db: Session):
         if not existente:
             nuevo = LineaPrestamo(**l)
             db.add(nuevo)
+        elif l["codigo"] == "ROMI_COMERCIAL_414" and existente.tasa_default != l["tasa_default"]:
+            existente.tasa_default = l["tasa_default"]
 
     db.commit()

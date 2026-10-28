@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from datetime import datetime, timezone, date
 from typing import List, Optional, Dict, Any
 from fastapi import HTTPException, status
@@ -91,7 +92,7 @@ class PrestamoService:
         nuevo_prestamo = Prestamo(
             id=prestamo_id, persona_id=req.persona_id, persona_nombre=req.persona_nombre, persona_doc=req.persona_doc,
             monto_solicitado_centavos=req.monto_solicitado_centavos, plazo_meses=req.plazo_meses,
-            tna_pactada=req.tna_pactada, tem_pactada=plan.tem, alicuota_iva=req.alicuota_iva,
+            tna_pactada=round(Decimal(req.tna_pactada), 4), tem_pactada=round(Decimal(plan.tem), 6), alicuota_iva=round(Decimal(req.alicuota_iva), 4),
             total_capital_centavos=plan.total_capital_centavos, total_interes_centavos=plan.total_interes_centavos,
             total_iva_centavos=plan.total_iva_centavos, total_a_pagar_centavos=plan.total_a_pagar_centavos,
             saldo_deudor_actual_centavos=plan.total_capital_centavos, estado="ACTIVO",
@@ -214,7 +215,7 @@ class PrestamoService:
         m = linea.motor
         return PrestamoLineaSnapshot(
             prestamo_id=prestamo_id, linea_id=linea.id, linea_codigo=linea.codigo, linea_nombre=linea.nombre,
-            motor_id=m.id, motor_nombre=m.nombre, tasa_catalogo_vigente=linea.tasa_default, alicuota_iva=linea.alicuota_iva,
+            motor_id=m.id, motor_nombre=m.nombre, tasa_catalogo_vigente=round(Decimal(linea.tasa_default), 4), alicuota_iva=round(Decimal(linea.alicuota_iva), 4),
             monto_minimo_centavos=linea.monto_minimo_centavos, monto_maximo_centavos=linea.monto_maximo_centavos,
             plazo_minimo_meses=linea.plazo_minimo_meses, plazo_maximo_meses=linea.plazo_maximo_meses,
             reglas_motor_json={"convencion_tasa": m.convencion_tasa, "base_dias": m.base_dias, "modalidad_iva": m.modalidad_iva, "ajuste_residual": m.ajuste_residual},

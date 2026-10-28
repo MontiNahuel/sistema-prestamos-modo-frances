@@ -50,7 +50,8 @@ class PlanAmortizacion(BaseModel):
 
     @property
     def tem(self) -> Decimal:
-        return calcular_tasa_periodica(self.tasa_anual, self.convencion_tasa)
+        raw = calcular_tasa_periodica(self.tasa_anual, self.convencion_tasa, alicuota_iva=self.alicuota_iva)
+        return round(raw, 6)
 
 
 class MotorConfig(BaseModel):
