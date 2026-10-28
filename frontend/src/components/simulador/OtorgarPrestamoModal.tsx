@@ -36,6 +36,9 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
 
   if (!isOpen || !payload || !plan) return null;
 
+  const primerVencimiento =
+    plan.cronograma[0]?.fecha_vencimiento || payload.fecha_primer_vencimiento || null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!persona) {
@@ -181,11 +184,9 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
             <div>
               <span className="text-[#64748b]">Primer Vencimiento:</span>
               <div className="font-semibold text-[#0f172a]">
-                {plan.cronograma[0]?.fecha_vencimiento
-                  ? new Date(
-                      plan.cronograma[0].fecha_vencimiento + 'T00:00:00'
-                    ).toLocaleDateString('es-AR')
-                  : '30 días desde otorgamiento'}
+                {primerVencimiento
+                  ? new Date(`${primerVencimiento}T00:00:00`).toLocaleDateString('es-AR')
+                  : 'Sin fecha informada'}
               </div>
             </div>
           </div>

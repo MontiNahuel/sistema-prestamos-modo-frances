@@ -24,9 +24,10 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
   const [estadoNroLista, setEstadoNroLista] = useState('Propuesto por el sistema.');
   const [nroListaValido, setNroListaValido] = useState<boolean | null>(null);
   const [nombreArchivo, setNombreArchivo] = useState('');
-  const [incluirPresentadas, setIncluirPresentadas] = useState(true);
+  const [incluirPresentadas, setIncluirPresentadas] = useState(false);
   const [aplicarDesglose, setAplicarDesglose] = useState(false);
   const [montoMinimoDesglose, setMontoMinimoDesglose] = useState(50000);
+  const [presentadasExcluidas, setPresentadasExcluidas] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [generando, setGenerando] = useState(false);
@@ -88,10 +89,23 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
         fecha_hasta: fechaHasta || undefined,
         dni_desde: dniDesde === '' ? null : dniDesde,
         dni_hasta: dniHasta === '' ? null : dniHasta,
-        incluir_presentadas: incluirPresentadas,
+        incluir_presentadas: true,
       });
-      setCuotas([...res.presentables, ...res.excluidas]);
-      setSeleccionadas(new Set(res.presentables.map((c) => c.cuota_id)));
+      const filtrarPresentadas = (items: CuotaPresentableItem[]) =>
+        incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
+      const presentablesVisibles = filtrarPresentadas(res.presentables);
+      const presentadas = [...res.presentables, ...res.excluidas].filter(
+        (c) => c.estado === 'PRESENTADA'
+      );
+      setCuotas([...presentablesVisibles, ...filtrarPresentadas(res.excluidas)]);
+      setPresentadasExcluidas(incluirPresentadas ? 0 : presentadas.length);
+      setSeleccionadas(
+        new Set(
+          presentablesVisibles
+            .filter((c) => c.estado !== 'PRESENTADA')
+            .map((c) => c.cuota_id)
+        )
+      );
     } catch (err: any) {
       setError(err.message || 'Error al buscar cuotas');
     } finally {
@@ -101,7 +115,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
 
   const handleLimpiar = () => {
     setDniDesde(''); setDniHasta(''); setFechaDesde(''); setFechaHasta('');
-    setCuotas([]); setSeleccionadas(new Set()); setError(null); setExito(null);
+    setCuotas([]); setSeleccionadas(new Set()); setPresentadasExcluidas(0); setError(null); setExito(null);
   };
 
   const toggleSelect = (id: string) => {
@@ -117,6 +131,21 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
 
   const handleGenerar = async () => {
     if (seleccionadas.size === 0) return;
+    const totalSeleccionado = cuotas
+      .filter((c) => seleccionadas.has(c.cuota_id))
+      .reduce((acc, c) => acc + Number(c.monto_pesos || 0), 0);
+    const fechaFormateada = fechaImpacto
+      ? new Date(`${fechaImpacto}T00:00:00`).toLocaleDateString('es-AR')
+      : 'Sin fecha';
+    const confirmado = window.confirm(
+      `¿Generar el archivo BAPRO?\n\n` +
+      `Cuotas seleccionadas: ${seleccionadas.size}\n` +
+      `Total a debitar: $${totalSeleccionado.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
+      `Fecha de impacto: ${fechaFormateada}\n` +
+      `Archivo: ${nombreArchivo || 'Automático'}\n\n` +
+      `Las cuotas seleccionadas quedarán marcadas como presentadas.`
+    );
+    if (!confirmado) return;
     setGenerando(true);
     setError(null);
     try {
@@ -173,6 +202,11 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
 
       {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.875rem' }}>{error}</div>}
       {exito && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.875rem' }}>{exito}</div>}
+      {presentadasExcluidas > 0 && (
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '0.6rem 1rem', borderRadius: '8px', fontSize: '0.825rem' }}>
+          Ya presentadas excluidas: <strong>{presentadasExcluidas}</strong>. No se muestran porque la opción “Incluir cuotas presentadas” está desmarcada.
+        </div>
+      )}
 
       {cuotas.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>

@@ -171,6 +171,15 @@ export default function App() {
     }
   };
 
+  const handleSeleccionarPersonaDesdeSimulador = (p: Persona | null) => {
+    if (p) {
+      handleSeleccionarPersona(p);
+    } else {
+      setPersonaSeleccionada(null);
+      setCcResumen(null);
+    }
+  };
+
   // Transferir socio al simulador
   const handleSimularParaSocio = (p: Persona) => {
     invalidarSimulacion();
@@ -201,6 +210,7 @@ export default function App() {
 
   // Callback de préstamo otorgado con éxito
   const handlePrestamoOtorgado = (nuevo: Prestamo) => {
+    invalidarSimulacion();
     setPrestamoOtorgadoExito(nuevo);
   };
 
@@ -344,7 +354,7 @@ export default function App() {
                   className="inline-flex items-center gap-2 p-[0.6rem_1.25rem] rounded-lg [border:none] bg-[#16a34a] text-[#ffffff] font-semibold text-[0.875rem] cursor-pointer"
                 >
                   <FileTextIcon size={16} />
-                  Ver en Reportes → Préstamos otorgados
+                  Ver préstamo
                 </button>
               </div>
             )}
@@ -358,6 +368,7 @@ export default function App() {
                 revisionLineas={revisionLineas}
                 simulando={simulando}
                 personaSeleccionada={personaSeleccionada}
+                onSeleccionarPersona={handleSeleccionarPersonaDesdeSimulador}
               />
 
               <div>
@@ -378,7 +389,7 @@ export default function App() {
                         <div className="text-[#94a3b8] text-[0.85rem] mt-[0.2rem]">
                           {personaSeleccionada
                             ? `Socio titular listo: ${personaSeleccionada.apellido} ${personaSeleccionada.nombre} (DNI ${personaSeleccionada.numeroDoc})`
-                            : 'Seleccioná primero un socio en "Buscar Personas" para registrar el legajo formal.'}
+                            : 'Seleccioná un socio en el simulador o en "Buscar Personas" para registrar el legajo formal.'}
                         </div>
                       </div>
 

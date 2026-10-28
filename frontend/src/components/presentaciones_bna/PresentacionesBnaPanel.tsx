@@ -26,9 +26,10 @@ export const PresentacionesBnaPanel: React.FC = () => {
   const [producto, setProducto] = useState<string>('10');
   const [cuenta, setCuenta] = useState<string>('0005502347');
   const [indicadorLote, setIndicadorLote] = useState<string>('REE');
-  const [incluirPresentadas, setIncluirPresentadas] = useState<boolean>(true);
+  const [incluirPresentadas, setIncluirPresentadas] = useState<boolean>(false);
   const [cuotas, setCuotas] = useState<CuotaPresentableBnaItem[]>([]);
   const [cuotasExcluidas, setCuotasExcluidas] = useState<CuotaPresentableBnaItem[]>([]);
+  const [presentadasExcluidas, setPresentadasExcluidas] = useState<number>(0);
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
   const [archivos, setArchivos] = useState<PresentacionBnaArchivoItem[]>([]);
   const [archivoActivo, setArchivoActivo] = useState<PresentacionBnaArchivoItem | null>(null);
@@ -73,11 +74,24 @@ export const PresentacionesBnaPanel: React.FC = () => {
       const res = await buscarCuotasBna({
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
-        incluir_presentadas: incluirPresentadas,
+        incluir_presentadas: true,
       });
-      setCuotas(res.presentables);
-      setCuotasExcluidas(res.excluidas);
-      setSeleccionadas(new Set(res.presentables.map((c) => c.cuota_id)));
+      const filtrarPresentadas = (items: CuotaPresentableBnaItem[]) =>
+        incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
+      const presentablesVisibles = filtrarPresentadas(res.presentables);
+      const presentadas = [...res.presentables, ...res.excluidas].filter(
+        (c) => c.estado === 'PRESENTADA'
+      );
+      setCuotas(presentablesVisibles);
+      setCuotasExcluidas(filtrarPresentadas(res.excluidas));
+      setPresentadasExcluidas(incluirPresentadas ? 0 : presentadas.length);
+      setSeleccionadas(
+        new Set(
+          presentablesVisibles
+            .filter((c) => c.estado !== 'PRESENTADA')
+            .map((c) => c.cuota_id)
+        )
+      );
     } catch (err: any) {
       setMensaje({ tipo: 'error', texto: err.message || 'Error al buscar cuotas BNA' });
     } finally {
@@ -91,6 +105,21 @@ export const PresentacionesBnaPanel: React.FC = () => {
       setMensaje({ tipo: 'error', texto: `El número de lista ${nroLista} ya fue utilizado. Por favor use el botón "Validar" o elija otro número.` });
       return;
     }
+    const totalSeleccionado = cuotas
+      .filter((c) => seleccionadas.has(c.cuota_id))
+      .reduce((acc, c) => acc + c.monto_centavos, 0);
+    const fechaFormateada = fechaImpacto
+      ? new Date(`${fechaImpacto}T00:00:00`).toLocaleDateString('es-AR')
+      : 'Sin fecha';
+    const confirmado = window.confirm(
+      `¿Generar el archivo BNA?\n\n` +
+      `Cuotas seleccionadas: ${seleccionadas.size}\n` +
+      `Total a debitar: $${(totalSeleccionado / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` +
+      `Fecha de impacto: ${fechaFormateada}\n` +
+      `Archivo: ${nombreArchivo || 'Automático'}\n\n` +
+      `Las cuotas seleccionadas quedarán marcadas como presentadas.`
+    );
+    if (!confirmado) return;
     setLoading(true);
     setMensaje(null);
     try {
@@ -193,9 +222,15 @@ export const PresentacionesBnaPanel: React.FC = () => {
             casa={casa} setCasa={setCasa} producto={producto} setProducto={setProducto} cuenta={cuenta} setCuenta={setCuenta}
             indicadorLote={indicadorLote} setIndicadorLote={setIndicadorLote}
             incluirPresentadas={incluirPresentadas} setIncluirPresentadas={setIncluirPresentadas}
-            onBuscar={handleBuscar} onLimpiar={() => { setFechaDesde(''); setFechaHasta(''); setCuotas([]); setSeleccionadas(new Set()); }}
+            onBuscar={handleBuscar} onLimpiar={() => { setFechaDesde(''); setFechaHasta(''); setCuotas([]); setCuotasExcluidas([]); setPresentadasExcluidas(0); setSeleccionadas(new Set()); }}
             loading={loading}
           />
+
+          {presentadasExcluidas > 0 && (
+            <div style={{ fontSize: '0.8rem', color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>
+              Ya presentadas excluidas: <strong>{presentadasExcluidas}</strong>. No se muestran porque la opción “Incluir cuotas presentadas” está desmarcada.
+            </div>
+          )}
 
           {cuotasExcluidas.length > 0 && (
             <div style={{ fontSize: '0.8rem', color: '#b45309', background: '#fef3c7', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>

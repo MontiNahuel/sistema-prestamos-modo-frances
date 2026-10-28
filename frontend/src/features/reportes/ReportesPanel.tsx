@@ -205,6 +205,10 @@ export function ReportesPanel({
     };
   }, [consultar]);
 
+  useEffect(() => {
+    if (prestamoInicialId) void verDetalle(prestamoInicialId);
+  }, [prestamoInicialId]);
+
   async function verDetalle(id: string) {
     peticionDetalle.current?.abort();
     const control = new AbortController();
