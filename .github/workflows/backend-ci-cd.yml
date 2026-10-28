@@ -10,6 +10,10 @@ on:
       - ".github/workflows/backend-ci-cd.yml"
   workflow_dispatch:
 
+concurrency:
+  group: prestamos-backend-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Despliegue Backend en Servidor (Self-Hosted Runner)
@@ -18,10 +22,32 @@ jobs:
     steps:
       - name: Actualizar código y reiniciar Backend
         run: |
+          set -euo pipefail
           cd /home/serverportable/Documentos/Prestamos/sistema-prestamos-modo-frances
-          git stash -u || true
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "El checkout del servidor tiene cambios locales; se conserva sin reemplazar."
+            exit 1
+          fi
+          if docker logs --tail 1000 prestamos-backend 2>&1 | grep -qi "invalid column name.*redondeo_cuota"; then
+            echo "Diagnóstico previo: falta la columna redondeo_cuota en SQL Server."
+          fi
           git fetch origin main
-          git reset --hard origin/main
+          git merge --ff-only origin/main
           docker compose build backend
           docker compose up -d --no-deps backend
+          ready=0
+          for attempt in $(seq 1 60); do
+            state=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' prestamos-backend)
+            if [ "$state" = healthy ]; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
           docker compose ps
+          if [ "$ready" -ne 1 ]; then
+            echo "El backend no alcanzó el estado saludable dentro del tiempo esperado."
+            exit 1
+          fi
+          # Renueva conexiones del proxy después de recrear el backend.
+          docker compose restart caddy

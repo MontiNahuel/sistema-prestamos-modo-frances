@@ -67,6 +67,8 @@ def ensure_sqlserver_db_exists(url: str, retries: int = 15, delay: int = 3):
 
 def _asegurar_columnas_criticas(db_engine):
     """Aplica DDL defensivo e idempotente para columnas agregadas recientemente."""
+    if db_engine.dialect.name != "mssql":
+        return
     sql_patches = [
         """
         IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'cuotas')
@@ -104,6 +106,13 @@ def _asegurar_columnas_criticas(db_engine):
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('motores_calculo') AND name = 'redondeo_cuota')
                 ALTER TABLE motores_calculo ADD redondeo_cuota VARCHAR(50) NULL;
+        END
+        """,
+        # SQL Server compila cada lote antes de ejecutarlo. El UPDATE debe
+        # compilarse después del ALTER, cuando la columna ya existe.
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'motores_calculo')
+        BEGIN
             UPDATE motores_calculo SET redondeo_cuota = 'CON_CENTAVOS' WHERE redondeo_cuota IS NULL;
         END
         """
@@ -113,8 +122,9 @@ def _asegurar_columnas_criticas(db_engine):
             for patch in sql_patches:
                 conn.execute(text(patch))
         logger.info("Verificación de columnas críticas completada con éxito.")
-    except Exception as e:
-        logger.warning(f"Aviso al verificar columnas críticas: {e}")
+    except Exception:
+        logger.exception("No se pudieron verificar las columnas críticas de SQL Server.")
+        raise
 
 
 def _ejecutar_migraciones_alembic():
