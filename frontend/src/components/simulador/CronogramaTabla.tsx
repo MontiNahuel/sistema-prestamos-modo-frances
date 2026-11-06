@@ -1,6 +1,8 @@
 import React from 'react';
 import { CuotaItem } from '../../types/simulacion';
 import { formatMoney } from '../../utils/formatters';
+import { ExportExcelButton } from '../common/ExportExcelButton';
+import { exportarCronogramaExcel } from './exportarCronogramaExcel';
 
 interface CronogramaTablaProps {
   cronograma: CuotaItem[];
@@ -11,13 +13,16 @@ export const CronogramaTabla: React.FC<CronogramaTablaProps> = ({
 }) => {
   return (
     <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl [overflow-x:auto] shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)]">
-      <div className="p-[1rem_1.25rem] [border-bottom:1px_solid_#f1f5f9] flex justify-between items-center">
+      <div className="p-[1rem_1.25rem] [border-bottom:1px_solid_#f1f5f9] flex justify-between items-center flex-wrap gap-3">
         <h4 className="m-0 text-[0.95rem] font-bold text-[#0f172a]">
           Tabla de Amortización (Desglose Cuota a Cuota)
         </h4>
+        <div className="flex items-center gap-4 flex-wrap">
         <span className="text-[0.75rem] text-[#64748b]">
           {cronograma.length} cuotas proyectadas
         </span>
+        <ExportExcelButton onExport={() => exportarCronogramaExcel(cronograma)} disabled={cronograma.length === 0} />
+        </div>
       </div>
 
       <table className="w-full border-collapse text-right text-[0.85rem]">
