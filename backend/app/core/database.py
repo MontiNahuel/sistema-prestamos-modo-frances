@@ -115,6 +115,57 @@ def _asegurar_columnas_criticas(db_engine):
         BEGIN
             UPDATE motores_calculo SET redondeo_cuota = 'CON_CENTAVOS' WHERE redondeo_cuota IS NULL;
         END
+        """,
+        # numero_prestamo (migración b7d4c2e91a10). Se replica acá porque el
+        # arranque solo advierte si Alembic falla y la columna quedaría ausente.
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'prestamos')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'numero_prestamo')
+                ALTER TABLE prestamos ADD numero_prestamo INT NULL;
+        END
+        """,
+        """
+        DECLARE @base INT = ISNULL((SELECT MAX(numero_prestamo) FROM prestamos), 0);
+        ;WITH pendientes AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY fecha_alta, id) AS rn
+            FROM prestamos
+            WHERE numero_prestamo IS NULL
+        )
+        UPDATE p
+           SET numero_prestamo = @base + pen.rn
+          FROM prestamos p
+          JOIN pendientes pen ON pen.id = p.id;
+        """,
+        """
+        IF EXISTS (
+            SELECT 1 FROM sys.columns
+            WHERE object_id = OBJECT_ID('prestamos')
+              AND name = 'numero_prestamo'
+              AND is_nullable = 1
+        )
+            ALTER TABLE prestamos ALTER COLUMN numero_prestamo INT NOT NULL;
+        """,
+        """
+        IF NOT EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE object_id = OBJECT_ID('prestamos')
+              AND name = 'ix_prestamos_numero_prestamo'
+        )
+            CREATE UNIQUE INDEX ix_prestamos_numero_prestamo ON prestamos (numero_prestamo);
+        """,
+        """
+        IF NOT EXISTS (
+            SELECT 1 FROM sys.sequences
+            WHERE name = 'prestamos_numero_seq' AND schema_id = SCHEMA_ID('dbo')
+        )
+        BEGIN
+            DECLARE @max_num INT = ISNULL((SELECT MAX(numero_prestamo) FROM prestamos), 0);
+            DECLARE @sql NVARCHAR(MAX) =
+                N'CREATE SEQUENCE dbo.prestamos_numero_seq AS INT START WITH '
+                + CAST(@max_num + 1 AS NVARCHAR(20)) + N' INCREMENT BY 1;';
+            EXEC sp_executesql @sql;
+        END
         """
     ]
     try:
@@ -136,8 +187,11 @@ def _ejecutar_migraciones_alembic():
         alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
         command.upgrade(alembic_cfg, "head")
         logger.info("Migraciones de Alembic aplicadas exitosamente.")
-    except Exception as e:
-        logger.warning(f"Aviso al correr migraciones Alembic automáticamente: {e}")
+    except Exception:
+        logger.exception(
+            "No se pudieron aplicar migraciones Alembic automáticamente; "
+            "se continúa con los parches defensivos de init_db."
+        )
 
 
 def init_db(base, db_engine, retries: int = 10, delay: int = 2):

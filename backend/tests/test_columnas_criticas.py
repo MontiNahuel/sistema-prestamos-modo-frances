@@ -42,6 +42,21 @@ def test_actualiza_base_anterior_y_puede_repetirse():
     assert engine.valores == ["CON_CENTAVOS", "PESOS_ENTEROS"]
 
 
+def test_numero_prestamo_se_completa_en_lotes_separados():
+    engine = SqlServerAnterior()
+    _asegurar_columnas_criticas(engine)
+    lotes = engine.lotes
+    pos = lambda fragmento: next(i for i, s in enumerate(lotes) if fragmento in s)
+    orden = [
+        pos("ALTER TABLE prestamos ADD numero_prestamo"),
+        pos("ROW_NUMBER() OVER (ORDER BY fecha_alta, id)"),
+        pos("ALTER COLUMN numero_prestamo INT NOT NULL"),
+        pos("CREATE UNIQUE INDEX ix_prestamos_numero_prestamo"),
+        pos("CREATE SEQUENCE dbo.prestamos_numero_seq"),
+    ]
+    assert orden == sorted(orden)
+
+
 def test_fallo_de_migracion_critica_no_se_oculta():
     engine = SqlServerAnterior()
     engine.execute = lambda _: (_ for _ in ()).throw(RuntimeError("DDL falló"))
