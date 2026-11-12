@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Column, String, Integer, BigInteger, Numeric, DateTime, Date, ForeignKey, JSON
+from sqlalchemy import Column, String, Integer, BigInteger, Numeric, DateTime, Date, ForeignKey, JSON, event, func, select, text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -10,6 +10,7 @@ class Prestamo(Base):
     __tablename__ = "prestamos"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    numero_prestamo = Column(Integer, nullable=False, unique=True, index=True)
     persona_id = Column(Integer, ForeignKey("socios.id"), nullable=False, index=True)
     persona_nombre = Column(String(200), nullable=True)  # Snapshot contractual del socio
     persona_doc = Column(String(20), nullable=True)     # Snapshot contractual del socio
@@ -88,3 +89,17 @@ class Cuota(Base):
 
     prestamo = relationship("Prestamo", back_populates="cuotas")
     respuestas_bancarias = relationship("RespuestaBancariaDetalle", back_populates="cuota")
+
+
+@event.listens_for(Prestamo, "before_insert")
+def _asignar_numero_prestamo(mapper, connection, target: Prestamo):
+    """Asigna el número incremental en servidor (secuencia en SQL Server) al insertar."""
+    if target.numero_prestamo is not None:
+        return
+    if connection.dialect.name == "mssql":
+        target.numero_prestamo = int(
+            connection.execute(text("SELECT NEXT VALUE FOR dbo.prestamos_numero_seq")).scalar_one()
+        )
+    else:
+        maximo = connection.execute(select(func.coalesce(func.max(Prestamo.numero_prestamo), 0))).scalar_one()
+        target.numero_prestamo = int(maximo) + 1

@@ -66,6 +66,7 @@ class PrestamoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    numero_prestamo: int
     persona_id: int
     persona_nombre: Optional[str] = None
     persona_doc: Optional[str] = None
