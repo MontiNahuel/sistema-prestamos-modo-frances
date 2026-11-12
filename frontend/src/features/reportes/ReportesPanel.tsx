@@ -121,6 +121,7 @@ export function ReportesPanel({
     desde: `${hoy.slice(0, 7)}-01`,
     hasta: finMes,
     buscar: prestamoInicialId ?? '',
+    numeroPrestamo: '',
     estadoPrestamo: '',
     estadoCuota: '',
     todoPeriodo: true
@@ -378,6 +379,17 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ buscar: e.target.value })}
           />
         </label>
+        {filtros.tipo !== 'padron' && <label>
+          N° préstamo
+          <input
+            type="number"
+            min={1}
+            step={1}
+            placeholder="Ej: 237"
+            value={filtros.numeroPrestamo}
+            onChange={(e) => cambiar({ numeroPrestamo: e.target.value })}
+          />
+        </label>}
         {filtros.tipo !== 'padron' && <label>
           Estado del préstamo
           <select

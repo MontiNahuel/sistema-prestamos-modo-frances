@@ -8,6 +8,7 @@ export interface FiltrosReporte {
   desde: string;
   hasta: string;
   buscar: string;
+  numeroPrestamo: string;
   estadoPrestamo: string;
   estadoCuota: string;
   plazo?: string;
@@ -35,7 +36,7 @@ export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: stri
 
 const identificacion: Columna[] = [
   { key: 'asociado', titulo: 'Asociado' }, { key: 'documento', titulo: 'Documento' },
-  { key: 'personaId', titulo: 'ID asociado', tipo: 'numero' }, { key: 'prestamo', titulo: 'Préstamo' },
+  { key: 'personaId', titulo: 'ID asociado', tipo: 'numero' }, { key: 'numeroPrestamo', titulo: 'N° préstamo', tipo: 'numero' },
 ];
 const dinero = (key: string, titulo: string): Columna => ({ key, titulo, tipo: 'dinero' });
 const fecha = (key: string, titulo: string): Columna => ({ key, titulo, tipo: 'fecha' });
@@ -63,7 +64,7 @@ export function estadoCuota(c: CuotaPrestamo, hoy: string): string {
 }
 
 function identidad(p: Prestamo): Record<string, Valor> {
-  return { asociado: p.persona_nombre || `Asociado #${p.persona_id}`, documento: p.persona_doc || null, personaId: p.persona_id, prestamo: p.id };
+  return { asociado: p.persona_nombre || `Asociado #${p.persona_id}`, documento: p.persona_doc || null, personaId: p.persona_id, numeroPrestamo: p.numero_prestamo, prestamo: p.id };
 }
 
 export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy = hoyArgentina()): Reporte {
@@ -74,7 +75,9 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     return Boolean(dia && dia >= f.desde && dia <= f.hasta);
   };
   const buscar = f.buscar.trim().toLocaleLowerCase('es');
+  const numeroPrestamo = f.numeroPrestamo.trim();
   const cartera = prestamos.filter(p => (!f.estadoPrestamo || p.estado === f.estadoPrestamo)
+    && (!numeroPrestamo || String(p.numero_prestamo) === numeroPrestamo)
     && (!buscar || [p.persona_nombre, p.persona_doc, p.id, String(p.persona_id)].some(v => v?.toLocaleLowerCase('es').includes(buscar))));
   const filas: Reporte['filas'] = [];
   const advertencias: string[] = [];

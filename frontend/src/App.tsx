@@ -323,9 +323,8 @@ export default function App() {
                   </div>
                   <div>
                     <div className="font-bold text-[#166534] text-[1.05rem]">
-                      ¡Préstamo #
-                      {prestamoOtorgadoExito.id.substring(0, 8).toUpperCase()}{' '}
-                      Otorgado con Éxito!
+                      ¡Préstamo N° {prestamoOtorgadoExito.numero_prestamo}{' '}
+                      otorgado con Éxito!
                     </div>
                     <div className="text-[#15803d] text-[0.875rem] mt-[0.2rem]">
                       Titular:{' '}

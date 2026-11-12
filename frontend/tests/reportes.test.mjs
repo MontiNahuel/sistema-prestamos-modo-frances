@@ -5,9 +5,9 @@ import { construirReporte, fechaArgentina } from '../src/features/reportes/repor
 import { crearLibroReporte } from '../src/features/reportes/exportarReporte.ts';
 import { cargarCartera } from '../src/features/reportes/reportesApi.ts';
 
-const filtros = (tipo, otros = {}) => ({ tipo, desde: '2026-10-01', hasta: '2026-10-31', buscar: '', estadoPrestamo: '', estadoCuota: '', ...otros });
+const filtros = (tipo, otros = {}) => ({ tipo, desde: '2026-10-01', hasta: '2026-10-31', buscar: '', numeroPrestamo: '', estadoPrestamo: '', estadoCuota: '', ...otros });
 const cuota = (numero, otros = {}) => ({ id: `c${numero}`, numero_cuota: numero, fecha_vencimiento: `2026-10-${String(numero * 10).padStart(2, '0')}`, capital_centavos: 10000, interes_centavos: 1000, iva_interes_centavos: 210, cuota_total_centavos: 11210, estado: 'PENDIENTE', monto_pagado_centavos: 0, fecha_pago: null, ...otros });
-const prestamo = (otros = {}) => ({ id: 'prestamo-1', persona_id: 42, persona_nombre: 'Asociado de prueba', persona_doc: '001234', fecha_alta: '2026-10-01T12:00:00', monto_solicitado_centavos: 20000, total_capital_centavos: 20000, plazo_meses: 2, tna_pactada: '0.6', total_a_pagar_centavos: 22420, saldo_deudor_actual_centavos: 20000, estado: 'ACTIVO', cuotas: [cuota(1), cuota(2)], ...otros });
+const prestamo = (otros = {}) => ({ id: 'prestamo-1', numero_prestamo: 237, persona_id: 42, persona_nombre: 'Asociado de prueba', persona_doc: '001234', fecha_alta: '2026-10-01T12:00:00', monto_solicitado_centavos: 20000, total_capital_centavos: 20000, plazo_meses: 2, tna_pactada: '0.6', total_a_pagar_centavos: 22420, saldo_deudor_actual_centavos: 20000, estado: 'ACTIVO', cuotas: [cuota(1), cuota(2)], ...otros });
 const generar = (tipo, cartera = [prestamo()], otros = {}) => construirReporte(cartera, filtros(tipo, otros), '2026-10-23');
 
 test('fechas: vencimientos sin desfase y datetimes UTC convertidos a Buenos Aires', () => {
@@ -86,6 +86,14 @@ test('cobranzas parciales o saldos no conciliados no fabrican imputaciones', () 
 test('búsqueda, estados, rangos inválidos y cartera vacía', () => {
   assert.equal(generar('caida', [prestamo()], { buscar: '001234' }).filas.length, 2);
   assert.equal(generar('caida', [prestamo()], { buscar: 'prestamo-1' }).filas.length, 2);
+  assert.equal(generar('caida', [prestamo()], { buscar: '237' }).filas.length, 0);
+  assert.equal(generar('caida', [prestamo()]).filas[0].numeroPrestamo, 237);
+  assert.equal(generar('caida', [prestamo()], { numeroPrestamo: '237' }).filas.length, 2);
+  assert.equal(generar('caida', [prestamo()], { numeroPrestamo: '23' }).filas.length, 0);
+  const conUuidParecido = prestamo({ id: 'cd366237-9ed9-4891-9175-3309902eff59', numero_prestamo: 5, persona_id: 7, persona_doc: '999999' });
+  assert.equal(generar('caida', [conUuidParecido], { buscar: '237' }).filas.length, 2);
+  assert.equal(generar('caida', [conUuidParecido], { numeroPrestamo: '237' }).filas.length, 0);
+  assert.equal(generar('caida', [conUuidParecido], { numeroPrestamo: '5' }).filas.length, 2);
   assert.equal(generar('otorgados', [prestamo()], { estadoPrestamo: 'MORA' }).filas.length, 0);
   assert.equal(generar('caida', []).resumen[2].valor, 0);
   assert.throws(() => generar('caida', [], { desde: '2026-11-01' }), /período válido/);

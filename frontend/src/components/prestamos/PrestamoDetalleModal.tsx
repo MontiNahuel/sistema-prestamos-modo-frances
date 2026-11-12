@@ -80,7 +80,7 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Legajo de Préstamo: #${prestamo.id.substring(0, 8).toUpperCase()}`}
+      title={`Legajo de Préstamo N° ${prestamo.numero_prestamo}`}
       maxWidth="1100px"
     >
       <div>

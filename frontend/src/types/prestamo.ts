@@ -36,6 +36,7 @@ export interface PrestamoLineaSnapshot {
 
 export interface Prestamo {
   id: string;
+  numero_prestamo: number;
   persona_id: number;
   persona_nombre: string;
   persona_doc: string;

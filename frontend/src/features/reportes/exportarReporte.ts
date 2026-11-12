@@ -14,6 +14,7 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   resumen.addRow(['Desde', todoPeriodo ? 'Todo el historial' : filtros.desde]);
   resumen.addRow(['Hasta', todoPeriodo ? 'Sin límite de fecha' : filtros.hasta]);
   resumen.addRow(['Búsqueda', filtros.buscar || 'Toda la cartera']);
+  resumen.addRow(['N° préstamo', filtros.numeroPrestamo || 'Todos']);
   resumen.addRow(['Estado préstamo', filtros.estadoPrestamo || 'Todos']);
   resumen.addRow(['Estado cuota', filtros.estadoCuota || 'Todos']);
   } else resumen.addRow(['Búsqueda', filtros.buscar || 'Todos los socios']);
