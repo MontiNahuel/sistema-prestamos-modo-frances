@@ -49,10 +49,7 @@ class SocioService:
         # Sincronizar CBU en medios_de_pago si fue provisto
         if cbu and cbu.strip():
             cbu_limpio = cbu.strip()
-            b_id = banco_id
-            if not b_id and cbu_limpio.startswith("014"):
-                banco = self.repository.db.query(TipoBanco).filter_by(codigo="00014").first()
-                b_id = banco.id if banco else 5
+            b_id = self.repository.resolver_banco_id(banco_id=banco_id, cbu=cbu_limpio)
 
             existente = (
                 self.repository.db.query(MedioDePago)
@@ -75,6 +72,9 @@ class SocioService:
                 existente.predeterminado = True
                 if b_id and not existente.banco_id:
                     existente.banco_id = b_id
+                self.repository.db.flush()
+            elif b_id and not existente.banco_id:
+                existente.banco_id = b_id
                 self.repository.db.flush()
 
         return socio

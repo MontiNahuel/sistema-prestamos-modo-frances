@@ -10,6 +10,7 @@ from app.features.presentaciones_bapro.controller import router as presentacione
 from app.features.presentaciones_bna.controller import router as presentaciones_bna_router
 from app.features.empresas.controller import router as empresas_router
 from app.features.respuestas_bancarias.controller import router as respuestas_router
+from app.features.cuotas_sociales.controller import router as cuotas_sociales_router
 
 router = APIRouter()
 
@@ -24,3 +25,4 @@ router.include_router(presentaciones_bapro_router)
 router.include_router(presentaciones_bna_router)
 router.include_router(empresas_router)
 router.include_router(respuestas_router)
+router.include_router(cuotas_sociales_router)

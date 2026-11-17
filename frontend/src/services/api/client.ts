@@ -1,9 +1,19 @@
 const API_BASE = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_BACKEND_URL || '';
 
-export async function apiClient<T>(
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export async function apiFetchRaw(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T> {
+): Promise<Response> {
   const token = localStorage.getItem('coopya_token');
   const headers = new Headers(options.headers || {});
 
@@ -30,8 +40,17 @@ export async function apiClient<T>(
     } catch {
       // No era JSON
     }
-    throw new Error(errorDetail);
+    throw new ApiError(errorDetail, response.status);
   }
+
+  return response;
+}
+
+export async function apiClient<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await apiFetchRaw(endpoint, options);
 
   if (response.status === 204) {
     return {} as T;

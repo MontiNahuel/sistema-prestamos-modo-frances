@@ -1,7 +1,11 @@
 import React from 'react';
+import { TipoCuotaPresentacion } from '../../types/presentacionesBapro';
+import { OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
 import { FiltrosOriginanteBna } from './FiltrosOriginanteBna';
 
 interface FiltrosBnaProps {
+  tipoCuota: TipoCuotaPresentacion;
+  onTipoCuotaChange: (val: TipoCuotaPresentacion) => void;
   fechaImpacto: string;
   setFechaImpacto: (val: string) => void;
   fechaDesde: string;
@@ -32,6 +36,8 @@ interface FiltrosBnaProps {
 }
 
 export const FiltrosBna: React.FC<FiltrosBnaProps> = ({
+  tipoCuota,
+  onTipoCuotaChange,
   fechaImpacto,
   setFechaImpacto,
   fechaDesde,
@@ -169,16 +175,32 @@ export const FiltrosBna: React.FC<FiltrosBnaProps> = ({
         onRestablecerNombreArchivo={onRestablecerNombreArchivo}
       />
 
-      {/* Fila 3: Acciones y checkbox */}
+      {/* Fila 3: Tipo de cuota, checkbox y acciones */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={incluirPresentadas}
-            onChange={(e) => setIncluirPresentadas(e.target.checked)}
-          />
-          <span>Incluir cuotas ya presentadas</span>
-        </label>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#475569', marginBottom: '3px' }}>
+              Tipo de Cuota
+            </label>
+            <select
+              value={tipoCuota}
+              onChange={(e) => onTipoCuotaChange(e.target.value as TipoCuotaPresentacion)}
+              style={{ padding: '0.45rem 0.65rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#ffffff', fontWeight: 600 }}
+            >
+              {OPCIONES_TIPO_CUOTA.map((op) => (
+                <option key={op.value} value={op.value}>{op.label}</option>
+              ))}
+            </select>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', marginTop: '14px' }}>
+            <input
+              type="checkbox"
+              checked={incluirPresentadas}
+              onChange={(e) => setIncluirPresentadas(e.target.checked)}
+            />
+            <span>Incluir cuotas ya presentadas</span>
+          </label>
+        </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button

@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.domain.enums import TipoCuotaPresentacion
+from app.features.cuotas_sociales.model import CuotaSocial
 from app.features.prestamos.model import Cuota, Prestamo
 from app.features.socios.model import Socio
 from app.features.presentaciones_bna.model import PresentacionBnaArchivo, PresentacionBnaAuditoria
@@ -53,6 +55,7 @@ class PresentacionBnaService:
         fecha_hasta: Optional[str] = None,
         fecha_corte: Optional[str] = None,
         incluir_presentadas: bool = True,
+        tipo_cuota: TipoCuotaPresentacion = TipoCuotaPresentacion.CUOTA_PRESTAMO,
     ) -> BuscarCuotasBnaResponse:
         matcher = CuotaBnaMatcher(self.db, self.mapa_sucursales)
         return matcher.buscar(
@@ -60,12 +63,13 @@ class PresentacionBnaService:
             fecha_hasta=fecha_hasta,
             fecha_corte=fecha_corte,
             incluir_presentadas=incluir_presentadas,
+            tipo_cuota=tipo_cuota,
         )
 
     def generar_presentacion_bna(
         self, req: GenerarPresentacionBnaRequest, usuario_id: Optional[int] = None
     ) -> Tuple[GenerarPresentacionBnaResponse, bytes]:
-        if not req.cuota_ids:
+        if not req.cuota_ids and not req.cuota_social_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debe seleccionar al menos una cuota")
 
         if req.nro_lista is not None:
@@ -88,9 +92,32 @@ class PresentacionBnaService:
             .join(Socio, Prestamo.persona_id == Socio.id)
             .filter(Cuota.id.in_(req.cuota_ids))
             .all()
+            if req.cuota_ids
+            else []
         )
-        if not cuotas:
+        cuotas_sociales = (
+            self.db.query(CuotaSocial, Socio)
+            .join(Socio, CuotaSocial.socio_id == Socio.id)
+            .filter(CuotaSocial.id.in_(req.cuota_social_ids))
+            .all()
+            if req.cuota_social_ids
+            else []
+        )
+        if not cuotas and not cuotas_sociales:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron cuotas para los IDs provistos")
+
+        objetivos = []
+        for cuota, prestamo, socio in cuotas:
+            saldo = max(0, cuota.cuota_total_centavos - cuota.monto_pagado_centavos)
+            if prestamo.estado not in ("ACTIVO", "MORA") or cuota.estado in ("PAGADA", "CANCELADA") or saldo <= 0:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Una cuota seleccionada ya no admite débitos.")
+            objetivos.append(("Prestamo", cuota, cuota.id, None, saldo, socio))
+
+        for cs, socio in cuotas_sociales:
+            saldo = max(0, cs.valor_centavos - cs.monto_pagado_centavos)
+            if cs.estado in ("PAGADA", "ANULADA") or saldo <= 0:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Una cuota social seleccionada ya no admite débitos.")
+            objetivos.append(("CuotaSocial", cs, None, cs.id, saldo, socio))
 
         carpeta_lote = os.path.join(self.STORAGE_DIR, str(nro_archivo))
         os.makedirs(carpeta_lote, exist_ok=True)
@@ -113,7 +140,7 @@ class PresentacionBnaService:
         lineas.append(cabecera)
 
         # Detalles Tipo 2
-        for cuota, prestamo, socio in cuotas:
+        for tipo_importe, modelo, cuota_id, cuota_social_id, saldo_centavos, socio in objetivos:
             cbu = CuotaBnaMatcher.resolver_cbu_bna(socio)
             if not cbu:
                 raise HTTPException(
@@ -125,29 +152,31 @@ class PresentacionBnaService:
             )
 
             concepto_debito = f"{nro_archivo}-{numero_op}"[:10]
-            monto_pesos = Decimal(str(round(cuota.cuota_total_centavos / 100.0, 2)))
+            monto_pesos = Decimal(str(round(saldo_centavos / 100.0, 2)))
 
             linea_det = BnaRegistroIndividual.formatear_detalle(
                 sucursal_cliente=sucursal_bna,
                 nro_cuenta_cliente=nro_cuenta,
-                importe_centavos=cuota.cuota_total_centavos,
+                importe_centavos=saldo_centavos,
                 concepto_debito=concepto_debito,
                 sistema_cuenta=sistema_cuenta,
             )
             lineas.append(linea_det)
-            total_centavos += cuota.cuota_total_centavos
-            cuota.estado = "PRESENTADA"
+            total_centavos += saldo_centavos
+            modelo.estado = "PRESENTADA"
 
             detalles.append(
                 PresentacionBnaAuditoria(
-                    cuota_id=cuota.id,
+                    cuota_id=cuota_id,
+                    cuota_social_id=cuota_social_id,
+                    tipo_importe=tipo_importe,
                     id_persona=socio.id,
                     nro_archivo=nro_archivo,
                     numero_operacion=numero_op,
                     sucursal_cuenta_cliente=sucursal_bna,
                     sistema_cuenta=sistema_cuenta,
                     nro_cuenta_cliente=nro_cuenta,
-                    importe=str(cuota.cuota_total_centavos).zfill(15),
+                    importe=str(saldo_centavos).zfill(15),
                     monto_pesos=monto_pesos,
                     concepto_debito=concepto_debito,
                     nombre_archivo=nombre_archivo,
@@ -156,10 +185,11 @@ class PresentacionBnaService:
             )
             numero_op += 1
 
+        cantidad_regs = len(detalles)
         # Pie Tipo 3
         pie = BnaRegistroIndividual.formatear_pie(
             total_centavos=total_centavos,
-            cantidad_registros=len(cuotas),
+            cantidad_registros=cantidad_regs,
         )
         lineas.append(pie)
 
@@ -173,7 +203,7 @@ class PresentacionBnaService:
             nro_archivo=nro_archivo,
             ruta=ruta_archivo,
             tipo="BNA",
-            total_registros=len(cuotas),
+            total_registros=cantidad_regs,
             total_monto=monto_total_pesos,
             usuario_id=usuario_id,
             estado="GENERADO",
@@ -188,7 +218,7 @@ class PresentacionBnaService:
             archivo_id=archivo_creado.id,
             nro_archivo=nro_archivo,
             nombre_archivo=nombre_archivo,
-            total_registros=len(cuotas),
+            total_registros=cantidad_regs,
             total_monto_pesos=float(monto_total_pesos),
             ruta_descarga=f"/api/v1/presentaciones-bna/archivos/{archivo_creado.id}/descargar",
         )

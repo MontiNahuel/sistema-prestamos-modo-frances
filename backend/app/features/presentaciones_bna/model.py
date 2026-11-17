@@ -52,6 +52,7 @@ class PresentacionBnaAuditoria(Base):
         index=True,
     )
     cuota_id = Column(String(36), ForeignKey("cuotas.id"), nullable=True, index=True)
+    cuota_social_id = Column(String(36), ForeignKey("cuotas_sociales.id"), nullable=True, index=True)
     id_persona = Column(Integer, nullable=False, index=True)
     nro_archivo = Column(Integer, nullable=False, index=True)
     numero_operacion = Column(Integer, nullable=False)
@@ -61,6 +62,7 @@ class PresentacionBnaAuditoria(Base):
     importe = Column(String(15), nullable=False)  # 15 caracteres centavos
     monto_pesos = Column(Numeric(18, 2), nullable=False)
     concepto_debito = Column(String(10), nullable=False)  # '{NroArchivo}-{NumOp}'
+    tipo_importe = Column(String(50), nullable=False, default="Prestamo")
     codigo_respuesta = Column(String(5), nullable=True)  # '0', '9', '7'
     descripcion_rechazo = Column(String(100), nullable=True)  # Texto literal BNA
     nombre_archivo = Column(String(200), nullable=False)
@@ -70,3 +72,4 @@ class PresentacionBnaAuditoria(Base):
 
     archivo = relationship("PresentacionBnaArchivo", back_populates="detalles")
     cuota = relationship("Cuota")
+    cuota_social = relationship("CuotaSocial")

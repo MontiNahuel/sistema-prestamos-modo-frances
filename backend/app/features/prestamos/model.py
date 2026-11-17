@@ -25,7 +25,13 @@ class Prestamo(Base):
     total_capital_centavos = Column(BigInteger, nullable=False)
     total_interes_centavos = Column(BigInteger, nullable=False)
     total_iva_centavos = Column(BigInteger, nullable=False)
+    costo_operativo_tipo = Column(String(20), default="FIJO", nullable=False)
+    costo_operativo_centavos = Column(BigInteger, default=0, nullable=False)
+    costo_operativo_porcentaje = Column(Numeric(10, 6), default=Decimal("0"), nullable=False)
+    total_costo_operativo_centavos = Column(BigInteger, default=0, nullable=False)
     total_a_pagar_centavos = Column(BigInteger, nullable=False)
+    cft_tna = Column(Numeric(12, 6), default=Decimal("0"), nullable=False)
+    cft_tea = Column(Numeric(12, 6), default=Decimal("0"), nullable=False)
     saldo_deudor_actual_centavos = Column(BigInteger, nullable=False)
 
     estado = Column(String(20), default="ACTIVO", nullable=False)  # ACTIVO, FINALIZADO, CANCELADO, MORA
@@ -35,6 +41,7 @@ class Prestamo(Base):
     # Relaciones
     socio = relationship("Socio", back_populates="prestamos")
     cuotas = relationship("Cuota", back_populates="prestamo", cascade="all, delete-orphan", order_by="Cuota.numero_cuota")
+    cuotas_sociales = relationship("CuotaSocial", back_populates="prestamo")
     linea_snapshot = relationship("PrestamoLineaSnapshot", uselist=False, back_populates="prestamo", cascade="all, delete-orphan")
 
 
@@ -74,6 +81,7 @@ class Cuota(Base):
     capital_centavos = Column(BigInteger, nullable=False)
     interes_centavos = Column(BigInteger, nullable=False)
     iva_interes_centavos = Column(BigInteger, nullable=False)
+    costo_operativo_centavos = Column(BigInteger, default=0, nullable=False)
     cuota_pura_centavos = Column(BigInteger, nullable=False)
     cuota_total_centavos = Column(BigInteger, nullable=False)
     saldo_final_centavos = Column(BigInteger, nullable=False)
@@ -103,3 +111,6 @@ def _asignar_numero_prestamo(mapper, connection, target: Prestamo):
     else:
         maximo = connection.execute(select(func.coalesce(func.max(Prestamo.numero_prestamo), 0))).scalar_one()
         target.numero_prestamo = int(maximo) + 1
+
+
+import app.features.cuotas_sociales.model  # noqa: E402, F401

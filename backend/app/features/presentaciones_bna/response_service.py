@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.features.cuotas_sociales.model import CuotaSocial
 from app.features.prestamos.model import Cuota
 from app.features.presentaciones_bna.repository import PresentacionBnaRepository
 from app.features.presentaciones_bna.bna_layout import ParseadorRespuestaBna
@@ -54,12 +55,22 @@ class PresentacionBnaResponseService:
                         cuota.estado = "PAGADA"
                         cuota.monto_pagado_centavos = cuota.cuota_total_centavos
                         cuota.fecha_pago = datetime.utcnow()
+                elif getattr(detalle, "cuota_social_id", None):
+                    cs = self.db.query(CuotaSocial).filter_by(id=detalle.cuota_social_id).first()
+                    if cs:
+                        cs.estado = "PAGADA"
+                        cs.monto_pagado_centavos = cs.valor_centavos
+                        cs.fecha_pago = datetime.utcnow()
             else:
                 rechazados += 1
                 if detalle.cuota_id:
                     cuota = self.db.query(Cuota).filter_by(id=detalle.cuota_id).first()
                     if cuota and cuota.estado == "PRESENTADA":
                         cuota.estado = "RECHAZADA"
+                elif getattr(detalle, "cuota_social_id", None):
+                    cs = self.db.query(CuotaSocial).filter_by(id=detalle.cuota_social_id).first()
+                    if cs and cs.estado == "PRESENTADA":
+                        cs.estado = "RECHAZADA"
 
         archivo.estado = "RENDIDO"
         self.db.commit()

@@ -51,13 +51,26 @@ export interface MovimientoCuentaCorriente {
 }
 
 export interface DesgloseCuentaCorriente {
+  id?: number;
+  idMovimiento?: number;
+  banco?: string;
+  prestamoId?: string;
+  cuotaSocialId?: string;
+  periodo?: string;
+  numeroPrestamo?: number | null;
   numeroCuota?: number;
   cantidadCuotas?: number;
   periodoObligacion?: string;
   concepto: string;
   planNombre?: string;
+  motivo?: string | null;
+  capitalPesos?: number;
+  interesPesos?: number;
+  ivaPesos?: number;
+  costoOperativoPesos?: number;
   importePresentado: number;
   importeCobrado: number;
+  importeRechazado?: number;
   importePendiente: number;
   estado: string;
   origen?: string;
@@ -87,6 +100,15 @@ export interface CuentaCorrienteResumen {
   periodos?: PeriodoCuentaCorriente[];
   movimientos?: MovimientoCuentaCorriente[];
   desglose?: DesgloseCuentaCorriente[];
+  desglosePrestamos?: DesgloseCuentaCorriente[];
+  desgloseCentral?: DesgloseCuentaCorriente[];
+  desgloseCuotasSociales?: DesgloseCuentaCorriente[];
+  cuotaSocial?: {
+    activa: boolean;
+    valorCentavos: number;
+    fechaAlta?: string | null;
+    fechaBaja?: string | null;
+  };
   advertencias?: string[];
 }
 

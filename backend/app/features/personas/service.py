@@ -1,5 +1,8 @@
+import logging
 from typing import List, Dict, Any, Optional
 from fastapi import HTTPException, status
+
+logger = logging.getLogger(__name__)
 from app.integrations.coopya_client import CoopYaClient, coopya_client
 from app.integrations.oracle_client import OracleClient, oracle_client
 from app.features.personas.schemas import PersonaCreateRequest, PersonaCreateResponse
@@ -10,7 +13,8 @@ from app.features.socios.model import Socio
 from app.features.prestamos.model import Prestamo
 from app.features.personas.cuenta_corriente import (
     construir_cuenta_corriente_local,
-    fusionar_cuenta_corriente
+    fusionar_cuenta_corriente,
+    normalizar_cuenta_corriente_central,
 )
 
 
@@ -72,19 +76,31 @@ class PersonasService:
             try:
                 socio = self.socio_repo.get_by_id(id_persona)
                 if socio:
+                    if getattr(socio, "cuota_social_activa", False):
+                        from datetime import date
+                        from app.features.cuotas_sociales.service import CuotaSocialService
+                        CuotaSocialService(self.socio_repo.db).asegurar_periodos_hasta(
+                            fecha_hasta=date.today(), socio_id=id_persona, commit=True
+                        )
                     prestamos = (
                         self.socio_repo.db.query(Prestamo)
                         .filter(Prestamo.persona_id == id_persona)
+                        .order_by(Prestamo.numero_prestamo.asc(), Prestamo.fecha_alta.asc())
                         .all()
                     )
                     local_res = construir_cuenta_corriente_local(socio, prestamos)
-            except Exception:
-                pass
+            except Exception as exc:
+                self.socio_repo.db.rollback()
+                logger.exception("Error cargando cuenta corriente local para persona #%s", id_persona)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error al consultar la cuenta corriente local: {exc}",
+                ) from exc
 
         if coopya_res and local_res:
             return fusionar_cuenta_corriente(coopya_res, local_res)
         elif coopya_res:
-            return coopya_res
+            return normalizar_cuenta_corriente_central(coopya_res)
         elif local_res:
             return local_res
         else:
@@ -188,10 +204,13 @@ class PersonasService:
                 # Persistir CBU / Alias en tabla medios_de_pago
                 valor_medio = req.cbu or req.alias_cbu
                 if valor_medio:
+                    local_banco_id = self.socio_repo.resolver_banco_id(
+                        banco_id=banco_id, cbu=req.cbu, banco_nombre=banco_nombre
+                    )
                     medio = self.socio_repo.add_medio_de_pago(
                         socio_id=local_id,
                         valor=valor_medio,
-                        banco_id=banco_id,
+                        banco_id=local_banco_id,
                         tipo=2,
                         predeterminado=True,
                         titular_verificado=bool(req.cbu)

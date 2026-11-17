@@ -20,10 +20,15 @@ export interface EmpresaOriginanteCreate {
   predeterminado?: boolean;
 }
 
+export type TipoCuotaPresentacion = 'CUOTA_PRESTAMO' | 'CUOTA_SOCIAL' | 'PRESTAMO_Y_CUOTA_SOCIAL';
+
 export interface CuotaPresentableItem {
-  cuota_id: string;
-  prestamo_id: string;
-  numero_cuota: number;
+  cuota_id: string | null;
+  cuota_social_id?: string | null;
+  tipo_item?: 'CUOTA_PRESTAMO' | 'CUOTA_SOCIAL';
+  periodo?: string | null;
+  prestamo_id: string | null;
+  numero_cuota: number | null;
   socio_id: number;
   socio_nombre: string;
   socio_documento?: string | null;
@@ -44,6 +49,7 @@ export interface BuscarCuotasBaproParams {
   dni_hasta?: number | null;
   incluir_presentadas?: boolean;
   base_filtrada?: boolean;
+  tipo_cuota?: TipoCuotaPresentacion;
 }
 
 export interface BuscarCuotasBaproResponse {
@@ -55,6 +61,7 @@ export interface BuscarCuotasBaproResponse {
 
 export interface GenerarPresentacionBaproRequest {
   cuota_ids: string[];
+  cuota_social_ids?: string[];
   fecha_impacto?: string;
   nro_lista?: number;
   empresa_originante_id?: number | null;

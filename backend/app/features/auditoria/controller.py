@@ -2,6 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.features.auth.controller import get_auth_service
 from app.features.auth.service import AuthService
 from app.features.auditoria.schemas import (
     PaginatedAuditoriaPrestamo,
@@ -22,10 +23,10 @@ def get_auditoria_service(db: Session = Depends(get_db)) -> AuditoriaService:
 def verificar_acceso_completo(
     authorization: Optional[str] = Header(None),
     x_token: Optional[str] = Header(None, alias="X-Auth-Token"),
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> None:
     """Verifica que el usuario posea el rol 'Acceso Completo' en CoopYa."""
     token = authorization or x_token
-    auth_service = AuthService()
     perfil = auth_service.obtener_perfil_por_token(token)
     if not perfil.es_acceso_completo:
         raise HTTPException(

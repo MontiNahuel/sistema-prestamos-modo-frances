@@ -1,9 +1,11 @@
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List, Any
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.features.socios.schemas import SocioResponse
+from app.features.cuotas_sociales.schemas import DEFAULT_CUOTA_SOCIAL_CENTAVOS
 from app.domain.calculadoras.romi import CuotaRomiExacta
+from app.domain.enums import TipoCostoOperativo
 
 
 class CuotaResponse(BaseModel):
@@ -16,6 +18,7 @@ class CuotaResponse(BaseModel):
     capital_centavos: int
     interes_centavos: int
     iva_interes_centavos: int
+    costo_operativo_centavos: int = 0
     cuota_pura_centavos: int
     cuota_total_centavos: int
     saldo_final_centavos: int
@@ -60,6 +63,26 @@ class PrestamoCreate(BaseModel):
     motor_id: Optional[int] = None
     fecha_primer_vencimiento: Optional[date] = None
     observaciones: Optional[str] = None
+    costo_operativo_tipo: TipoCostoOperativo = TipoCostoOperativo.FIJO
+    costo_operativo_centavos: int = Field(default=0, ge=0)
+    costo_operativo_porcentaje: Decimal = Field(default=Decimal("0"), ge=0)
+    incluir_cuota_social: bool = True
+    cuota_social_centavos: int = Field(default=DEFAULT_CUOTA_SOCIAL_CENTAVOS, ge=0)
+
+    @field_validator("costo_operativo_centavos", mode="before")
+    @classmethod
+    def _default_costo_op_centavos(cls, v):
+        return 0 if v is None or v == "" else v
+
+    @field_validator("costo_operativo_porcentaje", mode="before")
+    @classmethod
+    def _default_costo_op_porcentaje(cls, v):
+        return Decimal("0") if v is None or v == "" else v
+
+    @field_validator("cuota_social_centavos", mode="before")
+    @classmethod
+    def _default_cuota_social_centavos(cls, v):
+        return DEFAULT_CUOTA_SOCIAL_CENTAVOS if v is None or v == "" else v
 
 
 class PrestamoResponse(BaseModel):
@@ -75,10 +98,16 @@ class PrestamoResponse(BaseModel):
     tna_pactada: Decimal
     tem_pactada: Decimal
     alicuota_iva: Decimal
+    costo_operativo_tipo: str = "FIJO"
+    costo_operativo_centavos: int = 0
+    costo_operativo_porcentaje: Decimal = Decimal("0")
     total_capital_centavos: int
     total_interes_centavos: int
     total_iva_centavos: int
+    total_costo_operativo_centavos: int = 0
     total_a_pagar_centavos: int
+    cft_tna: Decimal = Decimal("0")
+    cft_tea: Decimal = Decimal("0")
     saldo_deudor_actual_centavos: int
     estado: str
     fecha_alta: datetime

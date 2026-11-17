@@ -41,6 +41,11 @@ class SocioBase(BaseModel):
 class SocioResponse(SocioBase):
     model_config = ConfigDict(from_attributes=True)
 
+    cuota_social_activa: bool = False
+    cuota_social_valor_centavos: int = 550000
+    cuota_social_prestamo_id: Optional[str] = None
+    cuota_social_fecha_alta: Optional[datetime] = None
+    cuota_social_fecha_baja: Optional[datetime] = None
     fecha_alta: datetime
     fecha_ultima_actualizacion: datetime
     medios_de_pago: List[MedioDePagoResponse] = []

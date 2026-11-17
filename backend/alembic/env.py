@@ -13,10 +13,12 @@ from app.core.database import Base
 # Importar modelos para que Base.metadata contenga todas las tablas
 import app.features.socios.model
 import app.features.prestamos.model
+import app.features.cuotas_sociales.model
 import app.features.motores.model
 import app.features.lineas.model
 import app.features.auditoria.model
 import app.features.presentaciones_bapro.model
+import app.features.presentaciones_bna.model
 import app.features.empresas.model
 import app.features.respuestas_bancarias.model
 

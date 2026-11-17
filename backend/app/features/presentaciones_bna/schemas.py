@@ -3,9 +3,12 @@ from pydantic import BaseModel, Field
 
 
 class CuotaPresentableBnaItem(BaseModel):
-    cuota_id: str
-    prestamo_id: str
-    numero_cuota: int
+    cuota_id: Optional[str] = None
+    cuota_social_id: Optional[str] = None
+    tipo_item: str = "CUOTA_PRESTAMO"
+    periodo: Optional[str] = None
+    prestamo_id: Optional[str] = None
+    numero_cuota: Optional[int] = None
     socio_id: int
     socio_nombre: str
     socio_documento: Optional[str] = None
@@ -28,7 +31,8 @@ class BuscarCuotasBnaResponse(BaseModel):
 
 
 class GenerarPresentacionBnaRequest(BaseModel):
-    cuota_ids: List[str]
+    cuota_ids: List[str] = Field(default_factory=list)
+    cuota_social_ids: List[str] = Field(default_factory=list)
     nro_lista: Optional[int] = None
     nombre_archivo: Optional[str] = None
     fecha_impacto: Optional[str] = None
@@ -61,6 +65,9 @@ class PresentacionBnaArchivoItem(BaseModel):
 
 class PresentacionBnaAuditoriaItem(BaseModel):
     id: int
+    cuota_id: Optional[str] = None
+    cuota_social_id: Optional[str] = None
+    tipo_importe: Optional[str] = "Prestamo"
     numero_operacion: int
     id_persona: int
     socio_nombre: Optional[str] = None

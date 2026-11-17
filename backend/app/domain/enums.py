@@ -29,3 +29,14 @@ class AjusteResidual(str, Enum):
 class RedondeoCuota(str, Enum):
     CON_CENTAVOS = "CON_CENTAVOS"               # Conserva centavos teóricos (ej: $55.045,30)
     PESOS_ENTEROS = "PESOS_ENTEROS"             # Redondea al peso entero más cercano (ej: $55.045,00)
+
+
+class TipoCostoOperativo(str, Enum):
+    FIJO = "FIJO"                               # Monto fijo en centavos sumado por cuota
+    PORCENTAJE = "PORCENTAJE"                   # Porcentaje del capital prestado sumado por cuota
+
+
+class TipoCuotaPresentacion(str, Enum):
+    CUOTA_PRESTAMO = "CUOTA_PRESTAMO"
+    CUOTA_SOCIAL = "CUOTA_SOCIAL"
+    PRESTAMO_Y_CUOTA_SOCIAL = "PRESTAMO_Y_CUOTA_SOCIAL"

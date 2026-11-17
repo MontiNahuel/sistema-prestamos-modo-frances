@@ -53,6 +53,7 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
                 <th style={{ padding: '0.75rem 1rem' }}>Monto Lote</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Aprobados</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Rechazados</th>
+                <th style={{ padding: '0.75rem 1rem' }}>Operador</th>
               </>
             )}
             {tab === 'configuracion' && (
@@ -71,6 +72,7 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
                 <th style={{ padding: '0.75rem 1rem' }}>Acción</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Oracle ID</th>
                 <th style={{ padding: '0.75rem 1rem' }}>CoopYa ID</th>
+                <th style={{ padding: '0.75rem 1rem' }}>Operador</th>
               </>
             )}
             <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Acciones</th>
@@ -78,9 +80,9 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
         </thead>
         <tbody>
           {loading ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Cargando registros...</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Cargando registros...</td></tr>
           ) : total === 0 ? (
-            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No se encontraron registros de auditoría.</td></tr>
+            <tr><td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>No se encontraron registros de auditoría.</td></tr>
           ) : (
             tab === 'prestamos' && prestamos.map((p) => (
               <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -104,6 +106,7 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
                 <td style={{ padding: '0.65rem 1rem' }}>{b.total_monto ? `$${Number(b.total_monto).toLocaleString('es-AR')}` : '-'}</td>
                 <td style={{ padding: '0.65rem 1rem', color: '#16a34a' }}>{b.registros_aprobados ?? '-'}</td>
                 <td style={{ padding: '0.65rem 1rem', color: '#dc2626' }}>{b.registros_rechazados ?? '-'}</td>
+                <td style={{ padding: '0.65rem 1rem', color: '#64748b' }}>{b.usuario_operador || 'SISTEMA'}</td>
                 <td style={{ padding: '0.65rem 1rem', textAlign: 'right' }}>
                   <button onClick={() => onVerDetalle(`Auditoría Lote BAPRO #${b.nro_archivo}`, b.detalles_json)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '3px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>Detalle</button>
                 </td>
@@ -130,6 +133,7 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
                 <td style={{ padding: '0.65rem 1rem' }}>{s.accion}</td>
                 <td style={{ padding: '0.65rem 1rem', color: '#64748b' }}>{s.id_persona_oracle || '-'}</td>
                 <td style={{ padding: '0.65rem 1rem', color: '#64748b' }}>{s.id_persona_coopya || '-'}</td>
+                <td style={{ padding: '0.65rem 1rem', color: '#64748b' }}>{s.usuario_operador || 'SISTEMA'}</td>
                 <td style={{ padding: '0.65rem 1rem', textAlign: 'right' }}>
                   <button onClick={() => onVerDetalle(`Sincronización DNI ${s.documento}`, { error: s.detalle_error, payload: s.payload_json })} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '3px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>Detalle</button>
                 </td>

@@ -1,7 +1,7 @@
 import { Prestamo, PrestamoCreate } from '../../types/prestamo';
+import { apiClient } from './client';
 
-const BACKEND = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_BACKEND_URL || '';
-const API_BASE = `${BACKEND}/api/v1/prestamos`;
+const API_BASE = '/api/v1/prestamos';
 
 export async function getPrestamos(params?: {
   persona_id?: number;
@@ -16,54 +16,28 @@ export async function getPrestamos(params?: {
   const qs = query.toString();
   const url = qs ? `${API_BASE}?${qs}` : API_BASE;
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al obtener préstamos');
-  }
-  return res.json();
+  return apiClient<Prestamo[]>(url);
 }
 
 export async function getPrestamoById(id: string): Promise<Prestamo> {
-  const res = await fetch(`${API_BASE}/${id}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al obtener detalle del préstamo');
-  }
-  return res.json();
+  return apiClient<Prestamo>(`${API_BASE}/${id}`);
 }
 
 export async function otorgarPrestamo(payload: PrestamoCreate): Promise<Prestamo> {
-  const res = await fetch(API_BASE, {
+  return apiClient<Prestamo>(API_BASE, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al otorgar préstamo');
-  }
-  return res.json();
 }
 
 export async function cancelarPrestamo(id: string): Promise<Prestamo> {
-  const res = await fetch(`${API_BASE}/${id}/cancelar`, {
+  return apiClient<Prestamo>(`${API_BASE}/${id}/cancelar`, {
     method: 'POST',
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al cancelar préstamo');
-  }
-  return res.json();
 }
 
 export async function pagarCuota(prestamoId: string, numeroCuota: number): Promise<Prestamo> {
-  const res = await fetch(`${API_BASE}/${prestamoId}/cuotas/${numeroCuota}/pagar`, {
+  return apiClient<Prestamo>(`${API_BASE}/${prestamoId}/cuotas/${numeroCuota}/pagar`, {
     method: 'POST',
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al registrar pago de cuota');
-  }
-  return res.json();
 }

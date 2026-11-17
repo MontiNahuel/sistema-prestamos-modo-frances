@@ -8,6 +8,7 @@ from app.api.v1.router import router as api_v1_router
 # Importar modelos para que Base.metadata los reconozca
 import app.features.socios.model
 import app.features.prestamos.model
+import app.features.cuotas_sociales.model
 import app.features.motores.model
 import app.features.lineas.model
 import app.features.auditoria.model

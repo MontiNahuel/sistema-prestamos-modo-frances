@@ -93,22 +93,58 @@ def detalle(id: str, db: Session = Depends(get_db), usuario: str = Depends(opera
     r = db.get(RespuestaBancaria, id)
     if not r:
         raise HTTPException(404, 'Carga no encontrada.')
-    return [dict(linea=d.linea, prestamo_id=d.cuota.prestamo_id,
-                 persona=d.cuota.prestamo.persona_nombre, persona_id=d.cuota.prestamo.persona_id, numero_cuota=d.cuota.numero_cuota,
-                 referencia=d.referencia, codigo=d.codigo, descripcion=d.descripcion,
-                 importe_centavos=d.importe_centavos, cobrado_centavos=d.cobrado_centavos,
-                 capital_centavos=d.capital_centavos, interes_centavos=d.interes_centavos,
-                 iva_centavos=d.iva_centavos, saldo_cuota_centavos=d.saldo_cuota_centavos,
-                 estado_cuota=d.estado_cuota) for d in r.detalles]
+    filas = []
+    for d in r.detalles:
+        if d.cuota is not None:
+            filas.append(dict(
+                linea=d.linea, tipo_concepto='CUOTA_PRESTAMO',
+                prestamo_id=d.cuota.prestamo_id,
+                persona=d.cuota.prestamo.persona_nombre, persona_id=d.cuota.prestamo.persona_id,
+                numero_cuota=d.cuota.numero_cuota, cuota_social_id=None, periodo=None,
+                referencia=d.referencia, codigo=d.codigo, descripcion=d.descripcion,
+                importe_centavos=d.importe_centavos, cobrado_centavos=d.cobrado_centavos,
+                capital_centavos=d.capital_centavos, interes_centavos=d.interes_centavos,
+                iva_centavos=d.iva_centavos,
+                costo_operativo_centavos=d.costo_operativo_centavos,
+                cuota_social_centavos=d.cuota_social_centavos,
+                saldo_cuota_centavos=d.saldo_cuota_centavos,
+                estado_cuota=d.estado_cuota,
+            ))
+        else:
+            cs = d.cuota_social
+            filas.append(dict(
+                linea=d.linea, tipo_concepto='CUOTA_SOCIAL',
+                prestamo_id=cs.prestamo_id if cs else None,
+                persona=cs.socio.nombre_completo if cs and cs.socio else '',
+                persona_id=cs.socio_id if cs else None,
+                numero_cuota=None, cuota_social_id=d.cuota_social_id,
+                periodo=cs.periodo if cs else None,
+                referencia=d.referencia, codigo=d.codigo, descripcion=d.descripcion,
+                importe_centavos=d.importe_centavos, cobrado_centavos=d.cobrado_centavos,
+                capital_centavos=0, interes_centavos=0, iva_centavos=0,
+                costo_operativo_centavos=0,
+                cuota_social_centavos=d.cuota_social_centavos,
+                saldo_cuota_centavos=d.saldo_cuota_centavos,
+                estado_cuota=d.estado_cuota,
+            ))
+    return filas
 
 
 @router.get('/cuenta-corriente/{persona_id}')
 def cuenta_local(persona_id: int, db: Session = Depends(get_db), usuario: str = Depends(operador)):
     from app.features.socios.model import Socio
     from app.features.prestamos.model import Prestamo
+    from app.features.cuotas_sociales.service import CuotaSocialService
     from app.features.personas.cuenta_corriente import construir_cuenta_corriente_local
     socio = db.get(Socio, persona_id)
     if not socio:
         raise HTTPException(404, 'Persona sin cuenta corriente local.')
-    prestamos = db.query(Prestamo).filter_by(persona_id=persona_id).all()
+    if getattr(socio, 'cuota_social_activa', False):
+        CuotaSocialService(db).asegurar_periodos_hasta(fecha_hasta=date.today(), socio_id=persona_id, commit=True)
+    prestamos = (
+        db.query(Prestamo)
+        .filter_by(persona_id=persona_id)
+        .order_by(Prestamo.numero_prestamo.asc(), Prestamo.fecha_alta.asc())
+        .all()
+    )
     return construir_cuenta_corriente_local(socio, prestamos)

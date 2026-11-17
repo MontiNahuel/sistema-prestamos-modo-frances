@@ -9,6 +9,7 @@ export interface CuotaPrestamo {
   capital_centavos: number;
   interes_centavos: number;
   iva_interes_centavos: number;
+  costo_operativo_centavos?: number;
   cuota_pura_centavos: number;
   cuota_total_centavos: number;
   saldo_final_centavos: number;
@@ -45,10 +46,16 @@ export interface Prestamo {
   tna_pactada: number;
   tem_pactada: number;
   alicuota_iva: number;
+  costo_operativo_tipo?: string;
+  costo_operativo_centavos?: number;
+  costo_operativo_porcentaje?: number;
   total_capital_centavos: number;
   total_interes_centavos: number;
   total_iva_centavos: number;
+  total_costo_operativo_centavos?: number;
   total_a_pagar_centavos: number;
+  cft_tna?: number;
+  cft_tea?: number;
   saldo_deudor_actual_centavos: number;
   estado: EstadoPrestamo;
   fecha_alta: string;
@@ -71,4 +78,9 @@ export interface PrestamoCreate {
   motor_id?: number;
   fecha_primer_vencimiento?: string;
   observaciones?: string;
+  costo_operativo_tipo?: 'FIJO' | 'PORCENTAJE';
+  costo_operativo_centavos?: number;
+  costo_operativo_porcentaje?: number;
+  incluir_cuota_social?: boolean;
+  cuota_social_centavos?: number;
 }

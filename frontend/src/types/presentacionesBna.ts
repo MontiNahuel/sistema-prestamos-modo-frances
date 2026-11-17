@@ -1,7 +1,12 @@
+import type { TipoCuotaPresentacion } from './presentacionesBapro';
+
 export interface CuotaPresentableBnaItem {
-  cuota_id: string;
-  prestamo_id: string;
-  numero_cuota: number;
+  cuota_id: string | null;
+  cuota_social_id?: string | null;
+  tipo_item?: 'CUOTA_PRESTAMO' | 'CUOTA_SOCIAL';
+  periodo?: string | null;
+  prestamo_id: string | null;
+  numero_cuota: number | null;
   socio_id: number;
   socio_nombre: string;
   socio_documento?: string | null;
@@ -21,6 +26,7 @@ export interface BuscarCuotasBnaParams {
   fecha_hasta?: string;
   fecha_corte?: string;
   incluir_presentadas?: boolean;
+  tipo_cuota?: TipoCuotaPresentacion;
 }
 
 export interface BuscarCuotasBnaResponse {
@@ -32,6 +38,7 @@ export interface BuscarCuotasBnaResponse {
 
 export interface GenerarPresentacionBnaRequest {
   cuota_ids: string[];
+  cuota_social_ids?: string[];
   nro_lista?: number;
   nombre_archivo?: string | null;
   fecha_impacto?: string;

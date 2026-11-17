@@ -7,8 +7,9 @@ from sqlalchemy import text, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from app.core.config import settings
+from app.features.cuotas_sociales.model import CuotaSocial
 from app.features.prestamos.model import Cuota, Prestamo
-from app.features.prestamos.cobros import desglose_cobrado, recalcular_saldo
+from app.features.prestamos.cobros import desglose_cobrado_completo, recalcular_saldo
 from app.features.presentaciones_bapro.model import PresentacionBaproArchivo, PresentacionBaproAuditoria
 from app.features.presentaciones_bna.model import PresentacionBnaArchivo, PresentacionBnaAuditoria
 from .model import RespuestaBancaria, RespuestaBancariaDetalle
@@ -68,14 +69,20 @@ class RespuestasService:
                 if otro and otro[0] != lote:
                     lote_sugerido = otro[0]
                     avisos.append(f'Las referencias del archivo corresponden al lote {lote_sugerido} (se indicó el lote {lote}).')
-        objetivos = sorted({a.cuota_id for matches in auditorias.values() for a in matches if a.cuota_id})
+        objetivos_cuota = sorted({a.cuota_id for matches in auditorias.values() for a in matches if a.cuota_id})
+        objetivos_cs = sorted({getattr(a, 'cuota_social_id', None) for matches in auditorias.values() for a in matches if getattr(a, 'cuota_social_id', None)})
         prestamos = {}
-        for inicio in range(0, len(objetivos), 1000):
-            grupo = objetivos[inicio:inicio+1000]
+        for inicio in range(0, len(objetivos_cuota), 1000):
+            grupo = objetivos_cuota[inicio:inicio+1000]
             filtro = Prestamo.id.in_(select(Cuota.prestamo_id).where(Cuota.id.in_(grupo)))
             for p in self.db.query(Prestamo).options(selectinload(Prestamo.cuotas)).filter(filtro).order_by(Prestamo.id):
                 prestamos[p.id] = p
         cuotas = {c.id: c for p in prestamos.values() for c in p.cuotas}
+        cuotas_sociales = {}
+        for inicio in range(0, len(objetivos_cs), 1000):
+            grupo = objetivos_cs[inicio:inicio+1000]
+            for cs in self.db.query(CuotaSocial).options(selectinload(CuotaSocial.socio)).filter(CuotaSocial.id.in_(grupo)):
+                cuotas_sociales[cs.id] = cs
         claves = [huella([banco, r['cuit'], r['referencia']]) if banco == 'BAPRO'
                   else huella([banco, lote, r['sucursal'], r['sistema'], r['numero_cuenta'], r['importe_bancario']])
                   for r in registros]
@@ -86,14 +93,16 @@ class RespuestasService:
             ):
                 existentes[d.clave_operacion] = d
         for registro, clave in zip(registros, claves):
-            r = dict(registro, clave=clave, estado='REVISAR', motivo='', cuota_id=None,
+            r = dict(registro, clave=clave, estado='REVISAR', motivo='', tipo_concepto='CUOTA_PRESTAMO',
+                     cuota_id=None, cuota_social_id=None, periodo=None,
                      persona=None, prestamo_id=None, numero_cuota=None, candidatos=[])
             r['huella'] = huella({k: v for k, v in registro.items() if k != 'linea'})
             anterior = existentes.get(clave)
             if anterior:
                 r.update(estado='DUPLICADA' if anterior.huella_respuesta == r['huella'] else 'CONFLICTO',
                          motivo='Operación ya registrada.' if anterior.huella_respuesta == r['huella'] else 'La operación ya tiene otra respuesta. Requiere conciliación.',
-                         cuota_id=anterior.cuota_id)
+                         cuota_id=anterior.cuota_id,
+                         cuota_social_id=getattr(anterior, 'cuota_social_id', None))
             elif repeticiones[clave] > 1:
                 r['motivo'] = 'Operación repetida dentro del archivo: no se imputa automáticamente.'
             elif r['revision']:
@@ -102,6 +111,7 @@ class RespuestasService:
                 r['motivo'] = 'Importe cero: no se puede imputar.'
             else:
                 cuota = None
+                cuota_social = None
                 if not archivo:
                     r['motivo'] = 'Sin presentación Nación persistida: no se permite seleccionar ni inferir una cuota.'
                 elif banco == 'BAPRO':
@@ -114,10 +124,11 @@ class RespuestasService:
                         elif a.codigo_respuesta:
                             r['motivo'] = 'La presentación ya fue rendida por el circuito anterior; conciliar antes de cargar.'
                         else:
-                            cuota = cuotas.get(a.cuota_id)
+                            cuota = cuotas.get(a.cuota_id) if a.cuota_id else None
+                            cuota_social = cuotas_sociales.get(getattr(a, 'cuota_social_id', None)) if getattr(a, 'cuota_social_id', None) else None
                     elif len(matches) > 1:
                         r.update(estado='CONFLICTO', motivo='Más de un detalle coincide con referencia y cliente. Se bloquea todo el lote.')
-                    if not cuota and not r['motivo']:
+                    if not cuota and not cuota_social and not r['motivo']:
                         r['motivo'] = f'La referencia corresponde al lote {lote_sugerido}, no al {lote}.' if lote_sugerido else 'Referencia sin una cuota local única en el lote indicado.'
                 else:
                     matches = auditorias.get(r['referencia'], [])
@@ -130,21 +141,24 @@ class RespuestasService:
                         elif a.codigo_respuesta:
                             r['motivo'] = 'La presentación ya fue rendida por el circuito anterior; conciliar antes de cargar.'
                         else:
-                            cuota = cuotas.get(a.cuota_id)
+                            cuota = cuotas.get(a.cuota_id) if a.cuota_id else None
+                            cuota_social = cuotas_sociales.get(getattr(a, 'cuota_social_id', None)) if getattr(a, 'cuota_social_id', None) else None
                     elif len(matches) > 1:
                         r.update(estado='CONFLICTO', motivo='Más de un detalle coincide con el concepto de débito Nación.')
-                    if not cuota and not r['motivo']:
+                    if not cuota and not cuota_social and not r['motivo']:
                         r['motivo'] = f'La referencia corresponde al lote {lote_sugerido}, no al {lote}.' if lote_sugerido else 'Referencia sin una cuota local única en el lote indicado.'
                 if cuota:
                     p = cuota.prestamo
-                    r.update(cuota_id=cuota.id, persona=p.persona_nombre or str(p.persona_id),
+                    costo_op = getattr(cuota, 'costo_operativo_centavos', 0) or 0
+                    r.update(tipo_concepto='CUOTA_PRESTAMO', cuota_id=cuota.id, cuota_social_id=None,
+                             persona=p.persona_nombre or str(p.persona_id),
                              persona_id=p.persona_id, documento=p.persona_doc,
                              prestamo_id=p.id, numero_cuota=cuota.numero_cuota,
                              estado_actual=cuota.estado, pagado_actual=cuota.monto_pagado_centavos,
                              saldo_actual=cuota.cuota_total_centavos - cuota.monto_pagado_centavos,
                              estado_prestamo=p.estado)
-                    if (cuota.capital_centavos + cuota.interes_centavos + cuota.iva_interes_centavos != cuota.cuota_total_centavos
-                        or min(cuota.capital_centavos, cuota.interes_centavos, cuota.iva_interes_centavos, cuota.monto_pagado_centavos) < 0):
+                    if (cuota.capital_centavos + cuota.interes_centavos + cuota.iva_interes_centavos + costo_op != cuota.cuota_total_centavos
+                        or min(cuota.capital_centavos, cuota.interes_centavos, cuota.iva_interes_centavos, costo_op, cuota.monto_pagado_centavos) < 0):
                         r['motivo'] = 'Los componentes de la cuota no concilian. Requiere revisión.'
                     elif p.estado not in ('ACTIVO', 'MORA') or cuota.estado in ('PAGADA', 'CANCELADA'):
                         r['motivo'] = 'La cuota o el préstamo ya no admite imputaciones.'
@@ -154,6 +168,26 @@ class RespuestasService:
                         r.update(estado='COBRAR' if r['aceptado'] else 'RECHAZAR', motivo='')
                         if r['aceptado']:
                             acumulado[cuota.id] += r['importe_centavos']
+                elif cuota_social:
+                    socio = cuota_social.socio
+                    r.update(tipo_concepto='CUOTA_SOCIAL', cuota_id=None, cuota_social_id=cuota_social.id,
+                             periodo=cuota_social.periodo,
+                             persona=(socio.nombre_completo if socio else None) or str(cuota_social.socio_id),
+                             persona_id=cuota_social.socio_id, documento=socio.documento if socio else None,
+                             prestamo_id=cuota_social.prestamo_id, numero_cuota=None,
+                             estado_actual=cuota_social.estado, pagado_actual=cuota_social.monto_pagado_centavos,
+                             saldo_actual=cuota_social.valor_centavos - cuota_social.monto_pagado_centavos,
+                             estado_prestamo='ACTIVO')
+                    if cuota_social.valor_centavos <= 0 or cuota_social.monto_pagado_centavos < 0:
+                        r['motivo'] = 'El importe de la cuota social no concilia. Requiere revisión.'
+                    elif cuota_social.estado in ('PAGADA', 'ANULADA'):
+                        r['motivo'] = 'La cuota social ya no admite imputaciones.'
+                    elif r['aceptado'] and r['importe_centavos'] + acumulado[f'cs:{cuota_social.id}'] > r['saldo_actual']:
+                        r['motivo'] = 'El total a imputar supera el saldo de la cuota social.'
+                    else:
+                        r.update(estado='COBRAR' if r['aceptado'] else 'RECHAZAR', motivo='')
+                        if r['aceptado']:
+                            acumulado[f'cs:{cuota_social.id}'] += r['importe_centavos']
             filas.append(r)
         resumen = dict(total=len(filas), cobrados=sum(r['estado'] == 'COBRAR' for r in filas),
                        rechazados=sum(r['estado'] == 'RECHAZAR' for r in filas),
@@ -190,31 +224,59 @@ class RespuestasService:
             self.db.add(carga)
             self.db.flush()
             prestamos, coopya_sync = {}, []
+            fp = datetime.combine(fecha_cobro, datetime.min.time(), tzinfo=timezone(timedelta(hours=-3))).astimezone(timezone.utc).replace(tzinfo=None)
             for r in aplicables:
-                cuota = self.db.get(Cuota, r['cuota_id'])
-                previo = desglose_cobrado(cuota)
-                if r['aceptado']:
-                    cuota.monto_pagado_centavos += r['importe_centavos']
-                    fp = datetime.combine(fecha_cobro, datetime.min.time(), tzinfo=timezone(timedelta(hours=-3))).astimezone(timezone.utc).replace(tzinfo=None)
-                    cuota.fecha_pago = max(cuota.fecha_pago or fp, fp)
-                    cuota.estado = 'PAGADA' if cuota.monto_pagado_centavos == cuota.cuota_total_centavos else 'PARCIAL'
-                elif not cuota.monto_pagado_centavos:
-                    cuota.estado = 'RECHAZADA'
-                nuevo = desglose_cobrado(cuota)
-                self.db.add(RespuestaBancariaDetalle(carga_id=carga.id, banco=banco,
-                    clave_operacion=r['clave'], huella_respuesta=r['huella'], linea=r['linea'],
-                    cuota_id=cuota.id, referencia=r['referencia'], codigo=r['codigo'],
-                    descripcion=r['descripcion'][:250], importe_centavos=r['importe_centavos'],
-                    cobrado_centavos=r['importe_centavos'] if r['aceptado'] else 0,
-                    capital_centavos=nuevo[0]-previo[0], interes_centavos=nuevo[1]-previo[1],
-                    iva_centavos=nuevo[2]-previo[2], saldo_cuota_centavos=cuota.cuota_total_centavos-cuota.monto_pagado_centavos,
-                    estado_cuota=cuota.estado))
-                prestamos[cuota.prestamo_id] = cuota.prestamo
-                if cuota.movimiento_coopya_id:
-                    nota = f"[{'Cobro' if r['aceptado'] else 'Rechazo'} {banco} Lote {lote} {fecha_cobro}{': ' + r['descripcion'] if not r['aceptado'] else ''}]"
-                    res_rechazo = r['codigo'] if (banco == 'BAPRO' and r['codigo']) else 'RECHAZADO'
-                    coopya_sync.append(dict(movimiento_id=cuota.movimiento_coopya_id, aceptado=r['aceptado'],
-                        es_total=cuota.estado == 'PAGADA', monto_cobrado_pesos=cuota.monto_pagado_centavos/100.0, nota=nota, resultado_rechazo=res_rechazo))
+                if r.get('cuota_id'):
+                    cuota = self.db.get(Cuota, r['cuota_id'])
+                    previo = desglose_cobrado_completo(cuota)
+                    if r['aceptado']:
+                        cuota.monto_pagado_centavos += r['importe_centavos']
+                        cuota.fecha_pago = max(cuota.fecha_pago or fp, fp)
+                        cuota.estado = 'PAGADA' if cuota.monto_pagado_centavos == cuota.cuota_total_centavos else 'PARCIAL'
+                    elif not cuota.monto_pagado_centavos:
+                        cuota.estado = 'RECHAZADA'
+                    nuevo = desglose_cobrado_completo(cuota)
+                    self.db.add(RespuestaBancariaDetalle(
+                        carga_id=carga.id, banco=banco,
+                        clave_operacion=r['clave'], huella_respuesta=r['huella'], linea=r['linea'],
+                        cuota_id=cuota.id, cuota_social_id=None,
+                        referencia=r['referencia'], codigo=r['codigo'],
+                        descripcion=r['descripcion'][:250], importe_centavos=r['importe_centavos'],
+                        cobrado_centavos=r['importe_centavos'] if r['aceptado'] else 0,
+                        capital_centavos=nuevo[0]-previo[0], interes_centavos=nuevo[1]-previo[1],
+                        iva_centavos=nuevo[2]-previo[2],
+                        costo_operativo_centavos=nuevo[3]-previo[3],
+                        cuota_social_centavos=0,
+                        saldo_cuota_centavos=cuota.cuota_total_centavos-cuota.monto_pagado_centavos,
+                        estado_cuota=cuota.estado,
+                    ))
+                    prestamos[cuota.prestamo_id] = cuota.prestamo
+                    if cuota.movimiento_coopya_id:
+                        nota = f"[{'Cobro' if r['aceptado'] else 'Rechazo'} {banco} Lote {lote} {fecha_cobro}{': ' + r['descripcion'] if not r['aceptado'] else ''}]"
+                        res_rechazo = r['codigo'] if (banco == 'BAPRO' and r['codigo']) else 'RECHAZADO'
+                        coopya_sync.append(dict(movimiento_id=cuota.movimiento_coopya_id, aceptado=r['aceptado'],
+                            es_total=cuota.estado == 'PAGADA', monto_cobrado_pesos=cuota.monto_pagado_centavos/100.0, nota=nota, resultado_rechazo=res_rechazo))
+                else:
+                    cs = self.db.get(CuotaSocial, r['cuota_social_id'])
+                    cobrado_cs = r['importe_centavos'] if r['aceptado'] else 0
+                    if r['aceptado']:
+                        cs.monto_pagado_centavos += cobrado_cs
+                        cs.fecha_pago = max(cs.fecha_pago or fp, fp)
+                        cs.estado = 'PAGADA' if cs.monto_pagado_centavos == cs.valor_centavos else 'PARCIAL'
+                    elif not cs.monto_pagado_centavos:
+                        cs.estado = 'RECHAZADA'
+                    self.db.add(RespuestaBancariaDetalle(
+                        carga_id=carga.id, banco=banco,
+                        clave_operacion=r['clave'], huella_respuesta=r['huella'], linea=r['linea'],
+                        cuota_id=None, cuota_social_id=cs.id,
+                        referencia=r['referencia'], codigo=r['codigo'],
+                        descripcion=r['descripcion'][:250], importe_centavos=r['importe_centavos'],
+                        cobrado_centavos=cobrado_cs,
+                        capital_centavos=0, interes_centavos=0, iva_centavos=0,
+                        costo_operativo_centavos=0, cuota_social_centavos=cobrado_cs,
+                        saldo_cuota_centavos=cs.valor_centavos - cs.monto_pagado_centavos,
+                        estado_cuota=cs.estado,
+                    ))
                 if banco == 'BAPRO':
                     a = self.db.get(PresentacionBaproAuditoria, r['auditoria_id'])
                     a.codigo_respuesta, a.fecha_respuesta = r['codigo'], datetime.utcnow()

@@ -3,9 +3,10 @@ import { login } from '../../services/api/authApi';
 
 interface LoginFormProps {
   onSuccess: (token: string) => void;
+  avisoError?: string | null;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, avisoError }) => {
   const [usuario, setUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,9 +86,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             {loading ? 'Verificando...' : 'Iniciar Sesión'}
           </button>
 
-          {error && (
+          {(error || avisoError) && (
             <div className="mt-5 p-3 bg-[#fee2e2] text-[#991b1b] rounded-md text-[0.875rem] text-center">
-              {error}
+              {error || avisoError}
             </div>
           )}
         </form>

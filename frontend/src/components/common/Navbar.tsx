@@ -6,7 +6,8 @@ import {
   CpuIcon,
   LogoutIcon,
   BuildingIcon,
-  FileTextIcon
+  FileTextIcon,
+  ExternalLinkIcon
 } from './Icons';
 
 export type TabKey =
@@ -17,24 +18,106 @@ interface NavbarProps {
   onTabChange: (tab: TabKey) => void;
   onLogout: () => void;
   esAccesoCompleto?: boolean;
+  sistemaCentralUrl: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onTabChange,
   onLogout,
-  esAccesoCompleto
+  esAccesoCompleto,
+  sistemaCentralUrl
 }) => {
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  const adminItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={15} /> },
+    { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={15} /> },
+    ...(esAccesoCompleto
+      ? [{ key: 'auditoria' as TabKey, label: 'Auditoría', icon: <FileTextIcon size={15} /> }]
+      : [])
+  ];
+
+  const presentacionesItems: { key: TabKey; label: string }[] = [
+    { key: 'bapro', label: 'Presentaciones BAPRO' },
+    { key: 'bna', label: 'Presentaciones BNA' }
+  ];
+
+  const directTabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
-    { key: 'bapro', label: 'Presentación BAPRO', icon: <BuildingIcon size={17} /> },
     { key: 'respuestas', label: 'Carga de respuesta', icon: <FileTextIcon size={17} /> },
-    { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> },
-    { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={17} /> },
-    { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={17} /> },
-    ...(esAccesoCompleto ? [{ key: 'auditoria' as TabKey, label: 'Auditoría', icon: <FileTextIcon size={17} /> }] : [])
+    { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> }
   ];
+
+  const renderDropdown = (
+    key: string,
+    label: string,
+    icon: React.ReactNode,
+    items: { key: TabKey; label: string; icon?: React.ReactNode }[]
+  ) => {
+    const active = items.some((it) => it.key === currentTab);
+    return (
+      <div
+        key={key}
+        className={`flex items-center gap-2 px-3.5 rounded-md ${
+          active ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'text-[#475569]'
+        }`}
+      >
+        {icon}
+        <details className="relative group">
+          <summary
+            className={`list-none py-2 text-[0.85rem] cursor-pointer select-none [&::-webkit-details-marker]:hidden ${
+              active ? 'font-semibold' : 'font-medium'
+            }`}
+          >
+            {label} <span aria-hidden="true" className="ml-1 text-xs">▾</span>
+          </summary>
+          <div className="absolute left-0 top-full z-[60] mt-1 min-w-52 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+            {items.map((item) => {
+              const itemActive = currentTab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={(event) => {
+                    onTabChange(item.key);
+                    event.currentTarget.closest('details')?.removeAttribute('open');
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm cursor-pointer hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600 ${
+                    itemActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700'
+                  }`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </details>
+      </div>
+    );
+  };
+
+  const renderTabButton = (t: { key: TabKey; label: string; icon: React.ReactNode }) => {
+    const active = currentTab === t.key;
+    return (
+      <button
+        key={t.key}
+        onClick={() => onTabChange(t.key)}
+        className={[
+          'flex items-center gap-2 p-[0.5rem_0.875rem] rounded-md [border:none]',
+          active ? 'bg-[#eff6ff]' : 'bg-transparent',
+          active ? 'text-[#1d4ed8]' : 'text-[#475569]',
+          active ? 'font-semibold' : 'font-medium',
+          'cursor-pointer text-[0.85rem] [outline:none]'
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <span className={active ? 'text-[#2563eb]' : 'text-[#64748b]'}>{t.icon}</span>
+        <span>{t.label}</span>
+      </button>
+    );
+  };
 
   return (
     <header className="w-full bg-[#ffffff] [border-bottom:1px_solid_#e2e8f0] p-[0.75rem_2rem] flex justify-between items-center sticky top-0 z-[50] shadow-[0_1px_2px_0_rgba(0,_0,_0,_0.03)]">
@@ -56,76 +139,33 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Navigation Tabs */}
         <nav className="flex gap-[0.375rem] flex-wrap">
-          {tabs.map((t) => {
-            if (t.key === 'bapro') {
-              const active = currentTab === 'bapro' || currentTab === 'bna';
-              return (
-                <div
-                  key="presentaciones"
-                  className={`flex items-center gap-2 px-3.5 rounded-md ${active ? 'bg-[#eff6ff] text-[#1d4ed8]' : 'text-[#475569]'}`}
-                >
-                  <BuildingIcon size={17} />
-                  <details className="relative group">
-                    <summary className="list-none py-2 text-[0.85rem] font-medium cursor-pointer select-none [&::-webkit-details-marker]:hidden">
-                      Presentaciones <span aria-hidden="true" className="ml-1 text-xs">▾</span>
-                    </summary>
-                    <div className="absolute left-0 top-full z-[60] mt-1 min-w-52 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-                      {(['bapro', 'bna'] as const).map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={(event) => {
-                            onTabChange(tab);
-                            event.currentTarget.closest('details')?.removeAttribute('open');
-                          }}
-                          className="block w-full rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-600"
-                        >
-                          {tab === 'bapro' ? 'Presentaciones BAPRO' : 'Presentaciones BNA'}
-                        </button>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-              );
-            }
-            const active = currentTab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => onTabChange(t.key)}
-                className={[
-                  'flex items-center gap-2 p-[0.5rem_0.875rem] rounded-md [border:none]',
-                  active ? 'bg-[#eff6ff]' : 'bg-transparent',
-                  active ? 'text-[#1d4ed8]' : 'text-[#475569]',
-                  active ? 'font-semibold' : 'font-medium',
-                  'cursor-pointer text-[0.85rem] [outline:none]'
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              >
-                <span className={active ? 'text-[#2563eb]' : 'text-[#64748b]'}>
-                  {t.icon}
-                </span>
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
+          {renderTabButton(directTabs[0])}
+          {renderTabButton(directTabs[1])}
+          {renderDropdown('presentaciones', 'Presentaciones', <BuildingIcon size={17} />, presentacionesItems)}
+          {renderTabButton(directTabs[2])}
+          {renderTabButton(directTabs[3])}
+          {renderDropdown('admin', 'Admin', <SlidersIcon size={17} />, adminItems)}
         </nav>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-[0.4rem] text-[0.75rem] text-[#047857] bg-[#ecfdf5] [border:1px_solid_#a7f3d0] p-[0.25rem_0.625rem] rounded-[999px] font-semibold">
-          <span className="w-[6px] h-[6px] rounded-[50%] bg-[#10b981]" />
-          Operador Autenticado
-        </div>
+      <div className="flex items-center gap-2.5">
+        <a
+          href={sistemaCentralUrl}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md [border:1px_solid_#bfdbfe] bg-[#eff6ff] text-[#1d4ed8] text-[0.8rem] font-semibold no-underline hover:bg-[#dbeafe] transition-colors whitespace-nowrap"
+        >
+          <ExternalLinkIcon size={14} color="#1d4ed8" />
+          <span>Ir al Sistema Central</span>
+        </a>
 
         <button
+          type="button"
           onClick={onLogout}
-          className="flex items-center gap-[0.4rem] p-[0.45rem_0.85rem] rounded-md [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#475569] text-[0.825rem] font-medium cursor-pointer hover:[border-color:#94a3b8] hover:text-[#0f172a]"
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+          className="inline-flex items-center justify-center p-2 rounded-md [border:1px_solid_#cbd5e1] bg-[#ffffff] text-[#475569] cursor-pointer hover:[border-color:#94a3b8] hover:text-[#0f172a]"
         >
-          <LogoutIcon size={14} color="#64748b" />
-          <span>Cerrar Sesión</span>
+          <LogoutIcon size={16} color="#475569" />
         </button>
       </div>
     </header>

@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Persona, CuentaCorrienteResumen } from '../../types/persona';
 import { Prestamo } from '../../types/prestamo';
+import { SocioCuotaSocialEstado } from '../../types/cuotaSocial';
 import { getPrestamos } from '../../services/api/prestamosApi';
+import {
+  activarCuotaSocialSocio,
+  bajaCuotaSocialSocio,
+  getEstadoCuotaSocialSocio,
+} from '../../services/api/cuotasSocialesApi';
 import { formatPesos, formatMoney } from '../../utils/formatters';
 import {
   CheckCircleIcon,
@@ -27,16 +33,73 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
 }) => {
   const [prestamosSocio, setPrestamosSocio] = useState<Prestamo[]>([]);
   const [modalCcAbierto, setModalCcAbierto] = useState(false);
+  const [cuotaSocialEstado, setCuotaSocialEstado] = useState<SocioCuotaSocialEstado | null>(null);
+  const [procesandoCs, setProcesandoCs] = useState(false);
+  const [csError, setCsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (persona?.idPersona) {
       getPrestamos({ persona_id: persona.idPersona })
         .then(setPrestamosSocio)
         .catch(() => setPrestamosSocio([]));
+      getEstadoCuotaSocialSocio(persona.idPersona)
+        .then((estado) => {
+          setCuotaSocialEstado(estado);
+          setCsError(null);
+        })
+        .catch(() => setCuotaSocialEstado(null));
     } else {
       setPrestamosSocio([]);
+      setCuotaSocialEstado(null);
     }
   }, [persona]);
+
+  const handleBajaCuotaSocial = async () => {
+    if (!persona?.idPersona) return;
+    if (
+      !window.confirm(
+        `¿Dar de baja la Cuota Social de ${persona.apellido} ${persona.nombre}? Se anularán los períodos pendientes aún no presentados.`
+      )
+    ) {
+      return;
+    }
+    setProcesandoCs(true);
+    setCsError(null);
+    try {
+      const actualizado = await bajaCuotaSocialSocio(persona.idPersona);
+      setCuotaSocialEstado(actualizado);
+    } catch (err: any) {
+      setCsError(err.message || 'No se pudo dar de baja la Cuota Social');
+    } finally {
+      setProcesandoCs(false);
+    }
+  };
+
+  const handleActivarCuotaSocial = async () => {
+    if (!persona?.idPersona) return;
+    const valorActual = cuotaSocialEstado?.valor_centavos
+      ? cuotaSocialEstado.valor_centavos / 100
+      : 5500;
+    const ingresado = window.prompt('Importe mensual de Cuota Social ($):', String(valorActual));
+    if (ingresado === null) return;
+    const montoPesos = Number(ingresado);
+    if (!Number.isFinite(montoPesos) || montoPesos <= 0) {
+      setCsError('El importe debe ser mayor a cero.');
+      return;
+    }
+    setProcesandoCs(true);
+    setCsError(null);
+    try {
+      const actualizado = await activarCuotaSocialSocio(persona.idPersona, {
+        valor_centavos: Math.round(montoPesos * 100),
+      });
+      setCuotaSocialEstado(actualizado);
+    } catch (err: any) {
+      setCsError(err.message || 'No se pudo activar la Cuota Social');
+    } finally {
+      setProcesandoCs(false);
+    }
+  };
 
   return (
     <div className="bg-[#ffffff] [border:1px_solid_#e2e8f0] rounded-xl p-6 shadow-[0_1px_3px_0_rgba(0,_0,_0,_0.04)] sticky top-20">
@@ -138,6 +201,55 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
           </div>
         )}
       </div>
+
+      {/* Cuota Social Cooperativa */}
+      {cuotaSocialEstado && (
+        <div className="mb-5 bg-[#f8fafc] p-[0.75rem_1rem] rounded-lg [border:1px_solid_#e2e8f0]">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[0.8rem] font-semibold text-[#334155]">
+              Cuota Social Mensual:
+            </span>
+            <span
+              className={`text-[0.72rem] font-bold px-2 py-0.5 rounded ${
+                cuotaSocialEstado.activa
+                  ? 'bg-[#dcfce7] text-[#15803d]'
+                  : 'bg-[#f1f5f9] text-[#64748b]'
+              }`}
+            >
+              {cuotaSocialEstado.activa ? 'ACTIVA' : 'INACTIVA'}
+            </span>
+          </div>
+          <div className="text-[0.8rem] text-[#475569] mb-2">
+            Valor actual:{' '}
+            <strong className="text-[#0f172a]">
+              {formatMoney(cuotaSocialEstado.valor_centavos)}
+            </strong>{' '}
+            · {cuotaSocialEstado.cuotas.filter((c) => c.estado !== 'ANULADA').length} períodos
+          </div>
+          {csError && (
+            <div className="text-[0.75rem] text-[#b91c1c] mb-2">{csError}</div>
+          )}
+          {cuotaSocialEstado.activa ? (
+            <button
+              type="button"
+              disabled={procesandoCs}
+              onClick={handleBajaCuotaSocial}
+              className="w-full p-[0.45rem_0.75rem] rounded-md [border:1px_solid_#fecaca] bg-[#fef2f2] text-[#b91c1c] text-[0.75rem] font-semibold cursor-pointer disabled:opacity-60"
+            >
+              {procesandoCs ? 'Procesando...' : 'Dar de baja Cuota Social'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={procesandoCs}
+              onClick={handleActivarCuotaSocial}
+              className="w-full p-[0.45rem_0.75rem] rounded-md [border:1px_solid_#bfdbfe] bg-[#eff6ff] text-[#1d4ed8] text-[0.75rem] font-semibold cursor-pointer disabled:opacity-60"
+            >
+              {procesandoCs ? 'Procesando...' : 'Activar Cuota Social'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Préstamos en Sistema Propio */}
       <div className="mb-6 bg-[#f8fafc] p-[0.75rem_1rem] rounded-lg [border:1px_solid_#e2e8f0]">

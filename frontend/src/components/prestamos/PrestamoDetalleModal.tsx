@@ -25,6 +25,9 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
 
   const cuotas = prestamo.cuotas || [];
   const cuotasPagadas = cuotas.filter((c) => c.estado === 'PAGADA').length;
+  const tieneCostoOperativo =
+    (prestamo.total_costo_operativo_centavos ?? 0) > 0 ||
+    cuotas.some((c) => (c.costo_operativo_centavos ?? 0) > 0);
 
   const handlePagarCuota = async (c: CuotaPrestamo) => {
     if (
@@ -187,7 +190,12 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
               {formatMoney(prestamo.total_a_pagar_centavos)}
             </div>
             <div className="text-[#64748b] text-[0.75rem] mt-[0.2rem]">
-              Línea: {prestamo.linea_snapshot?.linea_nombre || 'Sin línea'}
+              {prestamo.cft_tea != null && Number(prestamo.cft_tea) > 0
+                ? `CFT TEA: ${formatPct(prestamo.cft_tea)}`
+                : `Línea: ${prestamo.linea_snapshot?.linea_nombre || 'Sin línea'}`}
+              {tieneCostoOperativo && (
+                <span> · Costo Op: {formatMoney(prestamo.total_costo_operativo_centavos ?? 0)}</span>
+              )}
             </div>
           </div>
         </div>
@@ -246,6 +254,9 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
                   <th className="p-[0.65rem_0.75rem]">Capital</th>
                   <th className="p-[0.65rem_0.75rem]">Interés</th>
                   <th className="p-[0.65rem_0.75rem]">IVA s/Int</th>
+                  {tieneCostoOperativo && (
+                    <th className="p-[0.65rem_0.75rem]">Costo Op.</th>
+                  )}
                   <th className="p-[0.65rem_0.75rem] text-[#1d4ed8]">
                     Cuota Total
                   </th>
@@ -287,6 +298,11 @@ export const PrestamoDetalleModal: React.FC<PrestamoDetalleModalProps> = ({
                     <td className="p-[0.65rem_0.75rem] text-[#64748b]">
                       {formatMoney(c.iva_interes_centavos)}
                     </td>
+                    {tieneCostoOperativo && (
+                      <td className="p-[0.65rem_0.75rem] text-[#b45309]">
+                        {formatMoney(c.costo_operativo_centavos ?? 0)}
+                      </td>
+                    )}
                     <td className="p-[0.65rem_0.75rem] font-bold text-[#1d4ed8]">
                       {formatMoney(c.cuota_total_centavos)}
                       {c.monto_pagado_centavos > 0 && c.estado !== 'PAGADA' && <small className="block text-[#92400e]">Pendiente: {formatMoney(c.cuota_total_centavos - c.monto_pagado_centavos)}</small>}

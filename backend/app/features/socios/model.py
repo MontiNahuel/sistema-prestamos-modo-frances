@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -10,11 +10,18 @@ class Socio(Base):
     id = Column(Integer, primary_key=True, autoincrement=False)  # id_persona proveniente de CoopYa / Oracle
     nombre_completo = Column(String(200), nullable=False)
     documento = Column(String(20), nullable=True, index=True)
+    cuota_social_activa = Column(Boolean, default=False, nullable=False)
+    cuota_social_valor_centavos = Column(BigInteger, default=550000, nullable=False)
+    cuota_social_prestamo_id = Column(String(36), nullable=True)
+    cuota_social_fecha_alta = Column(DateTime, nullable=True)
+    cuota_social_fecha_baja = Column(DateTime, nullable=True)
+    cuota_social_ultimo_vencimiento_dia = Column(Integer, default=10, nullable=False)
     fecha_alta = Column(DateTime, default=datetime.utcnow, nullable=False)
     fecha_ultima_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relaciones
     prestamos = relationship("Prestamo", back_populates="socio")
+    cuotas_sociales = relationship("CuotaSocial", back_populates="socio", order_by="CuotaSocial.fecha_vencimiento")
     medios_de_pago = relationship("MedioDePago", back_populates="socio", cascade="all, delete-orphan")
 
 
@@ -45,3 +52,6 @@ class MedioDePago(Base):
 
     socio = relationship("Socio", back_populates="medios_de_pago")
     banco = relationship("TipoBanco", back_populates="medios_de_pago")
+
+
+import app.features.cuotas_sociales.model  # noqa: E402, F401

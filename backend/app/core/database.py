@@ -166,6 +166,79 @@ def _asegurar_columnas_criticas(db_engine):
                 + CAST(@max_num + 1 AS NVARCHAR(20)) + N' INCREMENT BY 1;';
             EXEC sp_executesql @sql;
         END
+        """,
+        # Costo Operativo, CFT y Cuotas Sociales
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'socios')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_activa')
+                ALTER TABLE socios ADD cuota_social_activa BIT NOT NULL CONSTRAINT DF_socios_cuota_social_activa DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_valor_centavos')
+                ALTER TABLE socios ADD cuota_social_valor_centavos BIGINT NOT NULL CONSTRAINT DF_socios_cuota_social_valor DEFAULT 550000;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_prestamo_id')
+                ALTER TABLE socios ADD cuota_social_prestamo_id VARCHAR(36) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_fecha_alta')
+                ALTER TABLE socios ADD cuota_social_fecha_alta DATETIME NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_fecha_baja')
+                ALTER TABLE socios ADD cuota_social_fecha_baja DATETIME NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('socios') AND name = 'cuota_social_ultimo_vencimiento_dia')
+                ALTER TABLE socios ADD cuota_social_ultimo_vencimiento_dia INT NOT NULL CONSTRAINT DF_socios_cuota_social_dia DEFAULT 10;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'prestamos')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'costo_operativo_tipo')
+                ALTER TABLE prestamos ADD costo_operativo_tipo VARCHAR(20) NOT NULL CONSTRAINT DF_prestamos_costo_op_tipo DEFAULT 'FIJO';
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'costo_operativo_centavos')
+                ALTER TABLE prestamos ADD costo_operativo_centavos BIGINT NOT NULL CONSTRAINT DF_prestamos_costo_op_centavos DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'costo_operativo_porcentaje')
+                ALTER TABLE prestamos ADD costo_operativo_porcentaje NUMERIC(10, 6) NOT NULL CONSTRAINT DF_prestamos_costo_op_pct DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'total_costo_operativo_centavos')
+                ALTER TABLE prestamos ADD total_costo_operativo_centavos BIGINT NOT NULL CONSTRAINT DF_prestamos_total_costo_op DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'cft_tna')
+                ALTER TABLE prestamos ADD cft_tna NUMERIC(12, 6) NOT NULL CONSTRAINT DF_prestamos_cft_tna DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('prestamos') AND name = 'cft_tea')
+                ALTER TABLE prestamos ADD cft_tea NUMERIC(12, 6) NOT NULL CONSTRAINT DF_prestamos_cft_tea DEFAULT 0;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'cuotas')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('cuotas') AND name = 'costo_operativo_centavos')
+                ALTER TABLE cuotas ADD costo_operativo_centavos BIGINT NOT NULL CONSTRAINT DF_cuotas_costo_op_centavos DEFAULT 0;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'presentaciones_bapro_auditoria')
+           AND EXISTS (SELECT 1 FROM sys.tables WHERE name = 'cuotas_sociales')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('presentaciones_bapro_auditoria') AND name = 'cuota_social_id')
+                ALTER TABLE presentaciones_bapro_auditoria ADD cuota_social_id VARCHAR(36) NULL;
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'presentaciones_bna_auditoria')
+           AND EXISTS (SELECT 1 FROM sys.tables WHERE name = 'cuotas_sociales')
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('presentaciones_bna_auditoria') AND name = 'cuota_social_id')
+                ALTER TABLE presentaciones_bna_auditoria ADD cuota_social_id VARCHAR(36) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('presentaciones_bna_auditoria') AND name = 'tipo_importe')
+                ALTER TABLE presentaciones_bna_auditoria ADD tipo_importe VARCHAR(50) NOT NULL CONSTRAINT DF_bna_auditoria_tipo_importe DEFAULT 'Prestamo';
+        END
+        """,
+        """
+        IF EXISTS (SELECT 1 FROM sys.tables WHERE name = 'respuestas_bancarias_detalle')
+        BEGIN
+            IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_detalle') AND name = 'cuota_id' AND is_nullable = 0)
+                ALTER TABLE respuestas_bancarias_detalle ALTER COLUMN cuota_id VARCHAR(36) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_detalle') AND name = 'cuota_social_id')
+                ALTER TABLE respuestas_bancarias_detalle ADD cuota_social_id VARCHAR(36) NULL;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_detalle') AND name = 'costo_operativo_centavos')
+                ALTER TABLE respuestas_bancarias_detalle ADD costo_operativo_centavos BIGINT NOT NULL CONSTRAINT DF_resp_det_costo_op DEFAULT 0;
+            IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_detalle') AND name = 'cuota_social_centavos')
+                ALTER TABLE respuestas_bancarias_detalle ADD cuota_social_centavos BIGINT NOT NULL CONSTRAINT DF_resp_det_cuota_social DEFAULT 0;
+        END
         """
     ]
     try:

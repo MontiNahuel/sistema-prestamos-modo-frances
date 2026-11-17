@@ -10,92 +10,60 @@ import {
   ProximoNumeroListaResponse,
   ValidarNumeroListaResponse,
 } from '../../types/presentacionesBapro';
+import { apiClient, apiFetchRaw } from './client';
 
-const BACKEND = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_BACKEND_URL || '';
-const BAPRO_BASE = `${BACKEND}/api/v1/presentaciones-bapro`;
-const EMPRESAS_BASE = `${BACKEND}/api/v1/empresas-originantes`;
+const BAPRO_BASE = '/api/v1/presentaciones-bapro';
+const EMPRESAS_BASE = '/api/v1/empresas-originantes';
 
 export async function getEmpresasOriginantes(soloActivas = false): Promise<EmpresaOriginante[]> {
   const url = soloActivas ? `${EMPRESAS_BASE}?solo_activas=true` : EMPRESAS_BASE;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Error al cargar empresas originantes');
-  return res.json();
+  return apiClient<EmpresaOriginante[]>(url);
 }
 
 export async function crearEmpresaOriginante(data: EmpresaOriginanteCreate): Promise<EmpresaOriginante> {
-  const res = await fetch(EMPRESAS_BASE, {
+  return apiClient<EmpresaOriginante>(EMPRESAS_BASE, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al crear empresa originante');
-  }
-  return res.json();
 }
 
 export async function actualizarEmpresaOriginante(id: number, data: Partial<EmpresaOriginanteCreate>): Promise<EmpresaOriginante> {
-  const res = await fetch(`${EMPRESAS_BASE}/${id}`, {
+  return apiClient<EmpresaOriginante>(`${EMPRESAS_BASE}/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al actualizar empresa originante');
-  }
-  return res.json();
 }
 
 export async function eliminarEmpresaOriginante(id: number): Promise<void> {
-  const res = await fetch(`${EMPRESAS_BASE}/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Error al eliminar empresa originante');
+  await apiClient<void>(`${EMPRESAS_BASE}/${id}`, { method: 'DELETE' });
 }
 
 export async function getProximoNroLista(): Promise<ProximoNumeroListaResponse> {
-  const res = await fetch(`${BAPRO_BASE}/proximo-nro-lista`);
-  if (!res.ok) throw new Error('Error al obtener próximo número de lista');
-  return res.json();
+  return apiClient<ProximoNumeroListaResponse>(`${BAPRO_BASE}/proximo-nro-lista`);
 }
 
 export async function validarNroLista(nro: number): Promise<ValidarNumeroListaResponse> {
-  const res = await fetch(`${BAPRO_BASE}/validar-nro-lista/${nro}`);
-  if (!res.ok) throw new Error('Error al validar número de lista');
-  return res.json();
+  return apiClient<ValidarNumeroListaResponse>(`${BAPRO_BASE}/validar-nro-lista/${nro}`);
 }
 
 export async function buscarCuotasBapro(params: BuscarCuotasBaproParams): Promise<BuscarCuotasBaproResponse> {
-  const res = await fetch(`${BAPRO_BASE}/buscar-cuotas`, {
+  return apiClient<BuscarCuotasBaproResponse>(`${BAPRO_BASE}/buscar-cuotas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al buscar cuotas presentables');
-  }
-  return res.json();
 }
 
 export async function generarPresentacionBapro(
   payload: GenerarPresentacionBaproRequest
 ): Promise<GenerarPresentacionBaproResponse> {
-  const res = await fetch(`${BAPRO_BASE}/generar`, {
+  return apiClient<GenerarPresentacionBaproResponse>(`${BAPRO_BASE}/generar`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al generar la presentación BAPRO');
-  }
-  return res.json();
 }
 
 export async function descargarArchivoBapro(nroArchivo: number, nombreArchivo: string): Promise<void> {
-  const res = await fetch(`${BAPRO_BASE}/descargar/${nroArchivo}`);
-  if (!res.ok) throw new Error('Error al descargar el archivo físico');
+  const res = await apiFetchRaw(`${BAPRO_BASE}/descargar/${nroArchivo}`);
   const blob = await res.blob();
   const downloadUrl = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -115,19 +83,12 @@ export async function cargarRespuestaBapro(
   formData.append('nro_archivo', nroArchivo.toString());
   formData.append('file', file);
 
-  const res = await fetch(`${BAPRO_BASE}/cargar-respuesta`, {
+  return apiClient<ProcesarRespuestaBaproResponse>(`${BAPRO_BASE}/cargar-respuesta`, {
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Error al procesar el archivo de respuesta');
-  }
-  return res.json();
 }
 
 export async function getArchivosBapro(): Promise<PresentacionBaproArchivo[]> {
-  const res = await fetch(`${BAPRO_BASE}/archivos`);
-  if (!res.ok) throw new Error('Error al listar archivos de presentaciones BAPRO');
-  return res.json();
+  return apiClient<PresentacionBaproArchivo[]>(`${BAPRO_BASE}/archivos`);
 }

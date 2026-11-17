@@ -51,7 +51,10 @@ class SimulacionService:
                 tasa_anual=req.tna,
                 alicuota_iva=req.alicuota_iva,
                 config=cfg,
-                fecha_primer_vencimiento=req.fecha_primer_vencimiento
+                fecha_primer_vencimiento=req.fecha_primer_vencimiento,
+                costo_operativo_tipo=req.costo_operativo_tipo,
+                costo_operativo_centavos=req.costo_operativo_centavos,
+                costo_operativo_porcentaje=req.costo_operativo_porcentaje,
             )
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

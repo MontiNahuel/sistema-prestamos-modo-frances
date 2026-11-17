@@ -18,8 +18,10 @@ import { PresentacionesBaproPanel } from './components/presentaciones_bapro/Pres
 import { RespuestasPanel } from './features/respuestas/RespuestasPanel';
 import { PresentacionesBnaPanel } from './components/presentaciones_bna/PresentacionesBnaPanel';
 import { getPerfilActual } from './services/api/authApi';
+import { ApiError } from './services/api/client';
 import { UserProfile } from './types/auth';
 import { createLinea } from './services/api/lineasApi';
+import { armarUrlSistemaCentral, extraerTokenSsoDeUrl } from './utils/ssoHelpers';
 
 import {
   Persona,
@@ -33,19 +35,54 @@ import { simularPrestamo } from './services/api/simuladorApi';
 import { CheckCircleIcon, FileTextIcon } from './components/common/Icons';
 
 export default function App() {
-  const [token, setToken] = useState<string>(
-    () => localStorage.getItem('coopya_token') || ''
-  );
+  const [token, setToken] = useState<string>(() => {
+    const sso = extraerTokenSsoDeUrl(
+      window.location.search,
+      window.location.hash,
+      window.location.pathname
+    );
+    if (sso.nuevaUrl) {
+      window.history.replaceState({}, '', sso.nuevaUrl);
+    }
+    if (sso.token) {
+      localStorage.setItem('coopya_token', sso.token);
+      return sso.token;
+    }
+    return localStorage.getItem('coopya_token') || '';
+  });
   const [currentTab, setCurrentTab] = useState<TabKey>('personas');
   const [perfil, setPerfil] = useState<UserProfile | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (token) {
-      getPerfilActual().then(setPerfil).catch(() => setPerfil(null));
-    } else {
-      setPerfil(null);
-    }
+    if (!token) return;
+    let cancelado = false;
+    getPerfilActual()
+      .then((p) => {
+        if (!cancelado) {
+          setPerfil(p);
+          setAuthError(null);
+        }
+      })
+      .catch((err) => {
+        if (cancelado) return;
+        setPerfil(null);
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem('coopya_token');
+          setToken('');
+          setAuthError('Tu sesión SSO expiró o no es válida. Iniciá sesión nuevamente.');
+        }
+      });
+    return () => {
+      cancelado = true;
+    };
   }, [token]);
+
+  const perfilActivo = token ? perfil : null;
+  const sistemaCentralUrl = armarUrlSistemaCentral(
+    (import.meta as any).env?.VITE_COOPYA_URL || perfilActivo?.sistema_central_url,
+    token
+  );
   const [reportePrestamoId, setReportePrestamoId] = useState<
     string | undefined
   >();
@@ -77,6 +114,8 @@ export default function App() {
   const [revisionLineas, setRevisionLineas] = useState(0);
   const [nuevaLinea, setNuevaLinea] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
+  const [incluirCuotaSocial, setIncluirCuotaSocial] = useState<boolean>(true);
+  const [cuotaSocialPesos, setCuotaSocialPesos] = useState<number | ''>(5500);
   const revisionSimulacion = useRef(0);
   const condicionesSimuladas = useMemo(
     () =>
@@ -124,11 +163,14 @@ export default function App() {
   }, [token]);
 
   const handleLoginSuccess = (newToken: string) => {
+    setAuthError(null);
     setToken(newToken);
   };
 
   const handleLogout = () => {
     invalidarSimulacion();
+    setAuthError(null);
+    setPerfil(null);
     setToken('');
     setPersonaSeleccionada(null);
     setPersonas([]);
@@ -216,7 +258,7 @@ export default function App() {
 
   // Si no está autenticado, mostramos el login
   if (!token) {
-    return <LoginForm onSuccess={handleLoginSuccess} />;
+    return <LoginForm onSuccess={handleLoginSuccess} avisoError={authError} />;
   }
 
   return (
@@ -229,7 +271,8 @@ export default function App() {
           setCurrentTab(tab);
         }}
         onLogout={handleLogout}
-        esAccesoCompleto={perfil?.es_acceso_completo}
+        esAccesoCompleto={perfilActivo?.es_acceso_completo}
+        sistemaCentralUrl={sistemaCentralUrl}
       />
 
       <main className="p-[1.75rem_2.5rem] w-full box-border">
@@ -368,6 +411,10 @@ export default function App() {
                 simulando={simulando}
                 personaSeleccionada={personaSeleccionada}
                 onSeleccionarPersona={handleSeleccionarPersonaDesdeSimulador}
+                incluirCuotaSocial={incluirCuotaSocial}
+                onIncluirCuotaSocialChange={setIncluirCuotaSocial}
+                cuotaSocialPesos={cuotaSocialPesos}
+                onCuotaSocialPesosChange={setCuotaSocialPesos}
               />
 
               <div>
@@ -416,7 +463,7 @@ export default function App() {
                     </div>
 
                     <SimuladorTarjetas plan={planResultado} />
-                    <CronogramaTabla cronograma={planResultado.cronograma} />
+                    <CronogramaTabla cronograma={planResultado.cronograma} plan={planResultado} />
                     {ultimoPayload && !ultimoPayload.linea_id && (
                       <div className="mt-6 p-6 bg-[#eff6ff] [border:1px_solid_#bfdbfe] rounded-xl">
                         {lineaCreada ? (
@@ -466,6 +513,10 @@ export default function App() {
               onSeleccionarPersona={handleSeleccionarPersona}
               payload={ultimoPayload}
               plan={planResultado}
+              incluirCuotaSocial={incluirCuotaSocial}
+              onIncluirCuotaSocialChange={setIncluirCuotaSocial}
+              cuotaSocialPesos={cuotaSocialPesos}
+              onCuotaSocialPesosChange={setCuotaSocialPesos}
               onOtorgado={handlePrestamoOtorgado}
             />
             <LineaModal

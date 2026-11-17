@@ -1,8 +1,10 @@
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, Header, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.features.auth.controller import obtener_operador_opcional
+from app.features.auth.service import OperadorResuelto
 from app.features.prestamos.schemas import PrestamoCreate, PrestamoResponse
 from app.features.prestamos.repository import PrestamoRepository
 from app.features.lineas.repository import LineaPrestamoRepository
@@ -38,7 +40,7 @@ def get_prestamo_service(db: Session = Depends(get_db)) -> PrestamoService:
 @router.post("", response_model=PrestamoResponse, status_code=status.HTTP_201_CREATED, summary="Otorgar un nuevo préstamo oficial")
 def otorgar_prestamo(
     req: PrestamoCreate,
-    x_user: Optional[str] = Header(None, alias="X-User-Name"),
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PrestamoService = Depends(get_prestamo_service)
 ):
     """
@@ -46,7 +48,7 @@ def otorgar_prestamo(
     persiste el contrato junto con sus cuotas y el snapshot legal inmutable, y audita el evento.
     """
     try:
-        return service.otorgar_prestamo(req, usuario_operador=x_user)
+        return service.otorgar_prestamo(req, usuario_operador=operador.usuario)
     except HTTPException:
         raise
     except Exception as e:
@@ -88,19 +90,19 @@ def obtener_prestamo(
 @router.post("/{prestamo_id}/cancelar", response_model=PrestamoResponse, summary="Cancelar un préstamo otorgado")
 def cancelar_prestamo(
     prestamo_id: str,
-    x_user: Optional[str] = Header(None, alias="X-User-Name"),
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PrestamoService = Depends(get_prestamo_service)
 ):
     """Cancela un préstamo y sus cuotas pendientes con auditoría."""
-    return service.cancelar(prestamo_id, usuario_operador=x_user)
+    return service.cancelar(prestamo_id, usuario_operador=operador.usuario)
 
 
 @router.post("/{prestamo_id}/cuotas/{numero_cuota}/pagar", response_model=PrestamoResponse, summary="Registrar cobro de una cuota")
 def pagar_cuota(
     prestamo_id: str,
     numero_cuota: int,
-    x_user: Optional[str] = Header(None, alias="X-User-Name"),
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PrestamoService = Depends(get_prestamo_service)
 ):
     """Registra el pago de una cuota del préstamo, actualiza el saldo deudor y audita el cobro."""
-    return service.pagar_cuota(prestamo_id=prestamo_id, numero_cuota=numero_cuota, usuario_operador=x_user)
+    return service.pagar_cuota(prestamo_id=prestamo_id, numero_cuota=numero_cuota, usuario_operador=operador.usuario)

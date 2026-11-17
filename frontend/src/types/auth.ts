@@ -16,4 +16,5 @@ export interface UserProfile {
   mail?: string;
   roles: string[];
   es_acceso_completo: boolean;
+  sistema_central_url?: string | null;
 }

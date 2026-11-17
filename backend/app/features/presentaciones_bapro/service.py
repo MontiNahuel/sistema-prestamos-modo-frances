@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.domain.enums import TipoCuotaPresentacion
+from app.features.cuotas_sociales.model import CuotaSocial
 from app.features.prestamos.model import Cuota, Prestamo
 from app.features.socios.model import Socio
 from app.features.empresas.repository import EmpresaOriginanteRepository
@@ -65,6 +67,7 @@ class PresentacionBaproService:
         incluir_presentadas: bool = True,
         base_filtrada: bool = False,
         usuario_id: Optional[int] = None,
+        tipo_cuota: TipoCuotaPresentacion = TipoCuotaPresentacion.CUOTA_PRESTAMO,
     ) -> BuscarCuotasBaproResponse:
         dnis_excluidos = self.dni_repo.obtener_todos_dnis()
         ids_filtrados = set(self.filtro_repo.obtener_ids_personas(usuario_id)) if (base_filtrada and usuario_id) else None
@@ -76,14 +79,18 @@ class PresentacionBaproService:
             dni_desde=dni_desde,
             dni_hasta=dni_hasta,
             incluir_presentadas=incluir_presentadas,
+            tipo_cuota=tipo_cuota,
         )
 
     def generar_presentacion_bapro(
-        self, req: GenerarPresentacionBaproRequest, usuario_id: Optional[int] = None
+        self,
+        req: GenerarPresentacionBaproRequest,
+        usuario_id: Optional[int] = None,
+        usuario_operador: Optional[str] = None,
     ) -> Tuple[GenerarPresentacionBaproResponse, bytes]:
         from app.features.respuestas_bancarias.service import bloquear_cobranzas
         bloquear_cobranzas(self.db)
-        if not req.cuota_ids:
+        if not req.cuota_ids and not req.cuota_social_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debe seleccionar al menos una cuota")
 
         empresa = (
@@ -105,9 +112,32 @@ class PresentacionBaproService:
             .join(Socio, Prestamo.persona_id == Socio.id)
             .filter(Cuota.id.in_(req.cuota_ids))
             .all()
+            if req.cuota_ids
+            else []
         )
-        if not cuotas:
+        cuotas_sociales = (
+            self.db.query(CuotaSocial, Socio)
+            .join(Socio, CuotaSocial.socio_id == Socio.id)
+            .filter(CuotaSocial.id.in_(req.cuota_social_ids))
+            .all()
+            if req.cuota_social_ids
+            else []
+        )
+        if not cuotas and not cuotas_sociales:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron cuotas para los IDs provistos")
+
+        objetivos = []
+        for cuota, prestamo, socio in cuotas:
+            saldo = cuota.cuota_total_centavos - cuota.monto_pagado_centavos
+            if prestamo.estado not in ('ACTIVO', 'MORA') or cuota.estado in ('PAGADA', 'CANCELADA') or saldo <= 0:
+                raise HTTPException(409, 'Una cuota seleccionada ya no admite débitos. Actualice la búsqueda.')
+            objetivos.append(("Prestamo", cuota, cuota.id, None, saldo, socio))
+
+        for cs, socio in cuotas_sociales:
+            saldo = cs.valor_centavos - cs.monto_pagado_centavos
+            if cs.estado in ('PAGADA', 'ANULADA') or saldo <= 0:
+                raise HTTPException(409, 'Una cuota social seleccionada ya no admite débitos. Actualice la búsqueda.')
+            objetivos.append(("CuotaSocial", cs, None, cs.id, saldo, socio))
 
         carpeta_lote = os.path.join(self.STORAGE_DIR, str(nro_archivo))
         os.makedirs(carpeta_lote, exist_ok=True)
@@ -118,10 +148,7 @@ class PresentacionBaproService:
         numero_op = req.numero_operacion_inicial
         total_centavos = 0
 
-        for cuota, prestamo, socio in cuotas:
-            saldo = cuota.cuota_total_centavos - cuota.monto_pagado_centavos
-            if prestamo.estado not in ('ACTIVO', 'MORA') or cuota.estado in ('PAGADA', 'CANCELADA') or saldo <= 0:
-                raise HTTPException(409, 'Una cuota seleccionada ya no admite débitos. Actualice la búsqueda.')
+        for tipo_importe, modelo, cuota_id, cuota_social_id, saldo, socio in objetivos:
             cbu = CuotaBaproMatcher.resolver_cbu_bapro(socio)
             if not cbu:
                 continue
@@ -145,7 +172,9 @@ class PresentacionBaproService:
                 lineas.append(linea)
                 detalles.append(
                     PresentacionBaproAuditoria(
-                        cuota_id=cuota.id, id_persona=socio.id, nro_archivo=nro_archivo,
+                        cuota_id=cuota_id, cuota_social_id=cuota_social_id,
+                        tipo_importe=tipo_importe,
+                        id_persona=socio.id, nro_archivo=nro_archivo,
                         numero_operacion=numero_op, codigo_interno="71", fecha_vencimiento=fecha_venc,
                         identificador_cliente=f"000000{str(socio.id).zfill(6)}", tipo_dato="P",
                         bloque1_cbu=cbu[:8], bloque2_cbu=cbu[8:], importe=str(parte_centavos).zfill(10),
@@ -158,7 +187,7 @@ class PresentacionBaproService:
                 total_centavos += parte_centavos
                 numero_op += 1
 
-            cuota.estado = "PRESENTADA"
+            modelo.estado = "PRESENTADA"
 
         contenido_bytes = ("\r\n".join(lineas) + "\r\n").encode("ascii")
         with open(ruta_archivo, "wb") as f:
@@ -178,7 +207,7 @@ class PresentacionBaproService:
         self.auditoria_service.auditar_presentacion_bapro(
             accion="GENERAR", nro_archivo=nro_archivo, presentacion_archivo_id=archivo.id,
             total_registros=len(lineas), total_monto=round(total_centavos / 100.0, 2),
-            usuario_operador=str(usuario_id) if usuario_id else "SISTEMA",
+            usuario_operador=usuario_operador or (str(usuario_id) if usuario_id else "SISTEMA"),
             detalles_json={"nombre_archivo": nombre_archivo, "empresa_cuit": empresa.cuit, "registros": len(lineas)},
         )
 

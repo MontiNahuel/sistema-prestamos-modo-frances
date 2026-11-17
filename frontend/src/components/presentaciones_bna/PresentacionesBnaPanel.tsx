@@ -4,14 +4,20 @@ import { TablaCuotasBna } from './TablaCuotasBna';
 import { TablaHistorialBna } from './TablaHistorialBna';
 import { BarraAccionesBna } from './BarraAccionesBna';
 import { ModalHistorialBna } from './ModalHistorialBna';
+import { TipoCuotaPresentacion } from '../../types/presentacionesBapro';
 import { CuotaPresentableBnaItem, PresentacionBnaArchivoItem, PresentacionBnaAuditoriaItem } from '../../types/presentacionesBna';
 import {
   buscarCuotasBna, getProximoNroListaBna, validarNroListaBna, generarPresentacionBna,
   getArchivosBna, getDetallesArchivoBna, descargarArchivoBna, cargarRespuestaBna,
 } from '../../services/api/presentacionesBnaApi';
+import {
+  claveItemPresentable,
+  partirIdsSeleccionados,
+} from '../../utils/presentacionHelpers';
 
 export const PresentacionesBnaPanel: React.FC = () => {
   const [tab, setTab] = useState<'generar' | 'historial'>('generar');
+  const [tipoCuota, setTipoCuota] = useState<TipoCuotaPresentacion>('CUOTA_PRESTAMO');
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
@@ -75,6 +81,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
         incluir_presentadas: true,
+        tipo_cuota: tipoCuota,
       });
       const filtrarPresentadas = (items: CuotaPresentableBnaItem[]) =>
         incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
@@ -89,7 +96,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
         new Set(
           presentablesVisibles
             .filter((c) => c.estado !== 'PRESENTADA')
-            .map((c) => c.cuota_id)
+            .map((c) => claveItemPresentable(c))
         )
       );
     } catch (err: any) {
@@ -106,7 +113,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
       return;
     }
     const totalSeleccionado = cuotas
-      .filter((c) => seleccionadas.has(c.cuota_id))
+      .filter((c) => seleccionadas.has(claveItemPresentable(c)))
       .reduce((acc, c) => acc + c.monto_centavos, 0);
     const fechaFormateada = fechaImpacto
       ? new Date(`${fechaImpacto}T00:00:00`).toLocaleDateString('es-AR')
@@ -123,8 +130,10 @@ export const PresentacionesBnaPanel: React.FC = () => {
     setLoading(true);
     setMensaje(null);
     try {
+      const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotas, seleccionadas);
       const res = await generarPresentacionBna({
-        cuota_ids: Array.from(seleccionadas),
+        cuota_ids,
+        cuota_social_ids,
         nro_lista: nroLista ? Number(nroLista) : undefined,
         nombre_archivo: nombreArchivo,
         fecha_impacto: fechaImpacto,
@@ -168,17 +177,19 @@ export const PresentacionesBnaPanel: React.FC = () => {
     }
   };
 
-  const totalCentavos = cuotas.filter((c) => seleccionadas.has(c.cuota_id)).reduce((acc, c) => acc + c.monto_centavos, 0);
+  const totalCentavos = cuotas
+    .filter((c) => seleccionadas.has(claveItemPresentable(c)))
+    .reduce((acc, c) => acc + c.monto_centavos, 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-            Presentaciones Banco Nación (BNA) - Préstamos
+            Presentaciones Banco Nación (BNA)
           </h2>
           <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.85rem' }}>
-            Formato de Débito Automático BNA (128 chars). Exclusivo para amortización de préstamos.
+            Formato de Débito Automático BNA (128 chars) para cuotas de préstamos y cuota social.
           </p>
         </div>
         <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
@@ -212,6 +223,14 @@ export const PresentacionesBnaPanel: React.FC = () => {
       {tab === 'generar' && (
         <>
           <FiltrosBna
+            tipoCuota={tipoCuota}
+            onTipoCuotaChange={(v) => {
+              setTipoCuota(v);
+              setCuotas([]);
+              setCuotasExcluidas([]);
+              setPresentadasExcluidas(0);
+              setSeleccionadas(new Set());
+            }}
             fechaImpacto={fechaImpacto} setFechaImpacto={setFechaImpacto}
             fechaDesde={fechaDesde} setFechaDesde={setFechaDesde}
             fechaHasta={fechaHasta} setFechaHasta={setFechaHasta}
@@ -256,7 +275,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
             }}
             onToggleTodos={() => {
               if (seleccionadas.size === cuotas.length) setSeleccionadas(new Set());
-              else setSeleccionadas(new Set(cuotas.map((c) => c.cuota_id)));
+              else setSeleccionadas(new Set(cuotas.map((c) => claveItemPresentable(c))));
             }}
             loading={loading}
           />

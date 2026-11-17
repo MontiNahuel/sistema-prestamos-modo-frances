@@ -13,3 +13,4 @@ class UserProfileResponse(BaseModel):
     mail: Optional[str] = None
     roles: List[str] = []
     es_acceso_completo: bool = False
+    sistema_central_url: Optional[str] = None

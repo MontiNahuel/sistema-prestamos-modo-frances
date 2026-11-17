@@ -2,11 +2,65 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from app.features.motores.model import MotorCalculo
 from app.features.lineas.model import LineaPrestamo
+from app.features.socios.model import TipoBanco
 from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
 
 
+BANCOS_SEED = [
+    {"id": 1, "nombre": "FRANCES", "codigo": "00017", "activo": True},
+    {"id": 2, "nombre": "PATAGONIA", "codigo": "00034", "activo": True},
+    {"id": 3, "nombre": "NACION", "codigo": "00011", "activo": True},
+    {"id": 4, "nombre": "COLUMBIA", "codigo": "00389", "activo": True},
+    {"id": 5, "nombre": "BAPRO", "codigo": "00014", "activo": True},
+    {"id": 6, "nombre": "CHUBUT", "codigo": "00083", "activo": True},
+    {"id": 7, "nombre": "DE LA RIOJA", "codigo": "00309", "activo": True},
+    {"id": 8, "nombre": "HSBC", "codigo": "00150", "activo": True},
+    {"id": 9, "nombre": "CORRIENTES", "codigo": "00094", "activo": True},
+    {"id": 10, "nombre": "CIUDAD", "codigo": "00029", "activo": True},
+    {"id": 11, "nombre": "SANTANDER RIO", "codigo": "00072", "activo": True},
+    {"id": 12, "nombre": "PCIA NEUQUEN", "codigo": "00097", "activo": True},
+    {"id": 13, "nombre": "MACRO", "codigo": "00285", "activo": True},
+    {"id": 14, "nombre": "ICBC", "codigo": "00015", "activo": True},
+    {"id": 15, "nombre": "GALICIA", "codigo": "00007", "activo": True},
+    {"id": 16, "nombre": "INDUSTRIAL", "codigo": "00322", "activo": True},
+    {"id": 17, "nombre": "HIPOTECARIO", "codigo": "00044", "activo": True},
+    {"id": 18, "nombre": "SANTA FE", "codigo": "00330", "activo": True},
+    {"id": 19, "nombre": "ENTRE RIOS", "codigo": "00386", "activo": True},
+    {"id": 20, "nombre": "SUPERVIELLE", "codigo": "00027", "activo": True},
+    {"id": 21, "nombre": "COMAFI", "codigo": "00299", "activo": True},
+    {"id": 22, "nombre": "CREDICOOP", "codigo": "00191", "activo": True},
+    {"id": 23, "nombre": "CITIBANK", "codigo": "00016", "activo": True},
+    {"id": 24, "nombre": "SAN JUAN", "codigo": "00045", "activo": True},
+    {"id": 25, "nombre": "B.S.T.", "codigo": "00338", "activo": True},
+    {"id": 26, "nombre": "BBVA", "codigo": "00017", "activo": True},
+    {"id": 27, "nombre": "SANTA CRUZ", "codigo": "00086", "activo": True},
+    {"id": 28, "nombre": "CORDOBA", "codigo": "00020", "activo": True},
+    {"id": 29, "nombre": "TUCUMAN", "codigo": "00060", "activo": True},
+    {"id": 30, "nombre": "STGO DEL ESTERO", "codigo": "00321", "activo": True},
+    {"id": 31, "nombre": "PIANO S.A", "codigo": "00301", "activo": True},
+    {"id": 32, "nombre": "LA PAMPA", "codigo": "00093", "activo": True},
+    {"id": 33, "nombre": "ITAU", "codigo": "00259", "activo": True},
+    {"id": 34, "nombre": "COMERCIO", "codigo": "00432", "activo": True},
+    {"id": 35, "nombre": "COMPANIA FINANCIERA ARG", "codigo": "44077", "activo": True},
+    {"id": 36, "nombre": "BANCO MUNICIPAL DE ROSARIO", "codigo": "00065", "activo": True},
+    {"id": 37, "nombre": "BANCO MUNICIPAL DE ROSARIO 2", "codigo": "00065", "activo": True},
+    {"id": 38, "nombre": "EFECTIVO SI", "codigo": "44077", "activo": True},
+    {"id": 39, "nombre": "BANCO SUPERVIELLE CATALINAS", "codigo": "00027", "activo": True},
+]
+
+
+def seed_tipo_bancos(db: Session) -> None:
+    """Garantiza que el catálogo oficial tipo_bancos exista si Alembic no aplicó su semilla."""
+    existentes = {row[0] for row in db.query(TipoBanco.id).all()}
+    faltantes = [TipoBanco(**banco) for banco in BANCOS_SEED if banco["id"] not in existentes]
+    if faltantes:
+        db.add_all(faltantes)
+        db.commit()
+
+
 def seed_motores_y_lineas(db: Session):
-    """Crea los motores y líneas iniciales del sistema si no existen."""
+    """Crea los motores, líneas y catálogo oficial de bancos iniciales si no existen."""
+    seed_tipo_bancos(db)
     motores_data = [
         {
             "codigo": "TASA_ROMI_COMERCIAL_365",

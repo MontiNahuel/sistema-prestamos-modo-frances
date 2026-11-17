@@ -1,5 +1,6 @@
 import React from 'react';
 import { CuotaPresentableBnaItem } from '../../types/presentacionesBna';
+import { claveItemPresentable, esItemCuotaSocial } from '../../utils/presentacionHelpers';
 
 interface TablaCuotasBnaProps {
   cuotas: CuotaPresentableBnaItem[];
@@ -30,7 +31,7 @@ export const TablaCuotasBna: React.FC<TablaCuotasBnaProps> = ({
             </th>
             <th style={{ padding: '0.75rem 1rem' }}>Socio</th>
             <th style={{ padding: '0.75rem 1rem' }}>DNI</th>
-            <th style={{ padding: '0.75rem 1rem' }}>Cuota</th>
+            <th style={{ padding: '0.75rem 1rem' }}>Concepto / Cuota</th>
             <th style={{ padding: '0.75rem 1rem' }}>Vencimiento</th>
             <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Monto</th>
             <th style={{ padding: '0.75rem 1rem' }}>Sucursal BNA</th>
@@ -47,11 +48,13 @@ export const TablaCuotasBna: React.FC<TablaCuotasBnaProps> = ({
             </tr>
           ) : (
             cuotas.map((c) => {
-              const sel = seleccionadas.has(c.cuota_id);
+              const clave = claveItemPresentable(c);
+              const esSocial = esItemCuotaSocial(c);
+              const sel = seleccionadas.has(clave);
               return (
                 <tr
-                  key={c.cuota_id}
-                  onClick={() => onToggleSeleccion(c.cuota_id)}
+                  key={clave}
+                  onClick={() => onToggleSeleccion(clave)}
                   style={{
                     borderBottom: '1px solid #f1f5f9',
                     background: sel ? '#f0fdf4' : 'transparent',
@@ -68,7 +71,13 @@ export const TablaCuotasBna: React.FC<TablaCuotasBnaProps> = ({
                   </td>
                   <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{c.socio_nombre}</td>
                   <td style={{ padding: '0.75rem 1rem' }}>{c.socio_documento || '-'}</td>
-                  <td style={{ padding: '0.75rem 1rem' }}>N.º {c.numero_cuota}</td>
+                  <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>
+                    {esSocial ? (
+                      <span style={{ color: '#1d4ed8' }}>Cuota Social · {c.periodo || '-'}</span>
+                    ) : (
+                      <span>Préstamo · N.º {c.numero_cuota}</span>
+                    )}
+                  </td>
                   <td style={{ padding: '0.75rem 1rem' }}>{c.fecha_vencimiento || '-'}</td>
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 700 }}>
                     ${c.monto_pesos.toLocaleString('es-AR', { minimumFractionDigits: 2 })}

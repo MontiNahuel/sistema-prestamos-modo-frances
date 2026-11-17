@@ -5,6 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, 
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.domain.enums import TipoCuotaPresentacion
+from app.features.auth.controller import obtener_operador_opcional
+from app.features.auth.service import OperadorResuelto
 from app.features.socios.model import Socio
 from app.features.presentaciones_bna.service import PresentacionBnaService
 from app.features.presentaciones_bna.schemas import (
@@ -29,6 +32,7 @@ def buscar_cuotas_pendientes(
     fecha_hasta: Optional[str] = Query(None),
     fecha_corte: Optional[str] = Query(None),
     incluir_presentadas: bool = Query(True),
+    tipo_cuota: TipoCuotaPresentacion = Query(TipoCuotaPresentacion.CUOTA_PRESTAMO),
     service: PresentacionBnaService = Depends(get_service),
 ):
     return service.buscar_cuotas_presentables(
@@ -36,6 +40,7 @@ def buscar_cuotas_pendientes(
         fecha_hasta=fecha_hasta,
         fecha_corte=fecha_corte,
         incluir_presentadas=incluir_presentadas,
+        tipo_cuota=tipo_cuota,
     )
 
 
@@ -57,9 +62,10 @@ def validar_nro_lista(
 @router.post("/generar-archivo", response_model=GenerarPresentacionBnaResponse)
 def generar_archivo_bna(
     req: GenerarPresentacionBnaRequest,
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PresentacionBnaService = Depends(get_service),
 ):
-    resp, _ = service.generar_presentacion_bna(req)
+    resp, _ = service.generar_presentacion_bna(req, usuario_id=operador.id)
     return resp
 
 
@@ -112,6 +118,9 @@ def obtener_detalles_archivo(
     return [
         PresentacionBnaAuditoriaItem(
             id=d.id,
+            cuota_id=d.cuota_id,
+            cuota_social_id=getattr(d, "cuota_social_id", None),
+            tipo_importe=getattr(d, "tipo_importe", "Prestamo"),
             numero_operacion=d.numero_operacion,
             id_persona=d.id_persona,
             socio_nombre=socios.get(d.id_persona),

@@ -1,4 +1,5 @@
-from decimal import Decimal, localcontext
+from decimal import Decimal
+from typing import Tuple
 from app.domain.enums import ConvencionTasa, BaseDias
 
 
@@ -30,11 +31,8 @@ def calcular_tasa_periodica(
 
     elif convencion == ConvencionTasa.TEA_COMPUESTA:
         # Tasa efectiva equivalente mensual: i = (1 + TEA)^(1/12) - 1
-        # Usamos exponente en float con conversión a Decimal para conservar precisión
-        uno = Decimal("1")
-        base = float(uno + tasa_anual)
-        expo = 1.0 / 12.0
-        resultado_float = (base ** expo) - 1.0
+        base = float(Decimal("1") + tasa_anual)
+        resultado_float = (base ** (1.0 / 12.0)) - 1.0
         return Decimal(str(round(resultado_float, 10)))
 
     elif convencion == ConvencionTasa.TNA_DIAS_REALES:
@@ -43,3 +41,40 @@ def calcular_tasa_periodica(
 
     # Fallback por defecto: TNA proporcional
     return tasa_anual / Decimal("12")
+
+
+def calcular_tasas_resumen(
+    tasa_anual: Decimal,
+    convencion: ConvencionTasa,
+    base_dias: BaseDias = BaseDias.COMERCIAL_30_360,
+    alicuota_iva: Decimal = Decimal("0.21"),
+) -> Tuple[Decimal, Decimal, Decimal]:
+    """Retorna (tna, tem, tea) consistentes entre sí, acotadas a 6 decimales."""
+    if tasa_anual <= Decimal("0"):
+        cero = Decimal("0")
+        return cero, cero, cero
+
+    tem_raw = calcular_tasa_periodica(
+        tasa_anual=tasa_anual,
+        convencion=convencion,
+        dias_periodo=30,
+        base_dias=base_dias,
+        alicuota_iva=alicuota_iva,
+    )
+    tem = round(tem_raw, 6)
+
+    if convencion in (ConvencionTasa.TEA_COMPUESTA, ConvencionTasa.TASA_ROMI_COMERCIAL_365):
+        tna = round(tem_raw * Decimal("12"), 6)
+    else:
+        tna = round(tasa_anual, 6)
+
+    if convencion == ConvencionTasa.TEA_COMPUESTA:
+        tea = round(tasa_anual, 6)
+    elif convencion == ConvencionTasa.TNA_DIAS_REALES and base_dias == BaseDias.ACTUAL_365:
+        tea_float = ((1.0 + float(tem_raw)) ** (365.0 / 30.0)) - 1.0
+        tea = Decimal(str(round(tea_float, 6)))
+    else:
+        tea_float = ((1.0 + float(tem_raw)) ** 12.0) - 1.0
+        tea = Decimal(str(round(tea_float, 6)))
+
+    return tna, tem, tea

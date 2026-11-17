@@ -10,6 +10,7 @@ from app.features.lineas.repository import LineaPrestamoRepository
 from app.features.motores.repository import MotorCalculoRepository
 from app.features.socios.service import SocioService
 from app.features.auditoria.service import HistorialCambiosService
+from app.features.cuotas_sociales.service import CuotaSocialService
 from app.integrations.coopya_db_client import CoopYaDbClient, coopya_db_client
 from app.domain.calculadoras.sistema_frances import CalculadoraFrances, MotorConfig
 from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
@@ -72,9 +73,15 @@ class PrestamoService:
 
         try:
             plan = CalculadoraFrances.calcular(
-                monto_centavos=req.monto_solicitado_centavos, plazo_meses=req.plazo_meses,
-                tasa_anual=req.tna_pactada, alicuota_iva=req.alicuota_iva,
-                config=cfg, fecha_primer_vencimiento=fecha_venc
+                monto_centavos=req.monto_solicitado_centavos,
+                plazo_meses=req.plazo_meses,
+                tasa_anual=req.tna_pactada,
+                alicuota_iva=req.alicuota_iva,
+                config=cfg,
+                fecha_primer_vencimiento=fecha_venc,
+                costo_operativo_tipo=req.costo_operativo_tipo,
+                costo_operativo_centavos=req.costo_operativo_centavos,
+                costo_operativo_porcentaje=req.costo_operativo_porcentaje,
             )
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -93,8 +100,15 @@ class PrestamoService:
             id=prestamo_id, persona_id=req.persona_id, persona_nombre=req.persona_nombre, persona_doc=req.persona_doc,
             monto_solicitado_centavos=req.monto_solicitado_centavos, plazo_meses=req.plazo_meses,
             tna_pactada=round(Decimal(req.tna_pactada), 4), tem_pactada=round(Decimal(plan.tem), 6), alicuota_iva=round(Decimal(req.alicuota_iva), 4),
+            costo_operativo_tipo=plan.costo_operativo_tipo.value,
+            costo_operativo_centavos=plan.costo_operativo_centavos,
+            costo_operativo_porcentaje=round(Decimal(plan.costo_operativo_porcentaje), 6),
             total_capital_centavos=plan.total_capital_centavos, total_interes_centavos=plan.total_interes_centavos,
-            total_iva_centavos=plan.total_iva_centavos, total_a_pagar_centavos=plan.total_a_pagar_centavos,
+            total_iva_centavos=plan.total_iva_centavos,
+            total_costo_operativo_centavos=plan.total_costo_operativo_centavos,
+            total_a_pagar_centavos=plan.total_a_pagar_centavos,
+            cft_tna=round(Decimal(plan.cft_tna), 6),
+            cft_tea=round(Decimal(plan.cft_tea), 6),
             saldo_deudor_actual_centavos=plan.total_capital_centavos, estado="ACTIVO",
             fecha_alta=datetime.now(timezone.utc), observaciones=req.observaciones
         )
@@ -105,7 +119,9 @@ class PrestamoService:
                 id=str(uuid.uuid4()), prestamo_id=prestamo_id, numero_cuota=c.numero_cuota,
                 fecha_vencimiento=c.fecha_vencimiento, saldo_inicial_centavos=c.saldo_inicial_centavos,
                 capital_centavos=c.capital_centavos, interes_centavos=c.interes_centavos,
-                iva_interes_centavos=c.iva_interes_centavos, cuota_pura_centavos=c.cuota_pura_centavos,
+                iva_interes_centavos=c.iva_interes_centavos,
+                costo_operativo_centavos=c.costo_operativo_centavos,
+                cuota_pura_centavos=c.cuota_pura_centavos,
                 cuota_total_centavos=c.cuota_total_centavos, saldo_final_centavos=c.saldo_final_centavos,
                 calculo_exacto=c.calculo_exacto.model_dump(mode="json") if c.calculo_exacto else None,
                 estado="PENDIENTE", monto_pagado_centavos=0,
@@ -122,7 +138,8 @@ class PrestamoService:
             cuotas_raw = [
                 {"numero_cuota": c.numero_cuota, "fecha_vencimiento": c.fecha_vencimiento,
                  "cuota_total_centavos": c.cuota_total_centavos, "capital_centavos": c.capital_centavos,
-                 "interes_centavos": c.interes_centavos, "iva_interes_centavos": c.iva_interes_centavos}
+                 "interes_centavos": c.interes_centavos, "iva_interes_centavos": c.iva_interes_centavos,
+                 "costo_operativo_centavos": c.costo_operativo_centavos}
                 for c in plan.cronograma
             ]
             try:
@@ -144,7 +161,17 @@ class PrestamoService:
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail=f"Fallo al sincronizar cuotas con Monolito CoopYa (operación local revertida): {str(e)}"
                 )
-        self._auditar(prestamo_id, "CREATE", {"monto_centavos": creado.monto_solicitado_centavos, "plazo": creado.plazo_meses, "socio_id": creado.persona_id}, usuario_operador, "Otorgamiento de préstamo formal")
+
+        if req.incluir_cuota_social and req.cuota_social_centavos > 0:
+            CuotaSocialService(self.repository.db).activar_socio(
+                socio_id=req.persona_id,
+                valor_centavos=req.cuota_social_centavos,
+                prestamo_id=creado.id,
+                fecha_primer_vencimiento=fecha_venc,
+                commit=True,
+            )
+
+        self._auditar(prestamo_id, "CREATE", {"monto_centavos": creado.monto_solicitado_centavos, "plazo": creado.plazo_meses, "socio_id": creado.persona_id, "cft_tea": str(creado.cft_tea)}, usuario_operador, "Otorgamiento de préstamo formal")
         return creado
 
     def cancelar(self, prestamo_id: str, usuario_operador: Optional[str] = None) -> Prestamo:

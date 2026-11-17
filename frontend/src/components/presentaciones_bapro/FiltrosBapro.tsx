@@ -1,7 +1,10 @@
 import React from 'react';
-import { EmpresaOriginante } from '../../types/presentacionesBapro';
+import { EmpresaOriginante, TipoCuotaPresentacion } from '../../types/presentacionesBapro';
+import { OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
 
 interface FiltrosBaproProps {
+  tipoCuota: TipoCuotaPresentacion;
+  onTipoCuotaChange: (val: TipoCuotaPresentacion) => void;
   empresas: EmpresaOriginante[];
   empresaId: number | undefined;
   onEmpresaChange: (id: number) => void;
@@ -35,6 +38,7 @@ interface FiltrosBaproProps {
 }
 
 export const FiltrosBapro: React.FC<FiltrosBaproProps> = ({
+  tipoCuota, onTipoCuotaChange,
   empresas, empresaId, onEmpresaChange,
   dniDesde, setDniDesde, dniHasta, setDniHasta,
   fechaImpacto, setFechaImpacto,
@@ -139,8 +143,21 @@ export const FiltrosBapro: React.FC<FiltrosBaproProps> = ({
         </div>
       </div>
 
-      {/* Fila 3: Rango Fecha Desde / Hasta y Acciones */}
+      {/* Fila 3: Tipo de cuota, Rango Fecha Desde / Hasta y Acciones */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Tipo de Cuota</label>
+          <select
+            value={tipoCuota}
+            onChange={(e) => onTipoCuotaChange(e.target.value as TipoCuotaPresentacion)}
+            style={{ width: '100%', padding: '0.5rem 0.65rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem', background: '#ffffff', fontWeight: 600 }}
+          >
+            {OPCIONES_TIPO_CUOTA.map((op) => (
+              <option key={op.value} value={op.value}>{op.label}</option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Fecha Desde</label>
           <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />

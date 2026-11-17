@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineaPrestamo } from '../../types/linea';
 import { Persona } from '../../types/persona';
-import { SimulacionPayload } from '../../types/simulacion';
+import { SimulacionPayload, TipoCostoOperativo } from '../../types/simulacion';
 import { getLineas } from '../../services/api/lineasApi';
 import { formatMoney } from '../../utils/formatters';
 import { CalculatorIcon } from '../common/Icons';
@@ -29,6 +29,10 @@ interface SimuladorFormProps {
   onParametrosChange: () => void;
   nuevaLinea?: boolean;
   revisionLineas?: number;
+  incluirCuotaSocial: boolean;
+  onIncluirCuotaSocialChange: (val: boolean) => void;
+  cuotaSocialPesos: number | '';
+  onCuotaSocialPesosChange: (val: number | '') => void;
 }
 
 export const SimuladorForm: React.FC<SimuladorFormProps> = ({
@@ -38,7 +42,11 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   onSeleccionarPersona,
   onParametrosChange,
   nuevaLinea = false,
-  revisionLineas = 0
+  revisionLineas = 0,
+  incluirCuotaSocial,
+  onIncluirCuotaSocialChange,
+  cuotaSocialPesos,
+  onCuotaSocialPesosChange
 }) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [selectedLineaId, setSelectedLineaId] = useState<number | ''>('');
@@ -46,6 +54,8 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   const [plazoMeses, setPlazoMeses] = useState<number | ''>(12);
   const [tnaPorcentaje, setTnaPorcentaje] = useState<number | ''>(60);
   const [ivaPorcentaje, setIvaPorcentaje] = useState<number | ''>(21);
+  const [costoOpTipo, setCostoOpTipo] = useState<TipoCostoOperativo>('FIJO');
+  const [costoOpValor, setCostoOpValor] = useState<number | ''>('');
   const [fechaPrimerVencimiento, setFechaPrimerVencimiento] = useState<string>(() => primerVencimientoSugerido());
   const [motores, setMotores] = useState<MotorCalculo[]>([]);
   const [motorId, setMotorId] = useState<number | ''>('');
@@ -122,6 +132,8 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
     if (ivaPorcentaje === '' || ivaPorcentaje < 0) nuevos.iva = 'El IVA es obligatorio';
     if (!fechaPrimerVencimiento) nuevos.fecha = 'Indicá la fecha del primer vencimiento';
     else if (fechaPrimerVencimiento < fechaLocalISO(new Date())) nuevos.fecha = 'La fecha no puede ser anterior a hoy';
+    const costoOpNumerico = costoOpValor === '' ? 0 : Number(costoOpValor);
+    if (costoOpNumerico < 0 || Number.isNaN(costoOpNumerico)) nuevos.costoOp = 'El costo operativo no puede ser negativo';
 
     if (Object.keys(nuevos).length > 0) {
       setErrores(nuevos);
@@ -135,7 +147,10 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
       alicuota_iva: Number(ivaPorcentaje) / 100,
       fecha_primer_vencimiento: fechaPrimerVencimiento,
       linea_id: selectedLineaId ? Number(selectedLineaId) : null,
-      motor_id: selectedLineaId ? lineas.find((l) => l.id === selectedLineaId)?.motor_id : Number(motorId)
+      motor_id: selectedLineaId ? lineas.find((l) => l.id === selectedLineaId)?.motor_id : Number(motorId),
+      costo_operativo_tipo: costoOpTipo,
+      costo_operativo_centavos: costoOpTipo === 'FIJO' ? Math.round(costoOpNumerico * 100) : 0,
+      costo_operativo_porcentaje: costoOpTipo === 'PORCENTAJE' ? costoOpNumerico / 100 : 0,
     });
   };
 
@@ -272,6 +287,81 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
           />
           {errores.iva && <div className="text-[0.75rem] text-[#ef4444] mt-1 font-medium">{errores.iva}</div>}
         </div>
+      </div>
+
+      {/* Costo Operativo (para CFT) */}
+      <div className="mb-[1.15rem] p-3 rounded-lg bg-[#f8fafc] [border:1px_solid_#e2e8f0]">
+        <label className="block font-semibold text-[0.8rem] mb-[0.35rem] text-[#475569]">
+          Costo Operativo por Cuota (para CFT)
+        </label>
+        <div className="grid grid-cols-[120px_1fr] gap-2">
+          <select
+            aria-label="Modalidad costo operativo"
+            value={costoOpTipo}
+            onChange={(e) => {
+              setCostoOpTipo(e.target.value as TipoCostoOperativo);
+              onParametrosChange();
+            }}
+            className="w-full p-[0.6rem_0.5rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.85rem] bg-[#ffffff] text-[#0f172a]"
+          >
+            <option value="FIJO">$ Fijo</option>
+            <option value="PORCENTAJE">% Capital</option>
+          </select>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            placeholder={costoOpTipo === 'FIJO' ? '0 (vacío = $0)' : '0 (vacío = 0%)'}
+            value={costoOpValor}
+            onChange={(e) => {
+              const v = e.target.value;
+              setCostoOpValor(v === '' ? '' : Number(v));
+              setErrores((p) => { const c = { ...p }; delete c.costoOp; return c; });
+              onParametrosChange();
+            }}
+            className={inputErrCls('costoOp')}
+          />
+        </div>
+        {errores.costoOp ? (
+          <div className="text-[0.75rem] text-[#ef4444] mt-1 font-medium">{errores.costoOp}</div>
+        ) : (
+          <div className="text-[#64748b] text-[0.72rem] mt-[0.25rem]">
+            {costoOpTipo === 'PORCENTAJE'
+              ? 'Porcentaje aplicado sobre el capital solicitado y sumado en cada cuota. Vacío = 0.'
+              : 'Importe en pesos sumado en cada cuota. Si queda vacío se toma como $0.'}
+          </div>
+        )}
+      </div>
+
+      {/* Cuota Social (aparte del préstamo) */}
+      <div className="mb-6 p-3 rounded-lg bg-[#eff6ff] [border:1px_solid_#bfdbfe]">
+        <label className="flex items-center gap-2 text-[0.82rem] font-semibold text-[#1e3a8a] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={incluirCuotaSocial}
+            onChange={(e) => onIncluirCuotaSocialChange(e.target.checked)}
+          />
+          <span>Cobrar Cuota Social mensual al socio</span>
+        </label>
+        {incluirCuotaSocial && (
+          <div className="mt-2.5">
+            <label className="block font-semibold text-[0.75rem] mb-1 text-[#1e40af]">
+              Valor Cuota Social ($)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              placeholder="5500"
+              value={cuotaSocialPesos}
+              onChange={(e) => onCuotaSocialPesosChange(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#93c5fd] text-[0.875rem] bg-[#ffffff] text-[#0f172a]"
+            />
+            <div className="text-[0.71rem] text-[#3b82f6] mt-1">
+              Va aparte del préstamo, mes a mes hasta que el socio solicite la baja.
+            </div>
+          </div>
+        )}
       </div>
 
       <button

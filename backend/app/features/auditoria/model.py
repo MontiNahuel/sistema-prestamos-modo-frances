@@ -19,7 +19,7 @@ class AuditoriaPrestamo(Base):
 
     __tablename__ = "auditoria_prestamos"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     prestamo_id = Column(String(36), ForeignKey("prestamos.id"), nullable=False, index=True)
     accion = Column(String(30), nullable=False)  # OTORGAMIENTO, PAGO_CUOTA, CANCELACION
     cuota_numero = Column(Integer, nullable=True)
@@ -39,7 +39,7 @@ class AuditoriaPresentacionBapro(Base):
 
     __tablename__ = "auditoria_presentaciones_bapro"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     nro_archivo = Column(Integer, nullable=True, index=True)
     presentacion_archivo_id = Column(
         Integer,
@@ -67,7 +67,7 @@ class AuditoriaConfiguracionCredito(Base):
 
     __tablename__ = "auditoria_configuracion_creditos"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     tipo_entidad = Column(String(30), nullable=False)  # LINEA o MOTOR
     entidad_id = Column(Integer, nullable=False, index=True)
     accion = Column(String(30), nullable=False)  # CREATE, UPDATE, SOFT_DELETE
@@ -87,7 +87,7 @@ class AuditoriaSincronizacionPersona(Base):
 
     __tablename__ = "auditoria_sincronizacion_personas"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     documento = Column(String(20), nullable=False, index=True)
     id_persona_oracle = Column(Integer, nullable=True)
     id_persona_coopya = Column(Integer, nullable=True)

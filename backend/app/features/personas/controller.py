@@ -1,6 +1,8 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, Query, Header, status, HTTPException
 from app.integrations.coopya_db_client import coopya_db_client
+from app.features.auth.controller import get_auth_service
+from app.features.auth.service import AuthService
 from app.features.respuestas_bancarias.controller import operador
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -160,7 +162,9 @@ async def crear_persona(
     token: Optional[str] = Query(default=None),
     authorization: Optional[str] = Header(default=None),
     x_usuario: Optional[str] = Header(default=None, alias="X-Usuario-Operador"),
-    service: PersonasService = Depends(get_personas_service)
+    x_user: Optional[str] = Header(default=None, alias="X-User-Name"),
+    service: PersonasService = Depends(get_personas_service),
+    auth_service: AuthService = Depends(get_auth_service),
 ):
     """
     Alta de persona con consistencia estricta:
@@ -171,10 +175,15 @@ async def crear_persona(
     if not auth_token and authorization:
         auth_token = authorization.replace("Bearer ", "").strip()
 
+    operador_resuelto = auth_service.resolver_operador(
+        token=auth_token,
+        fallback_usuario=x_usuario or x_user,
+    )
+
     return await service.crear_persona(
         req=req,
         token=auth_token,
-        usuario_operador=x_usuario or "OPERADOR"
+        usuario_operador=operador_resuelto.usuario or "OPERADOR"
     )
 
 

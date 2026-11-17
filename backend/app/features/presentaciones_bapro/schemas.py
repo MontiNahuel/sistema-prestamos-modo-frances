@@ -1,7 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.domain.enums import TipoCuotaPresentacion
 
 
 # ---------------------------------------------------------
@@ -47,6 +48,7 @@ class PresentacionFiltroMasivoBaproResponse(PresentacionFiltroMasivoBaproBase):
 # ---------------------------------------------------------
 class PresentacionBaproAuditoriaBase(BaseModel):
     cuota_id: Optional[str] = Field(None, description="UUID de la cuota local asociada")
+    cuota_social_id: Optional[str] = Field(None, description="UUID de la cuota social asociada")
     id_persona: int
     nro_archivo: int
     numero_operacion: int
@@ -139,12 +141,19 @@ class BuscarCuotasBaproRequest(BaseModel):
     dni_hasta: Optional[int] = Field(None, ge=0, le=9, description="Último dígito DNI hasta (0-9)")
     incluir_presentadas: bool = Field(True, description="Incluir cuotas en estado PENDIENTE o PRESENTADA")
     base_filtrada: bool = Field(False, description="Filtrar por selección masiva de socios")
+    tipo_cuota: TipoCuotaPresentacion = Field(
+        default=TipoCuotaPresentacion.CUOTA_PRESTAMO,
+        description="Tipo de cuota a buscar: préstamo, cuota social o ambas",
+    )
 
 
 class CuotaPresentableItem(BaseModel):
-    cuota_id: str
-    prestamo_id: str
-    numero_cuota: int
+    cuota_id: Optional[str] = None
+    cuota_social_id: Optional[str] = None
+    tipo_item: str = "CUOTA_PRESTAMO"
+    periodo: Optional[str] = None
+    prestamo_id: Optional[str] = None
+    numero_cuota: Optional[int] = None
     socio_id: int
     socio_nombre: str
     socio_documento: Optional[str] = None
@@ -165,7 +174,8 @@ class BuscarCuotasBaproResponse(BaseModel):
 
 
 class GenerarPresentacionBaproRequest(BaseModel):
-    cuota_ids: List[str] = Field(..., min_length=1, description="Lista de UUIDs de cuotas seleccionadas")
+    cuota_ids: List[str] = Field(default_factory=list, description="Lista de UUIDs de cuotas de préstamo seleccionadas")
+    cuota_social_ids: List[str] = Field(default_factory=list, description="Lista de UUIDs de cuotas sociales seleccionadas")
     fecha_impacto: Optional[str] = Field(None, description="Fecha de impacto DDMMAAAA o YYYY-MM-DD")
     nro_lista: Optional[int] = Field(None, description="Número de lista / archivo asignado")
     empresa_originante_id: Optional[int] = None
@@ -174,6 +184,12 @@ class GenerarPresentacionBaproRequest(BaseModel):
     numero_operacion_inicial: int = 1
     nombre_archivo: Optional[str] = None
     id_corrida: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _validar_al_menos_una_cuota(self):
+        if not self.cuota_ids and not self.cuota_social_ids:
+            raise ValueError("Debe seleccionar al menos una cuota")
+        return self
 
 
 class GenerarPresentacionBaproResponse(BaseModel):

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, HTTPExcep
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.features.auth.controller import obtener_operador_opcional
+from app.features.auth.service import OperadorResuelto
 from app.features.presentaciones_bapro.schemas import (
     BuscarCuotasBaproRequest,
     BuscarCuotasBaproResponse,
@@ -37,6 +39,7 @@ def buscar_cuotas(
         dni_hasta=req.dni_hasta,
         incluir_presentadas=req.incluir_presentadas,
         base_filtrada=req.base_filtrada,
+        tipo_cuota=req.tipo_cuota,
     )
 
 
@@ -60,9 +63,14 @@ def validar_nro_lista(nro_lista: int, service: PresentacionBaproService = Depend
 @router.post("/generar", response_model=GenerarPresentacionBaproResponse)
 def generar_presentacion(
     req: GenerarPresentacionBaproRequest,
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PresentacionBaproService = Depends(get_service),
 ):
-    resp, _ = service.generar_presentacion_bapro(req)
+    resp, _ = service.generar_presentacion_bapro(
+        req,
+        usuario_id=operador.id,
+        usuario_operador=operador.usuario,
+    )
     return resp
 
 

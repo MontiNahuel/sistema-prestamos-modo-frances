@@ -1,9 +1,17 @@
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date, timedelta
 from typing import List, Optional
-from pydantic import BaseModel, Field
-from app.domain.enums import ConvencionTasa, BaseDias, ModalidadIva, AjusteResidual, RedondeoCuota
-from app.domain.calculadoras.tasas import calcular_tasa_periodica
+from pydantic import BaseModel, Field, computed_field
+from app.domain.enums import (
+    ConvencionTasa,
+    BaseDias,
+    ModalidadIva,
+    AjusteResidual,
+    RedondeoCuota,
+    TipoCostoOperativo,
+)
+from app.domain.calculadoras.cft import calcular_cft_flujos
+from app.domain.calculadoras.tasas import calcular_tasa_periodica, calcular_tasas_resumen
 from app.domain.calculadoras.romi import CuotaRomiExacta, TotalesRomiExactos, calcular_romi
 
 
@@ -20,6 +28,7 @@ class CuotaItem(BaseModel):
     capital_centavos: int
     interes_centavos: int
     iva_interes_centavos: int
+    costo_operativo_centavos: int = 0
     cuota_pura_centavos: int
     cuota_total_centavos: int
     saldo_final_centavos: int
@@ -35,23 +44,34 @@ class PlanAmortizacion(BaseModel):
     modalidad_iva: ModalidadIva
     alicuota_iva: Decimal
     redondeo_cuota: RedondeoCuota = RedondeoCuota.CON_CENTAVOS
+    costo_operativo_tipo: TipoCostoOperativo = TipoCostoOperativo.FIJO
+    costo_operativo_centavos: int = 0
+    costo_operativo_porcentaje: Decimal = Decimal("0")
     cuota_pura_teorica_centavos: int
     total_capital_centavos: int
     total_interes_centavos: int
     total_iva_centavos: int
+    total_costo_operativo_centavos: int = 0
     total_a_pagar_centavos: int
+    cft_tna: Decimal = Decimal("0")
+    cft_tea: Decimal = Decimal("0")
     cronograma: List[CuotaItem]
     calculo_exacto: Optional[TotalesRomiExactos] = None
 
-    # Campos retrocompatibles para frontend existente
+    @computed_field
     @property
     def tna(self) -> Decimal:
-        return self.tasa_anual
+        return calcular_tasas_resumen(self.tasa_anual, self.convencion_tasa, self.base_dias, self.alicuota_iva)[0]
 
+    @computed_field
     @property
     def tem(self) -> Decimal:
-        raw = calcular_tasa_periodica(self.tasa_anual, self.convencion_tasa, alicuota_iva=self.alicuota_iva)
-        return round(raw, 6)
+        return calcular_tasas_resumen(self.tasa_anual, self.convencion_tasa, self.base_dias, self.alicuota_iva)[1]
+
+    @computed_field
+    @property
+    def tea(self) -> Decimal:
+        return calcular_tasas_resumen(self.tasa_anual, self.convencion_tasa, self.base_dias, self.alicuota_iva)[2]
 
 
 class MotorConfig(BaseModel):
@@ -77,7 +97,10 @@ class CalculadoraFrances:
         alicuota_iva: Decimal = Decimal("0.21"),
         config: Optional[MotorConfig] = None,
         fecha_primer_vencimiento: Optional[date] = None,
-        fecha_otorgamiento: Optional[date] = None
+        fecha_otorgamiento: Optional[date] = None,
+        costo_operativo_tipo: TipoCostoOperativo = TipoCostoOperativo.FIJO,
+        costo_operativo_centavos: int = 0,
+        costo_operativo_porcentaje: Decimal = Decimal("0"),
     ) -> PlanAmortizacion:
         if monto_centavos <= 0:
             raise ValueError("El monto del préstamo en centavos debe ser mayor a cero.")
@@ -87,6 +110,13 @@ class CalculadoraFrances:
             raise ValueError("La tasa anual no puede ser negativa.")
         if alicuota_iva < Decimal("0"):
             raise ValueError("La alícuota de IVA no puede ser negativa.")
+        if costo_operativo_centavos < 0 or costo_operativo_porcentaje < Decimal("0"):
+            raise ValueError("El costo operativo no puede ser negativo.")
+
+        if costo_operativo_tipo == TipoCostoOperativo.PORCENTAJE:
+            costo_op_cuota_cents = round_cents(Decimal(monto_centavos) * costo_operativo_porcentaje)
+        else:
+            costo_op_cuota_cents = int(costo_operativo_centavos)
 
         cfg = config or MotorConfig()
         es_romi = cfg.convencion_tasa in (
@@ -152,6 +182,7 @@ class CalculadoraFrances:
         total_capital_centavos = 0
         total_interes_centavos = 0
         total_iva_centavos = 0
+        total_costo_operativo_centavos = 0
 
         # Control de fechas
         fecha_ant = fecha_otorgamiento or date.today()
@@ -234,6 +265,8 @@ class CalculadoraFrances:
             total_capital_centavos += capital_cents
             total_interes_centavos += interes_cents
             total_iva_centavos += iva_cents
+            total_costo_operativo_centavos += costo_op_cuota_cents
+            cuota_total_con_costo = cuota_total + costo_op_cuota_cents
             saldo_actual_centavos = saldo_final
 
             cronograma.append(
@@ -245,14 +278,24 @@ class CalculadoraFrances:
                     capital_centavos=capital_cents,
                     interes_centavos=interes_cents,
                     iva_interes_centavos=iva_cents,
+                    costo_operativo_centavos=costo_op_cuota_cents,
                     cuota_pura_centavos=cuota_pura,
-                    cuota_total_centavos=cuota_total,
+                    cuota_total_centavos=cuota_total_con_costo,
                     saldo_final_centavos=saldo_final,
                     calculo_exacto=exacta,
                 )
             )
 
-        total_a_pagar_centavos = total_capital_centavos + total_interes_centavos + total_iva_centavos
+        total_a_pagar_centavos = (
+            total_capital_centavos
+            + total_interes_centavos
+            + total_iva_centavos
+            + total_costo_operativo_centavos
+        )
+        cft_tna, cft_tea = calcular_cft_flujos(
+            monto_centavos,
+            [item.cuota_total_centavos for item in cronograma],
+        )
 
         return PlanAmortizacion(
             monto_solicitado_centavos=monto_centavos,
@@ -263,11 +306,17 @@ class CalculadoraFrances:
             modalidad_iva=cfg.modalidad_iva,
             alicuota_iva=alicuota_iva_efectiva,
             redondeo_cuota=cfg.redondeo_cuota,
+            costo_operativo_tipo=costo_operativo_tipo,
+            costo_operativo_centavos=costo_operativo_centavos,
+            costo_operativo_porcentaje=costo_operativo_porcentaje,
             cuota_pura_teorica_centavos=cuota_pura_teorica_centavos,
             total_capital_centavos=total_capital_centavos,
             total_interes_centavos=total_interes_centavos,
             total_iva_centavos=total_iva_centavos,
+            total_costo_operativo_centavos=total_costo_operativo_centavos,
             total_a_pagar_centavos=total_a_pagar_centavos,
+            cft_tna=cft_tna,
+            cft_tea=cft_tea,
             cronograma=cronograma,
             calculo_exacto=totales_exactos,
         )

@@ -127,7 +127,7 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     for (const p of cartera.filter(p => todoPeriodo || enPeriodo(p.fecha_alta))) {
       const cuotas = [...p.cuotas ?? []].sort((a, b) => a.numero_cuota - b.numero_cuota);
       filas.push({ ...identidad(p), otorgamiento: fechaArgentina(p.fecha_alta), capital: p.monto_solicitado_centavos, tasa: Number(p.tna_pactada), plazo: p.plazo_meses, primeraCuota: cuotas[0]?.cuota_total_centavos ?? null,
-        ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null, gastos: null, total: p.total_a_pagar_centavos, saldo: p.saldo_deudor_actual_centavos, estado: p.estado,
+        ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null, gastos: p.total_costo_operativo_centavos ?? null, total: p.total_a_pagar_centavos, saldo: p.saldo_deudor_actual_centavos, estado: p.estado,
         linea: p.linea_snapshot?.linea_nombre ?? 'Sin línea', motor: p.linea_snapshot?.motor_nombre ?? null,
         pagadas: cuotas.filter(c => c.estado === 'PAGADA').length, pendientes: cuotas.filter(c => c.estado !== 'PAGADA').length });
     }
@@ -156,7 +156,7 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
         tasa: Number(p.tna_pactada), tna, tem: Number.isFinite(tem) ? tem : null, plazo: p.plazo_meses,
         primeraCuota: cuotas[0]?.cuota_total_centavos ?? null, ultimaCuota: cuotas.at(-1)?.cuota_total_centavos ?? null,
         intereses: p.total_interes_centavos, alicuota: Number(p.alicuota_iva), iva: p.total_iva_centavos,
-        gastos: null, total: p.total_a_pagar_centavos, cft: null, estado: p.estado });
+        gastos: p.total_costo_operativo_centavos ?? null, total: p.total_a_pagar_centavos, cft: p.cft_tea != null ? Number(p.cft_tea) : null, estado: p.estado });
       for (const c of cuotas) cronograma.filas.push({ ...identidad(p), cuota: c.numero_cuota, vencimiento: c.fecha_vencimiento,
         saldoInicial: c.saldo_inicial_centavos, capital: c.capital_centavos, interes: c.interes_centavos, iva: c.iva_interes_centavos,
         cuotaPura: c.cuota_pura_centavos, importe: c.cuota_total_centavos, saldoFinal: c.saldo_final_centavos });
@@ -165,7 +165,7 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
     resumen = [{ titulo: 'Préstamos consultados', valor: filas.length }, { titulo: 'Capital solicitado', valor: suma('capital'), dinero: true },
       { titulo: 'Total intereses', valor: suma('intereses'), dinero: true }, { titulo: 'Total IVA', valor: suma('iva'), dinero: true },
       { titulo: 'Total a devolver registrado', valor: suma('total'), dinero: true }];
-    if (filas.length) advertencias.push('Gastos administrativos y CFT: no disponibles. El sistema todavía no registra los cargos y el cálculo necesarios para informar el costo financiero total.');
+    if (filas.some(r => r.gastos === null || r.cft === null)) advertencias.push('Gastos administrativos y CFT: no disponibles en préstamos históricos anteriores sin cálculo de CFT registrado.');
     notas.push('El período selecciona la fecha de otorgamiento. El desglose incluye todas las cuotas de los préstamos seleccionados, aun cuando venzan fuera del período.');
     notas.push('Se muestran las condiciones guardadas al otorgar el préstamo. Primera y última cuota incluyen IVA; el detalle permite ver el importe de cada mes y el ajuste de la última cuota.');
     notas.push('La tasa anual registrada es la aplicada por el motor. Para motores TEA identificados en el préstamo, la TNA equivalente es la tasa mensual pactada multiplicada por 12; en los demás casos se informa el campo TNA registrado por el sistema.');
@@ -182,12 +182,13 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
         const estado = estadoCuota(c, hoy);
         if (!enPeriodo(c.fecha_pago) || (f.estadoCuota && estado !== f.estadoCuota)) continue;
         const aplicado = completo(c);
-        const desglosable = aplicado && c.capital_centavos + c.interes_centavos + c.iva_interes_centavos === c.monto_pagado_centavos;
+        const costoOp = c.costo_operativo_centavos ?? 0;
+        const desglosable = aplicado && c.capital_centavos + c.interes_centavos + c.iva_interes_centavos + costoOp === c.monto_pagado_centavos;
         const anticipo = c.fecha_vencimiento && fechaArgentina(c.fecha_pago) < c.fecha_vencimiento;
         const saldo = conciliado ? p.total_capital_centavos - pagos.filter(x => instante(x.fecha_pago!) <= instante(c.fecha_pago!)).reduce((sum, x) => sum + x.capital_centavos, 0) : null;
         filas.push({ ...identidad(p), cobranza: fechaArgentina(c.fecha_pago), cuota: c.numero_cuota,
           importe: aplicado ? c.monto_pagado_centavos : null, capital: desglosable ? c.capital_centavos : null, interes: desglosable ? c.interes_centavos : null,
-          iva: desglosable ? c.iva_interes_centavos : null, otros: desglosable ? 0 : null, medio: null, saldo, estado,
+          iva: desglosable ? c.iva_interes_centavos : null, otros: desglosable ? costoOp : null, medio: null, saldo, estado,
           tipoPago: !aplicado ? 'Acumulado parcial / sin movimientos' : saldo === 0 ? (anticipo ? 'Última cuota anticipada' : 'Última cuota pagada') : anticipo ? 'Cuota anticipada' : 'Cuota completa' });
       }
     }

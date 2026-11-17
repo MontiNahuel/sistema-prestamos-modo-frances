@@ -1,8 +1,21 @@
+from dataclasses import dataclass
+import logging
 from typing import Dict, Any, Optional
 from fastapi import HTTPException, status
+from app.core.config import settings
 from app.integrations.coopya_client import CoopYaClient, coopya_client
 from app.integrations.coopya_db_client import CoopYaDbClient
 from app.features.auth.schemas import UserProfileResponse
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class OperadorResuelto:
+    """Identidad resuelta del operador que ejecuta una acción."""
+
+    id: Optional[int] = None
+    usuario: Optional[str] = None
 
 
 class AuthService:
@@ -48,6 +61,7 @@ class AuthService:
                 mail="dev@coopya.com.ar",
                 roles=["Acceso Completo"],
                 es_acceso_completo=True,
+                sistema_central_url=settings.COOPYA_BASE_URL,
             )
 
         token_limpio = token.replace("Bearer ", "").strip()
@@ -61,6 +75,7 @@ class AuthService:
                         usuario="operador_local",
                         roles=["Acceso Completo"],
                         es_acceso_completo=True,
+                        sistema_central_url=settings.COOPYA_BASE_URL,
                     )
                 cursor = conn.cursor()
                 cursor.execute(
@@ -99,6 +114,7 @@ class AuthService:
                     mail=rows[0][2],
                     roles=roles,
                     es_acceso_completo=es_admin,
+                    sistema_central_url=settings.COOPYA_BASE_URL,
                 )
         except HTTPException:
             raise
@@ -110,8 +126,37 @@ class AuthService:
                     usuario="test_operator",
                     roles=["Acceso Completo"],
                     es_acceso_completo=True,
+                    sistema_central_url=settings.COOPYA_BASE_URL,
                 )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"Error al verificar perfil de usuario en CoopYa: {str(e)}",
             )
+
+    def resolver_operador(
+        self,
+        token: Optional[str],
+        fallback_usuario: Optional[str] = None,
+    ) -> OperadorResuelto:
+        """Resuelve el operador activo priorizando el token de sesión sobre headers auxiliares."""
+        fallback = (
+            fallback_usuario.strip()
+            if fallback_usuario and fallback_usuario.strip()
+            else None
+        )
+        token_limpio = token.replace("Bearer ", "").strip() if token else ""
+        if not token_limpio:
+            return OperadorResuelto(id=None, usuario=fallback)
+
+        try:
+            perfil = self.obtener_perfil_por_token(token_limpio)
+        except HTTPException as exc:
+            logger.warning(
+                "No se pudo resolver el operador desde el token (%s); usando fallback.",
+                exc.status_code,
+            )
+            return OperadorResuelto(id=None, usuario=fallback)
+
+        if not self.db_client.enabled and fallback:
+            return OperadorResuelto(id=perfil.id, usuario=fallback)
+        return OperadorResuelto(id=perfil.id, usuario=perfil.usuario or fallback)

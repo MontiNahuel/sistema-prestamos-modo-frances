@@ -25,10 +25,50 @@ class SocioRepository:
         return self.db.query(TipoBanco).filter(TipoBanco.id == banco_id).first()
 
     def get_banco_by_codigo(self, codigo: str) -> Optional[TipoBanco]:
-        return self.db.query(TipoBanco).filter(TipoBanco.codigo.endswith(codigo)).first()
+        limpio = codigo.strip()
+        if not limpio:
+            return None
+        normalizado = limpio.zfill(5) if limpio.isdigit() and len(limpio) <= 5 else limpio
+        exacto = (
+            self.db.query(TipoBanco)
+            .filter(TipoBanco.codigo == normalizado)
+            .order_by(TipoBanco.id)
+            .first()
+        )
+        if exacto:
+            return exacto
+        return (
+            self.db.query(TipoBanco)
+            .filter(TipoBanco.codigo.endswith(limpio))
+            .order_by(TipoBanco.id)
+            .first()
+        )
 
     def get_banco_by_nombre(self, nombre: str) -> Optional[TipoBanco]:
-        return self.db.query(TipoBanco).filter(TipoBanco.nombre.ilike(f"%{nombre}%")).first()
+        return self.db.query(TipoBanco).filter(TipoBanco.nombre.ilike(f"%{nombre}%")).order_by(TipoBanco.id).first()
+
+    def resolver_banco_id(
+        self,
+        banco_id: Optional[int] = None,
+        cbu: Optional[str] = None,
+        banco_nombre: Optional[str] = None,
+    ) -> Optional[int]:
+        """Valida que banco_id exista en tipo_bancos o lo infiere por CBU/nombre sin violar FK."""
+        if banco_id:
+            banco = self.get_banco_by_id(banco_id)
+            if banco:
+                return banco.id
+        if cbu:
+            limpio = cbu.strip()
+            if len(limpio) >= 3 and limpio[:3].isdigit():
+                banco = self.get_banco_by_codigo(limpio[:3])
+                if banco:
+                    return banco.id
+        if banco_nombre:
+            banco = self.get_banco_by_nombre(banco_nombre.strip())
+            if banco:
+                return banco.id
+        return None
 
     def list_bancos(self) -> List[TipoBanco]:
         return self.db.query(TipoBanco).filter(TipoBanco.activo == True).order_by(TipoBanco.nombre).all()

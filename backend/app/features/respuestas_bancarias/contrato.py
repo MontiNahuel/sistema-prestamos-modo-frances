@@ -27,6 +27,7 @@ def exportar_obligaciones(prestamo):
                 'capital': pesos(c.capital_centavos),
                 'interes': pesos(c.interes_centavos),
                 'iva': pesos(c.iva_interes_centavos),
+                'costo_operativo': pesos(getattr(c, 'costo_operativo_centavos', 0) or 0),
                 'importe_total': pesos(c.cuota_total_centavos),
                 'importe_pagado': pesos(c.monto_pagado_centavos),
                 'saldo_total': pesos(c.cuota_total_centavos - c.monto_pagado_centavos),

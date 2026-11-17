@@ -75,6 +75,9 @@ export const SimuladorTarjetas: React.FC<SimuladorTarjetasProps> = ({
         </div>
         <div className="text-[0.75rem] text-[#16a34a] mt-[0.2rem] font-medium">
           Cuota teórica: {formatMoney(plan.cuota_pura_teorica_centavos)}
+          {(plan.total_costo_operativo_centavos ?? 0) > 0 && (
+            <span> · Costo op.: {formatMoney(plan.total_costo_operativo_centavos ?? 0)}</span>
+          )}
         </div>
       </div>
     </div>

@@ -16,8 +16,16 @@ export function formatPesos(pesos: number): string {
   });
 }
 
-export function formatPct(val: string | number): string {
+export function formatPct(
+  val: string | number,
+  minDecimales = 2,
+  maxDecimales = minDecimales
+): string {
   const num = typeof val === 'string' ? parseFloat(val) : val;
-  if (isNaN(num)) return '0.00%';
-  return `${(num * 100).toFixed(2)}%`;
+  if (isNaN(num)) return `${(0).toFixed(minDecimales)}%`;
+  return `${(num * 100).toLocaleString('en-US', {
+    useGrouping: false,
+    minimumFractionDigits: minDecimales,
+    maximumFractionDigits: maxDecimales
+  })}%`;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CuotaPresentableItem, EmpresaOriginante } from '../../types/presentacionesBapro';
+import { CuotaPresentableItem, EmpresaOriginante, TipoCuotaPresentacion } from '../../types/presentacionesBapro';
 import {
   buscarCuotasBapro,
   generarPresentacionBapro,
@@ -11,8 +11,14 @@ import {
 import { FiltrosBapro } from './FiltrosBapro';
 import { EmpresasModal } from './EmpresasModal';
 import { Badge } from '../common/Badge';
+import {
+  claveItemPresentable,
+  esItemCuotaSocial,
+  partirIdsSeleccionados,
+} from '../../utils/presentacionHelpers';
 
 export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void }> = ({ onCargarRespuesta }) => {
+  const [tipoCuota, setTipoCuota] = useState<TipoCuotaPresentacion>('CUOTA_PRESTAMO');
   const [empresas, setEmpresas] = useState<EmpresaOriginante[]>([]);
   const [empresaId, setEmpresaId] = useState<number | undefined>();
   const [dniDesde, setDniDesde] = useState<number | ''>('');
@@ -90,6 +96,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
         dni_desde: dniDesde === '' ? null : dniDesde,
         dni_hasta: dniHasta === '' ? null : dniHasta,
         incluir_presentadas: true,
+        tipo_cuota: tipoCuota,
       });
       const filtrarPresentadas = (items: CuotaPresentableItem[]) =>
         incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
@@ -103,7 +110,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
         new Set(
           presentablesVisibles
             .filter((c) => c.estado !== 'PRESENTADA')
-            .map((c) => c.cuota_id)
+            .map((c) => claveItemPresentable(c))
         )
       );
     } catch (err: any) {
@@ -125,14 +132,14 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
   };
 
   const toggleSelectAll = () => {
-    const pres = cuotas.filter((c) => c.presentable).map((c) => c.cuota_id);
+    const pres = cuotas.filter((c) => c.presentable).map((c) => claveItemPresentable(c));
     setSeleccionadas(seleccionadas.size === pres.length ? new Set() : new Set(pres));
   };
 
   const handleGenerar = async () => {
     if (seleccionadas.size === 0) return;
     const totalSeleccionado = cuotas
-      .filter((c) => seleccionadas.has(c.cuota_id))
+      .filter((c) => seleccionadas.has(claveItemPresentable(c)))
       .reduce((acc, c) => acc + Number(c.monto_pesos || 0), 0);
     const fechaFormateada = fechaImpacto
       ? new Date(`${fechaImpacto}T00:00:00`).toLocaleDateString('es-AR')
@@ -149,8 +156,10 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
     setGenerando(true);
     setError(null);
     try {
+      const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotas, seleccionadas);
       const res = await generarPresentacionBapro({
-        cuota_ids: Array.from(seleccionadas),
+        cuota_ids,
+        cuota_social_ids,
         fecha_impacto: fechaImpacto,
         nro_lista: nroLista === '' ? undefined : Number(nroLista),
         nombre_archivo: nombreArchivo || undefined,
@@ -170,7 +179,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
     }
   };
 
-  const cuotasSeleccionadas = cuotas.filter((c) => seleccionadas.has(c.cuota_id));
+  const cuotasSeleccionadas = cuotas.filter((c) => seleccionadas.has(claveItemPresentable(c)));
   const totalMontoSeleccionado = cuotasSeleccionadas.reduce((acc, c) => acc + Number(c.monto_pesos || 0), 0);
 
   return (
@@ -187,6 +196,13 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
       </div>
 
       <FiltrosBapro
+        tipoCuota={tipoCuota}
+        onTipoCuotaChange={(v) => {
+          setTipoCuota(v);
+          setCuotas([]);
+          setSeleccionadas(new Set());
+          setPresentadasExcluidas(0);
+        }}
         empresas={empresas} empresaId={empresaId} onEmpresaChange={handleEmpresaChange}
         dniDesde={dniDesde} setDniDesde={setDniDesde} dniHasta={dniHasta} setDniHasta={setDniHasta}
         fechaImpacto={fechaImpacto} setFechaImpacto={setFechaImpacto}
@@ -225,7 +241,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
                 <input type="checkbox" onChange={toggleSelectAll} checked={cuotas.filter(c => c.presentable).length > 0 && seleccionadas.size === cuotas.filter(c => c.presentable).length} />
               </th>
               <th style={{ padding: '0.75rem 1rem' }}>Socio</th>
-              <th style={{ padding: '0.75rem 1rem' }}>Cuota #</th>
+              <th style={{ padding: '0.75rem 1rem' }}>Concepto / Cuota</th>
               <th style={{ padding: '0.75rem 1rem' }}>Vencimiento</th>
               <th style={{ padding: '0.75rem 1rem' }}>CBU Banco Provincia</th>
               <th style={{ padding: '0.75rem 1rem' }}>Monto Cuota</th>
@@ -236,13 +252,22 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
             {cuotas.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>Hacé click en "Buscar" para visualizar las cuotas a presentar con los filtros seleccionados.</td></tr>
             ) : (
-              cuotas.map((c) => (
-                <tr key={c.cuota_id} style={{ borderBottom: '1px solid #f1f5f9', opacity: c.presentable ? 1 : 0.6 }}>
+              cuotas.map((c) => {
+                const clave = claveItemPresentable(c);
+                const esSocial = esItemCuotaSocial(c);
+                return (
+                <tr key={clave} style={{ borderBottom: '1px solid #f1f5f9', opacity: c.presentable ? 1 : 0.6 }}>
                   <td style={{ padding: '0.65rem 1rem' }}>
-                    <input type="checkbox" disabled={!c.presentable} checked={seleccionadas.has(c.cuota_id)} onChange={() => toggleSelect(c.cuota_id)} />
+                    <input type="checkbox" disabled={!c.presentable} checked={seleccionadas.has(clave)} onChange={() => toggleSelect(clave)} />
                   </td>
                   <td style={{ padding: '0.65rem 1rem' }}><strong>{c.socio_nombre}</strong><br /><span style={{ fontSize: '0.75rem', color: '#64748b' }}>DNI: {c.socio_documento || 'S/D'}</span></td>
-                  <td style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>Cuota #{c.numero_cuota}</td>
+                  <td style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>
+                    {esSocial ? (
+                      <span style={{ color: '#1d4ed8' }}>Cuota Social · {c.periodo || '-'}</span>
+                    ) : (
+                      <span>Préstamo · Cuota #{c.numero_cuota}</span>
+                    )}
+                  </td>
                   <td style={{ padding: '0.65rem 1rem' }}>{c.fecha_vencimiento || '-'}</td>
                   <td style={{ padding: '0.65rem 1rem', fontFamily: 'monospace' }}>{c.cbu || <span style={{ color: '#dc2626' }}>{c.motivo_exclusion}</span>}</td>
                   <td style={{ padding: '0.65rem 1rem', fontWeight: 700 }}>${Number(c.monto_pesos || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -250,7 +275,8 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
                     <Badge variant={c.estado === 'PAGADA' ? 'success' : c.estado === 'RECHAZADA' ? 'danger' : c.estado === 'PRESENTADA' ? 'info' : 'warning'}>{c.estado}</Badge>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

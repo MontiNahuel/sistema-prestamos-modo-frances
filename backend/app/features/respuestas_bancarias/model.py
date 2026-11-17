@@ -29,7 +29,8 @@ class RespuestaBancariaDetalle(Base):
     clave_operacion = Column(String(64), nullable=False)
     huella_respuesta = Column(String(64), nullable=False)
     linea = Column(Integer, nullable=False)
-    cuota_id = Column(String(36), ForeignKey('cuotas.id'), nullable=False, index=True)
+    cuota_id = Column(String(36), ForeignKey('cuotas.id'), nullable=True, index=True)
+    cuota_social_id = Column(String(36), ForeignKey('cuotas_sociales.id'), nullable=True, index=True)
     referencia = Column(String(100), nullable=False)
     codigo = Column(String(10), nullable=False)
     descripcion = Column(String(250), nullable=False)
@@ -38,8 +39,14 @@ class RespuestaBancariaDetalle(Base):
     capital_centavos = Column(BigInteger, nullable=False)
     interes_centavos = Column(BigInteger, nullable=False)
     iva_centavos = Column(BigInteger, nullable=False)
+    costo_operativo_centavos = Column(BigInteger, nullable=False, default=0)
+    cuota_social_centavos = Column(BigInteger, nullable=False, default=0)
     saldo_cuota_centavos = Column(BigInteger, nullable=False)
     estado_cuota = Column(String(20), nullable=False)
     carga = relationship('RespuestaBancaria', back_populates='detalles')
     cuota = relationship('Cuota', back_populates='respuestas_bancarias')
+    cuota_social = relationship('CuotaSocial', back_populates='respuestas_bancarias')
     __table_args__ = (UniqueConstraint('banco', 'clave_operacion', name='uq_respuesta_operacion'),)
+
+
+import app.features.cuotas_sociales.model  # noqa: E402, F401

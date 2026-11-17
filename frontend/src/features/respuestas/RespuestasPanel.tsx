@@ -24,6 +24,10 @@ type Candidato = {
 };
 type Fila = {
   linea: number;
+  tipo_concepto?: string;
+  cuota_id?: string | null;
+  cuota_social_id?: string | null;
+  periodo?: string | null;
   referencia: string;
   cuenta: string;
   importe_centavos: number;
@@ -33,8 +37,8 @@ type Fila = {
   motivo: string;
   persona?: string;
   documento?: string;
-  prestamo_id?: string;
-  numero_cuota?: number;
+  prestamo_id?: string | null;
+  numero_cuota?: number | null;
   candidatos: Candidato[];
 };
 type Vista = {
@@ -58,16 +62,21 @@ type Carga = {
 };
 type Detalle = {
   linea: number;
+  tipo_concepto?: string;
   persona: string;
   persona_id: number;
-  prestamo_id: string;
-  numero_cuota: number;
+  prestamo_id?: string | null;
+  numero_cuota?: number | null;
+  cuota_social_id?: string | null;
+  periodo?: string | null;
   codigo: string;
   descripcion: string;
   cobrado_centavos: number;
   capital_centavos: number;
   interes_centavos: number;
   iva_centavos: number;
+  costo_operativo_centavos?: number;
+  cuota_social_centavos?: number;
   saldo_cuota_centavos: number;
   estado_cuota: string;
 };
@@ -524,11 +533,15 @@ export function RespuestasPanel({
                     <td className={`${celda} font-mono text-xs`}>{r.cuenta}</td>
                     <td className={celda}>
                       {r.persona || "Sin vincular"}
-                      {r.prestamo_id && (
+                      {r.tipo_concepto === "CUOTA_SOCIAL" ? (
+                        <small className="block text-[#1d4ed8]">
+                          Cuota Social {r.periodo || ""}
+                        </small>
+                      ) : r.prestamo_id ? (
                         <small className="block">
                           {r.prestamo_id.slice(0, 8)} · Cuota {r.numero_cuota}
                         </small>
-                      )}
+                      ) : null}
                     </td>
                     <td className={`${celda} whitespace-nowrap`}>
                       {formatMoney(r.importe_centavos)}
@@ -705,7 +718,11 @@ export function RespuestasPanel({
                         <td className={celda}>
                           {d.persona}
                           <small className="block">
-                            {d.prestamo_id.slice(0, 8)}
+                            {d.tipo_concepto === "CUOTA_SOCIAL"
+                              ? `Cuota Social ${d.periodo || ""}`
+                              : d.prestamo_id
+                                ? d.prestamo_id.slice(0, 8)
+                                : "—"}
                           </small>
                           <button
                             type="button"
@@ -716,7 +733,11 @@ export function RespuestasPanel({
                             Cuenta corriente local
                           </button>
                         </td>
-                        <td className={celda}>{d.numero_cuota}</td>
+                        <td className={celda}>
+                          {d.tipo_concepto === "CUOTA_SOCIAL"
+                            ? `CS ${d.periodo || ""}`
+                            : (d.numero_cuota ?? "—")}
+                        </td>
                         <td className={celda}>
                           {d.codigo} · {d.estado_cuota}
                           <small className="block">{d.descripcion}</small>
