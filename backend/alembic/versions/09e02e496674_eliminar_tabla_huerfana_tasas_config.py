@@ -20,7 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.drop_table('tasas_config')
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table('tasas_config'):
+        op.drop_table('tasas_config')
 
 
 def downgrade() -> None:
