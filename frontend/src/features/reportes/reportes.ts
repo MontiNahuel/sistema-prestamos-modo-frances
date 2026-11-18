@@ -1,6 +1,14 @@
+import type { CuotaSocialReporteItem } from '../../types/cuotaSocial';
 import type { CuotaPrestamo, Prestamo } from '../../types/prestamo';
 
 export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones' | 'padron';
+export type FiltroCuotaCaida = 'todas' | 'primera' | 'ultima' | 'especifica';
+export type ConceptoCaida = 'PRESTAMO' | 'CUOTA_SOCIAL' | 'PRESTAMO_Y_CUOTA_SOCIAL';
+export const CONCEPTOS_CAIDA: { value: ConceptoCaida; label: string }[] = [
+  { value: 'PRESTAMO', label: 'Préstamo' },
+  { value: 'CUOTA_SOCIAL', label: 'Cuota Social' },
+  { value: 'PRESTAMO_Y_CUOTA_SOCIAL', label: 'Préstamo y Cuota Social' },
+];
 export type Valor = string | number | null;
 export interface Columna { key: string; titulo: string; tipo?: 'dinero' | 'fecha' | 'porcentaje' | 'numero' }
 export interface FiltrosReporte {
@@ -11,6 +19,9 @@ export interface FiltrosReporte {
   numeroPrestamo: string;
   estadoPrestamo: string;
   estadoCuota: string;
+  conceptoCaida?: ConceptoCaida;
+  filtroCuota?: FiltroCuotaCaida;
+  numeroCuota?: string;
   plazo?: string;
   todoPeriodo?: boolean;
 }
@@ -63,11 +74,23 @@ export function estadoCuota(c: CuotaPrestamo, hoy: string): string {
   return c.estado === 'VENCIDA' ? 'VENCIDA' : 'PENDIENTE';
 }
 
+export function estadoCuotaSocial(c: CuotaSocialReporteItem, hoy: string): string {
+  if (c.estado === 'ANULADA') return 'ANULADA';
+  if (c.estado === 'PAGADA') return 'PAGADA';
+  if (c.fecha_vencimiento && c.fecha_vencimiento < hoy) return 'VENCIDA';
+  return 'PENDIENTE';
+}
+
 function identidad(p: Prestamo): Record<string, Valor> {
   return { asociado: p.persona_nombre || `Asociado #${p.persona_id}`, documento: p.persona_doc || null, personaId: p.persona_id, numeroPrestamo: p.numero_prestamo, prestamo: p.id };
 }
 
-export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy = hoyArgentina()): Reporte {
+export function construirReporte(
+  prestamos: Prestamo[],
+  f: FiltrosReporte,
+  hoy = hoyArgentina(),
+  cuotasSociales: CuotaSocialReporteItem[] = []
+): Reporte {
   const todoPeriodo = f.tipo === 'otorgados' && f.todoPeriodo === true;
   if (!todoPeriodo && (!f.desde || !f.hasta || f.desde > f.hasta)) throw new Error('Seleccioná un período válido: Desde no puede ser posterior a Hasta.');
   const enPeriodo = (fechaValor: string | null | undefined) => {
@@ -88,20 +111,196 @@ export function construirReporte(prestamos: Prestamo[], f: FiltrosReporte, hoy =
   const suma = (key: string) => filas.reduce((total, r) => total + (typeof r[key] === 'number' ? r[key] as number : 0), 0);
 
   if (f.tipo === 'caida') {
-    const sinFecha = cartera.reduce((sum, p) => sum + (p.cuotas ?? []).filter(c => !c.fecha_vencimiento).length, 0);
-    if (sinFecha) advertencias.push(`Hay ${sinFecha} cuotas sin fecha de vencimiento en la cartera consultada. No se pueden asignar a un período y no están incluidas en estos totales.`);
-    columnas = [...identificacion, numero('cuota', 'Cuota'), fecha('vencimiento', 'Vencimiento'), dinero('importe', 'Importe cuota'), dinero('capital', 'Capital'), dinero('interes', 'Intereses'), dinero('iva', 'IVA'), dinero('pendiente', 'A cobrar pendiente'), { key: 'estado', titulo: 'Estado cuota' }, { key: 'estadoPrestamo', titulo: 'Estado préstamo' }];
-    for (const p of cartera) {
-      for (const c of p.cuotas ?? []) {
-        const estado = estadoCuota(c, hoy);
-        if (!enPeriodo(c.fecha_vencimiento) || (f.estadoCuota && estado !== f.estadoCuota)) continue;
-        filas.push({ ...identidad(p), cuota: c.numero_cuota, vencimiento: c.fecha_vencimiento, importe: c.cuota_total_centavos, capital: c.capital_centavos, interes: c.interes_centavos, iva: c.iva_interes_centavos,
-          pendiente: p.estado === 'CANCELADO' || estado === 'PAGADA' ? 0 : Math.max(0, c.cuota_total_centavos - c.monto_pagado_centavos), estado, estadoPrestamo: p.estado });
+    const concepto: ConceptoCaida = f.conceptoCaida ?? 'PRESTAMO';
+    const incluyePrestamo = concepto !== 'CUOTA_SOCIAL';
+    const incluyeCuotaSocial = concepto !== 'PRESTAMO';
+    const filtroCuota = f.filtroCuota ?? 'todas';
+    const numeroCuotaObjetivo =
+      incluyePrestamo && filtroCuota === 'especifica' ? Number(f.numeroCuota) : null;
+    if (
+      incluyePrestamo &&
+      filtroCuota === 'especifica' &&
+      (!Number.isInteger(numeroCuotaObjetivo) || (numeroCuotaObjetivo ?? 0) < 1)
+    ) {
+      throw new Error('Ingresá un número de cuota válido (1 o mayor).');
+    }
+
+    if (incluyePrestamo) {
+      const sinFecha = cartera.reduce((sum, p) => sum + (p.cuotas ?? []).filter(c => !c.fecha_vencimiento).length, 0);
+      if (sinFecha) advertencias.push(`Hay ${sinFecha} cuotas sin fecha de vencimiento en la cartera consultada. No se pueden asignar a un período y no están incluidas en estos totales.`);
+    }
+    if (incluyeCuotaSocial && f.hasta.slice(0, 7) > hoy.slice(0, 7)) {
+      advertencias.push('El período consultado incluye fechas futuras. Las cuotas sociales no se proyectan a futuro por ser de duración indeterminada; solo se muestran períodos reales ya generados.');
+    }
+
+    const filtrarCuotasSociales = () => {
+      const excluyePorFiltroPrestamo = concepto === 'PRESTAMO_Y_CUOTA_SOCIAL' && (Boolean(f.estadoPrestamo) || filtroCuota !== 'todas');
+      if (excluyePorFiltroPrestamo) return [];
+      const salida: CuotaSocialReporteItem[] = [];
+      for (const cs of cuotasSociales) {
+        if (cs.estado === 'ANULADA') continue;
+        if (numeroPrestamo && String(cs.numero_prestamo ?? '') !== numeroPrestamo) continue;
+        if (buscar && ![cs.persona_nombre, cs.persona_doc, cs.prestamo_id, String(cs.socio_id), cs.periodo].some(v => v?.toLocaleLowerCase('es').includes(buscar))) continue;
+        const estado = estadoCuotaSocial(cs, hoy);
+        if (!enPeriodo(cs.fecha_vencimiento) || (f.estadoCuota && estado !== f.estadoCuota)) continue;
+        salida.push(cs);
+      }
+      return salida;
+    };
+
+    if (concepto === 'PRESTAMO') {
+      columnas = [...identificacion, numero('cuota', 'Cuota'), fecha('vencimiento', 'Vencimiento'), dinero('importe', 'Importe cuota'), dinero('capital', 'Capital'), dinero('interes', 'Intereses'), dinero('iva', 'IVA'), dinero('pendiente', 'A cobrar pendiente'), { key: 'estado', titulo: 'Estado cuota' }, { key: 'estadoPrestamo', titulo: 'Estado préstamo' }];
+      for (const p of cartera) {
+        const cuotasPrestamo = p.cuotas ?? [];
+        const maxCuota = cuotasPrestamo.reduce((max, item) => Math.max(max, item.numero_cuota), 0);
+        const ultimaCuota = Math.max(p.plazo_meses || 0, maxCuota);
+        for (const c of cuotasPrestamo) {
+          if (filtroCuota === 'primera' && c.numero_cuota !== 1) continue;
+          if (filtroCuota === 'ultima' && c.numero_cuota !== ultimaCuota) continue;
+          if (filtroCuota === 'especifica' && c.numero_cuota !== numeroCuotaObjetivo) continue;
+          const estado = estadoCuota(c, hoy);
+          if (!enPeriodo(c.fecha_vencimiento) || (f.estadoCuota && estado !== f.estadoCuota)) continue;
+          filas.push({ ...identidad(p), cuota: c.numero_cuota, vencimiento: c.fecha_vencimiento, importe: c.cuota_total_centavos, capital: c.capital_centavos, interes: c.interes_centavos, iva: c.iva_interes_centavos,
+            pendiente: p.estado === 'CANCELADO' || estado === 'PAGADA' ? 0 : Math.max(0, c.cuota_total_centavos - c.monto_pagado_centavos), estado, estadoPrestamo: p.estado });
+        }
+      }
+      filas.sort((a, b) => String(a.vencimiento).localeCompare(String(b.vencimiento)) || String(a.prestamo).localeCompare(String(b.prestamo)) || Number(a.cuota) - Number(b.cuota));
+      resumen = [{ titulo: 'Cuotas con vencimiento', valor: filas.length }, { titulo: 'Importe total de cuotas', valor: suma('importe'), dinero: true }, { titulo: 'Pendiente a cobrar', valor: suma('pendiente'), dinero: true }];
+    } else if (concepto === 'CUOTA_SOCIAL') {
+      columnas = [
+        { key: 'asociado', titulo: 'Asociado' },
+        { key: 'documento', titulo: 'Documento' },
+        numero('personaId', 'ID asociado'),
+        { key: 'concepto', titulo: 'Concepto' },
+        { key: 'periodo', titulo: 'Período' },
+        fecha('vencimiento', 'Vencimiento'),
+        dinero('importe', 'Importe cuota'),
+        dinero('cobrado', 'Cobrado'),
+        dinero('pendiente', 'A cobrar pendiente'),
+        { key: 'estado', titulo: 'Estado cuota' },
+        { key: 'estadoSuscripcion', titulo: 'Suscripción' },
+      ];
+      const socialesFiltradas = filtrarCuotasSociales();
+      for (const cs of socialesFiltradas) {
+        const estado = estadoCuotaSocial(cs, hoy);
+        const pendiente = estado === 'PAGADA' ? 0 : Math.max(0, cs.valor_centavos - cs.monto_pagado_centavos);
+        filas.push({
+          cuotaSocialId: cs.id,
+          asociado: cs.persona_nombre || `Asociado #${cs.socio_id}`,
+          documento: cs.persona_doc || null,
+          personaId: cs.socio_id,
+          concepto: 'Cuota Social',
+          periodo: cs.periodo,
+          vencimiento: cs.fecha_vencimiento,
+          importe: cs.valor_centavos,
+          cobrado: cs.monto_pagado_centavos,
+          pendiente,
+          estado,
+          estadoSuscripcion: cs.cuota_social_activa ? 'Activa' : 'De baja',
+        });
+      }
+      filas.sort((a, b) => String(a.vencimiento).localeCompare(String(b.vencimiento)) || String(a.asociado).localeCompare(String(b.asociado)));
+      const sociosUnicos = new Set(filas.map(r => r.personaId)).size;
+      resumen = [
+        { titulo: 'Cuotas sociales en período', valor: filas.length },
+        { titulo: 'Importe total de cuotas', valor: suma('importe'), dinero: true },
+        { titulo: 'Pendiente a cobrar', valor: suma('pendiente'), dinero: true },
+        { titulo: 'Socios distintos', valor: sociosUnicos },
+      ];
+    } else {
+      columnas = [
+        { key: 'concepto', titulo: 'Concepto' },
+        { key: 'asociado', titulo: 'Asociado' },
+        { key: 'documento', titulo: 'Documento' },
+        numero('personaId', 'ID asociado'),
+        numero('numeroPrestamo', 'N° préstamo'),
+        { key: 'referenciaCuota', titulo: 'Cuota / Período' },
+        fecha('vencimiento', 'Vencimiento'),
+        dinero('importe', 'Importe cuota'),
+        dinero('capital', 'Capital'),
+        dinero('interes', 'Intereses'),
+        dinero('iva', 'IVA'),
+        dinero('pendiente', 'A cobrar pendiente'),
+        { key: 'estado', titulo: 'Estado cuota' },
+        { key: 'estadoPrestamo', titulo: 'Estado préstamo / Suscripción' },
+      ];
+      for (const p of cartera) {
+        const cuotasPrestamo = p.cuotas ?? [];
+        const maxCuota = cuotasPrestamo.reduce((max, item) => Math.max(max, item.numero_cuota), 0);
+        const ultimaCuota = Math.max(p.plazo_meses || 0, maxCuota);
+        for (const c of cuotasPrestamo) {
+          if (filtroCuota === 'primera' && c.numero_cuota !== 1) continue;
+          if (filtroCuota === 'ultima' && c.numero_cuota !== ultimaCuota) continue;
+          if (filtroCuota === 'especifica' && c.numero_cuota !== numeroCuotaObjetivo) continue;
+          const estado = estadoCuota(c, hoy);
+          if (!enPeriodo(c.fecha_vencimiento) || (f.estadoCuota && estado !== f.estadoCuota)) continue;
+          filas.push({
+            ...identidad(p),
+            concepto: 'Préstamo',
+            cuota: c.numero_cuota,
+            referenciaCuota: `Cuota ${c.numero_cuota}/${p.plazo_meses || maxCuota || c.numero_cuota}`,
+            vencimiento: c.fecha_vencimiento,
+            importe: c.cuota_total_centavos,
+            capital: c.capital_centavos,
+            interes: c.interes_centavos,
+            iva: c.iva_interes_centavos,
+            pendiente: p.estado === 'CANCELADO' || estado === 'PAGADA' ? 0 : Math.max(0, c.cuota_total_centavos - c.monto_pagado_centavos),
+            estado,
+            estadoPrestamo: p.estado,
+          });
+        }
+      }
+      const socialesFiltradas = filtrarCuotasSociales();
+      for (const cs of socialesFiltradas) {
+        const estado = estadoCuotaSocial(cs, hoy);
+        const pendiente = estado === 'PAGADA' ? 0 : Math.max(0, cs.valor_centavos - cs.monto_pagado_centavos);
+        filas.push({
+          cuotaSocialId: cs.id,
+          concepto: 'Cuota Social',
+          asociado: cs.persona_nombre || `Asociado #${cs.socio_id}`,
+          documento: cs.persona_doc || null,
+          personaId: cs.socio_id,
+          numeroPrestamo: cs.numero_prestamo ?? null,
+          referenciaCuota: cs.periodo,
+          vencimiento: cs.fecha_vencimiento,
+          importe: cs.valor_centavos,
+          capital: null,
+          interes: null,
+          iva: null,
+          pendiente,
+          estado,
+          estadoPrestamo: cs.cuota_social_activa ? 'Suscripción activa' : 'Suscripción de baja',
+        });
+      }
+      filas.sort((a, b) =>
+        String(a.vencimiento).localeCompare(String(b.vencimiento))
+        || String(a.asociado).localeCompare(String(b.asociado))
+        || String(a.concepto).localeCompare(String(b.concepto))
+        || String(a.referenciaCuota ?? '').localeCompare(String(b.referenciaCuota ?? ''))
+      );
+      const totalCuotaSocial = filas
+        .filter(r => r.concepto === 'Cuota Social')
+        .reduce((total, r) => total + (typeof r.importe === 'number' ? (r.importe as number) : 0), 0);
+      resumen = [
+        { titulo: 'Cuotas con vencimiento', valor: filas.length },
+        { titulo: 'Importe total de cuotas', valor: suma('importe'), dinero: true },
+        { titulo: 'Pendiente a cobrar', valor: suma('pendiente'), dinero: true },
+        { titulo: 'Total Cuota Social', valor: totalCuotaSocial, dinero: true },
+      ];
+      if (f.estadoPrestamo || filtroCuota !== 'todas') {
+        notas.push('Los filtros de Estado del préstamo y N° de cuota aplican únicamente a cuotas de préstamos.');
       }
     }
-    filas.sort((a, b) => String(a.vencimiento).localeCompare(String(b.vencimiento)) || String(a.prestamo).localeCompare(String(b.prestamo)) || Number(a.cuota) - Number(b.cuota));
-    resumen = [{ titulo: 'Cuotas con vencimiento', valor: filas.length }, { titulo: 'Importe total de cuotas', valor: suma('importe'), dinero: true }, { titulo: 'Pendiente a cobrar', valor: suma('pendiente'), dinero: true }];
-    notas.push('El total nominal incluye cuotas pagadas. Pendiente a cobrar descuenta pagos registrados y excluye préstamos cancelados. Las cuotas sin vencimiento no pueden asignarse a un período.');
+
+    if (incluyePrestamo) {
+      if (filtroCuota === 'primera') notas.push('Filtro de cuota aplicado: únicamente la primera cuota (cuota N° 1) de cada préstamo.');
+      else if (filtroCuota === 'ultima') notas.push('Filtro de cuota aplicado: únicamente la última cuota del plan de cada préstamo.');
+      else if (filtroCuota === 'especifica') notas.push(`Filtro de cuota aplicado: únicamente la cuota N° ${numeroCuotaObjetivo} de cada préstamo.`);
+      notas.push('Préstamos: el total nominal incluye cuotas pagadas. Pendiente a cobrar descuenta pagos registrados y excluye préstamos cancelados. Las cuotas sin vencimiento no pueden asignarse a un período.');
+    }
+    if (incluyeCuotaSocial) {
+      notas.push('Cuota Social: incluye únicamente períodos reales registrados hasta la fecha; no proyecta meses futuros al tratarse de una suscripción indeterminada sujeta a bajas.');
+    }
   } else if (f.tipo === 'ultimo-pago') {
     columnas = [...identificacion, fecha('ultimoPago', 'Último pago registrado'), dinero('importe', 'Importe último pago'), dinero('saldo', 'Capital pendiente actual'), numero('pendientes', 'Cuotas pendientes actuales'), numero('vencidas', 'Cuotas vencidas actuales'), { key: 'estado', titulo: 'Estado préstamo' }];
     for (const p of cartera) {

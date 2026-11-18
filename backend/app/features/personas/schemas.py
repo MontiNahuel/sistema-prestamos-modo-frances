@@ -6,6 +6,7 @@ class PersonaBusquedaRequest(BaseModel):
     nombreApellido: Optional[str] = Field(default="", description="Nombre o apellido del socio")
     documento: Optional[str] = Field(default="", description="DNI o documento de identidad")
     idPersona: Optional[int] = Field(default=None, description="ID numérico de la persona")
+    nroSocio: Optional[int] = Field(default=None, description="ID o número de socio (NroSocio)")
 
 
 class PersonaCreateRequest(BaseModel):

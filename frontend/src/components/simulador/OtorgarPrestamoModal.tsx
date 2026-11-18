@@ -21,6 +21,7 @@ interface OtorgarPrestamoModalProps {
   onIncluirCuotaSocialChange: (val: boolean) => void;
   cuotaSocialPesos: number | '';
   onCuotaSocialPesosChange: (val: number | '') => void;
+  cuotaSocialDefaultPesos?: number;
   onOtorgado: (p: Prestamo) => void;
 }
 
@@ -35,6 +36,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
   onIncluirCuotaSocialChange,
   cuotaSocialPesos,
   onCuotaSocialPesosChange,
+  cuotaSocialDefaultPesos = 5500,
   onOtorgado
 }) => {
   const [observaciones, setObservaciones] = useState('');
@@ -116,7 +118,9 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
     try {
       const nombreSocio = `${persona.apellido} ${persona.nombre}`.trim();
       const valorCuotaSocialPesos =
-        cuotaSocialPesos === '' ? 5500 : Math.max(0, Number(cuotaSocialPesos));
+        cuotaSocialPesos === ''
+          ? cuotaSocialDefaultPesos
+          : Math.max(0, Number(cuotaSocialPesos));
       const nuevo = await otorgarPrestamo({
         persona_id: persona.idPersona,
         persona_nombre: nombreSocio,
@@ -337,7 +341,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
                 type="number"
                 min="0"
                 step="any"
-                placeholder="5500"
+                placeholder={String(cuotaSocialDefaultPesos)}
                 value={cuotaSocialPesos}
                 onChange={(e) => onCuotaSocialPesosChange(e.target.value === '' ? '' : Number(e.target.value))}
                 className="w-[150px] p-[0.4rem_0.65rem] rounded-md [border:1px_solid_#93c5fd] text-[0.85rem] bg-white text-[#0f172a]"

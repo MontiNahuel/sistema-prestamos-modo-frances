@@ -12,7 +12,13 @@ import {
   estadosDisponiblesCuotas,
   filtrarCuotasDesglose
 } from './cuentaCorrienteHelpers';
-import { FiltrosCuotasBar } from './FiltrosCuotasBar';
+import { FiltrosCuotasBar, PrestamoFiltroOption } from './FiltrosCuotasBar';
+
+const stickyTheadCls =
+  'bg-[#f8fafc] sticky top-0 z-[3] [box-shadow:inset_0_-1px_0_#cbd5e1] text-[#475569] text-[0.7rem] uppercase tracking-[0.03em]';
+
+const thCls = 'py-2 px-2.5';
+const tdCls = 'py-[0.45rem] px-2.5';
 
 export const CuotasPrestamosTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }> = ({ cuotas }) => {
   const [filtroPrestamo, setFiltroPrestamo] = useState<string>('TODOS');
@@ -20,16 +26,20 @@ export const CuotasPrestamosTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
   const [filtroFecha, setFiltroFecha] = useState<string>('');
 
-  const prestamosUnicos = useMemo(() => {
+  const prestamosUnicos: PrestamoFiltroOption[] = useMemo(() => {
     const mapa = new Map<string, string>();
     for (const c of cuotas) {
       const clave = clavePrestamoDesglose(c);
       if (!mapa.has(clave)) {
-        const num = c.numeroPrestamo ? `Préstamo N° ${c.numeroPrestamo}` : c.prestamoId ? `Préstamo #${c.prestamoId.slice(0, 8)}` : 'Préstamo';
+        const num = c.numeroPrestamo
+          ? `Préstamo N° ${c.numeroPrestamo}`
+          : c.prestamoId
+          ? `Préstamo #${c.prestamoId.slice(0, 8)}`
+          : 'Préstamo';
         mapa.set(clave, `${num} · ${c.planNombre || 'Sistema Francés'}`);
       }
     }
-    return Array.from(mapa.entries());
+    return Array.from(mapa.entries()).map(([id, label]) => ({ id, label }));
   }, [cuotas]);
 
   const estados = useMemo(() => estadosDisponiblesCuotas(cuotas), [cuotas]);
@@ -46,7 +56,7 @@ export const CuotasPrestamosTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
   );
 
   const resumen = useMemo(() => {
-    return visibles.reduce(
+    const tot = visibles.reduce(
       (acc, c) => ({
         presentado: acc.presentado + (c.importePresentado || 0),
         cobrado: acc.cobrado + (c.importeCobrado || 0),
@@ -54,101 +64,113 @@ export const CuotasPrestamosTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
       }),
       { presentado: 0, cobrado: 0, pendiente: 0 }
     );
+    return { cantidad: visibles.length, ...tot };
   }, [visibles]);
 
   return (
-    <div>
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {cuotas.length > 0 && (
-        <>
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-2.5 bg-[#f8fafc] p-[0.6rem_0.85rem] rounded-lg [border:1px_solid_#e2e8f0] text-[0.78rem]">
-            <div className="flex gap-4 flex-wrap text-[#475569]">
-              <span>Total cuotas: <strong className="text-[#0f172a]">{visibles.length}</strong></span>
-              <span>Importe: <strong className="text-[#0f172a]">{formatPesos(resumen.presentado)}</strong></span>
-              <span>Cobrado: <strong className="text-[#16a34a]">{formatPesos(resumen.cobrado)}</strong></span>
-              <span>Pendiente: <strong className={resumen.pendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'}>{formatPesos(resumen.pendiente)}</strong></span>
-            </div>
-            {prestamosUnicos.length > 1 && (
-              <select
-                value={filtroPrestamo}
-                onChange={(e) => setFiltroPrestamo(e.target.value)}
-                className="p-[0.3rem_0.55rem] rounded [border:1px_solid_#cbd5e1] text-[0.78rem] bg-white text-[#0f172a]"
-              >
-                <option value="TODOS">Todos los préstamos ({cuotas.length})</option>
-                {prestamosUnicos.map(([id, label]) => (
-                  <option key={id} value={id}>{label}</option>
-                ))}
-              </select>
-            )}
-          </div>
-          <FiltrosCuotasBar
-            numeroCuota={filtroNumero}
-            onNumeroCuotaChange={setFiltroNumero}
-            estado={filtroEstado}
-            onEstadoChange={setFiltroEstado}
-            estadosDisponibles={estados}
-            fecha={filtroFecha}
-            onFechaChange={setFiltroFecha}
-            onLimpiar={() => {
-              setFiltroNumero('');
-              setFiltroEstado('TODOS');
-              setFiltroFecha('');
-            }}
-          />
-        </>
+        <FiltrosCuotasBar
+          prestamo={filtroPrestamo}
+          onPrestamoChange={setFiltroPrestamo}
+          prestamoOptions={prestamosUnicos}
+          totalCuotasSinFiltro={cuotas.length}
+          numeroCuota={filtroNumero}
+          onNumeroCuotaChange={setFiltroNumero}
+          estado={filtroEstado}
+          onEstadoChange={setFiltroEstado}
+          estadosDisponibles={estados}
+          fecha={filtroFecha}
+          onFechaChange={setFiltroFecha}
+          resumen={resumen}
+          onLimpiar={() => {
+            setFiltroPrestamo('TODOS');
+            setFiltroNumero('');
+            setFiltroEstado('TODOS');
+            setFiltroFecha('');
+          }}
+        />
       )}
 
-      <div className="max-h-[340px] overflow-y-auto">
-        <table className="w-full border-collapse text-[0.8rem] text-left">
-          <thead className="bg-[#f8fafc] sticky top-0 [border-bottom:1px_solid_#e2e8f0]">
+      <div className="flex-1 min-h-0 overflow-auto px-6 pb-4 bg-[#ffffff]">
+        <table className="w-full border-collapse text-[0.78rem] text-left whitespace-nowrap [font-variant-numeric:tabular-nums]">
+          <thead className={stickyTheadCls}>
             <tr>
-              <th className="p-[0.5rem_0.75rem]">Préstamo</th>
-              <th className="p-[0.5rem_0.75rem]">Cuota</th>
-              <th className="p-[0.5rem_0.75rem]">Vencimiento</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Importe</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Cobrado</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Pendiente</th>
-              <th className="p-[0.5rem_0.75rem] text-center">Estado</th>
+              <th className={thCls}>Préstamo</th>
+              <th className={thCls}>Cuota</th>
+              <th className={thCls}>Vencimiento</th>
+              <th className={`${thCls} text-right`}>Capital</th>
+              <th className={`${thCls} text-right`}>Interés</th>
+              <th className={`${thCls} text-right`}>IVA</th>
+              <th className={`${thCls} text-right`}>Cost. Op.</th>
+              <th className={`${thCls} text-right`}>Importe Total</th>
+              <th className={`${thCls} text-right`}>Cobrado</th>
+              <th className={`${thCls} text-right`}>Pendiente</th>
+              <th className={`${thCls} text-center`}>Estado</th>
             </tr>
           </thead>
           <tbody>
             {visibles.length > 0 ? (
               visibles.map((d, i) => (
-                <tr key={`${d.prestamoId || 'p'}-${d.numeroCuota || i}-${i}`} className="[border-bottom:1px_solid_#f1f5f9]">
-                  <td className="p-[0.5rem_0.75rem]">
-                    <div className="font-semibold text-[#0f172a]">
-                      {d.numeroPrestamo ? `N° ${d.numeroPrestamo}` : d.prestamoId ? `#${d.prestamoId.slice(0, 8)}` : 'Préstamo'}
-                    </div>
-                    <div className="text-[0.72rem] text-[#64748b]">{d.planNombre || 'Sistema Francés'}</div>
+                <tr
+                  key={`${d.prestamoId || 'p'}-${d.numeroCuota || i}-${i}`}
+                  className={`[border-bottom:1px_solid_#f1f5f9] ${
+                    i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafcff]'
+                  }`}
+                >
+                  <td className={tdCls}>
+                    <strong className="text-[#0f172a]">
+                      {d.numeroPrestamo
+                        ? `N° ${d.numeroPrestamo}`
+                        : d.prestamoId
+                        ? `#${d.prestamoId.slice(0, 8)}`
+                        : 'Préstamo'}
+                    </strong>{' '}
+                    <span className="text-[#64748b] text-[0.72rem]">
+                      · {d.planNombre || 'Sistema Francés'}
+                    </span>
                   </td>
-                  <td className="p-[0.5rem_0.75rem] font-semibold">
-                    {d.numeroCuota ? `${d.numeroCuota} de ${d.cantidadCuotas || '—'}` : '—'}
+                  <td className={`${tdCls} font-semibold text-[#334155]`}>
+                    {d.numeroCuota ? `${d.numeroCuota} / ${d.cantidadCuotas || '—'}` : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem]">
+                  <td className={`${tdCls} text-[#475569]`}>
                     {d.periodoObligacion ? d.periodoObligacion.substring(0, 10) : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-right">
-                    <div className="font-medium text-[#0f172a]">{formatPesos(d.importePresentado)}</div>
-                    {d.capitalPesos !== undefined && (
-                      <div className="text-[0.68rem] text-[#64748b]">
-                        Cap {formatPesos(d.capitalPesos)} · Int {formatPesos(d.interesPesos || 0)} · IVA {formatPesos(d.ivaPesos || 0)}
-                        {(d.costoOperativoPesos || 0) > 0 && ` · Cost. Op. ${formatPesos(d.costoOperativoPesos || 0)}`}
-                      </div>
-                    )}
+                  <td className={`${tdCls} text-right text-[#475569]`}>
+                    {d.capitalPesos !== undefined ? formatPesos(d.capitalPesos) : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-right text-[#16a34a] font-semibold">
+                  <td className={`${tdCls} text-right text-[#475569]`}>
+                    {d.interesPesos !== undefined ? formatPesos(d.interesPesos) : '—'}
+                  </td>
+                  <td className={`${tdCls} text-right text-[#475569]`}>
+                    {d.ivaPesos !== undefined ? formatPesos(d.ivaPesos) : '—'}
+                  </td>
+                  <td className={`${tdCls} text-right text-[#475569]`}>
+                    {d.costoOperativoPesos !== undefined
+                      ? formatPesos(d.costoOperativoPesos)
+                      : '—'}
+                  </td>
+                  <td className={`${tdCls} text-right font-bold text-[#0f172a]`}>
+                    {formatPesos(d.importePresentado)}
+                  </td>
+                  <td className={`${tdCls} text-right text-[#16a34a] font-semibold`}>
                     {formatPesos(d.importeCobrado)}
                   </td>
-                  <td className={`p-[0.5rem_0.75rem] text-right ${d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'}`}>
+                  <td
+                    className={`${tdCls} text-right font-semibold ${
+                      d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#94a3b8]'
+                    }`}
+                  >
                     {formatPesos(d.importePendiente)}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-center">
+                  <td className={`${tdCls} text-center`}>
                     <Badge variant={estadoBadgeVariant(d.estado)}>{d.estado}</Badge>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-[#94a3b8]">
+                <td colSpan={11} className="p-8 text-center text-[#94a3b8]">
                   {cuotas.length > 0
                     ? 'Ninguna cuota coincide con los filtros aplicados.'
                     : 'Sin cuotas de préstamos registradas para este socio.'}
@@ -172,8 +194,20 @@ export const CuotasSocialesTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }> 
     [cuotas, filtroEstado, filtroFecha]
   );
 
+  const resumen = useMemo(() => {
+    const tot = visibles.reduce(
+      (acc, c) => ({
+        presentado: acc.presentado + (c.importePresentado || 0),
+        cobrado: acc.cobrado + (c.importeCobrado || 0),
+        pendiente: acc.pendiente + (c.importePendiente || 0)
+      }),
+      { presentado: 0, cobrado: 0, pendiente: 0 }
+    );
+    return { cantidad: visibles.length, ...tot };
+  }, [visibles]);
+
   return (
-    <div>
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {cuotas.length > 0 && (
         <FiltrosCuotasBar
           mostrarNumeroCuota={false}
@@ -182,44 +216,54 @@ export const CuotasSocialesTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }> 
           estadosDisponibles={estados}
           fecha={filtroFecha}
           onFechaChange={setFiltroFecha}
+          resumen={resumen}
           onLimpiar={() => {
             setFiltroEstado('TODOS');
             setFiltroFecha('');
           }}
         />
       )}
-      <div className="max-h-[350px] overflow-y-auto">
-        <table className="w-full border-collapse text-[0.8rem] text-left">
-          <thead className="bg-[#f8fafc] sticky top-0 [border-bottom:1px_solid_#e2e8f0]">
+      <div className="flex-1 min-h-0 overflow-auto px-6 pb-4 bg-[#ffffff]">
+        <table className="w-full border-collapse text-[0.78rem] text-left [font-variant-numeric:tabular-nums]">
+          <thead className={stickyTheadCls}>
             <tr>
-              <th className="p-[0.5rem_0.75rem]">Período</th>
-              <th className="p-[0.5rem_0.75rem]">Vencimiento</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Importe</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Cobrado</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Pendiente</th>
-              <th className="p-[0.5rem_0.75rem] text-center">Estado</th>
+              <th className={thCls}>Período</th>
+              <th className={thCls}>Vencimiento</th>
+              <th className={`${thCls} text-right`}>Importe</th>
+              <th className={`${thCls} text-right`}>Cobrado</th>
+              <th className={`${thCls} text-right`}>Pendiente</th>
+              <th className={`${thCls} text-center`}>Estado</th>
             </tr>
           </thead>
           <tbody>
             {visibles.length > 0 ? (
               visibles.map((d, i) => (
-                <tr key={`${d.cuotaSocialId || d.periodo || i}`} className="[border-bottom:1px_solid_#f1f5f9]">
-                  <td className="p-[0.5rem_0.75rem] font-semibold text-[#0f172a]">
+                <tr
+                  key={`${d.cuotaSocialId || d.periodo || i}`}
+                  className={`[border-bottom:1px_solid_#f1f5f9] ${
+                    i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafcff]'
+                  }`}
+                >
+                  <td className={`${tdCls} font-semibold text-[#0f172a]`}>
                     {d.periodo || (d.periodoObligacion ? d.periodoObligacion.substring(0, 7) : '—')}
                   </td>
-                  <td className="p-[0.5rem_0.75rem]">
+                  <td className={tdCls}>
                     {d.periodoObligacion ? d.periodoObligacion.substring(0, 10) : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-right font-medium">
+                  <td className={`${tdCls} text-right font-medium`}>
                     {formatPesos(d.importePresentado)}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-right text-[#16a34a] font-semibold">
+                  <td className={`${tdCls} text-right text-[#16a34a] font-semibold`}>
                     {formatPesos(d.importeCobrado)}
                   </td>
-                  <td className={`p-[0.5rem_0.75rem] text-right ${d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'}`}>
+                  <td
+                    className={`${tdCls} text-right ${
+                      d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'
+                    }`}
+                  >
                     {formatPesos(d.importePendiente)}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-center">
+                  <td className={`${tdCls} text-center`}>
                     <Badge variant={estadoBadgeVariant(d.estado)}>{d.estado}</Badge>
                   </td>
                 </tr>
@@ -256,8 +300,20 @@ export const DesgloseCentralTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
     [cuotas, filtroNumero, filtroEstado, filtroFecha]
   );
 
+  const resumen = useMemo(() => {
+    const tot = visibles.reduce(
+      (acc, c) => ({
+        presentado: acc.presentado + (c.importePresentado || 0),
+        cobrado: acc.cobrado + (c.importeCobrado || 0),
+        pendiente: acc.pendiente + (c.importePendiente || 0)
+      }),
+      { presentado: 0, cobrado: 0, pendiente: 0 }
+    );
+    return { cantidad: visibles.length, ...tot };
+  }, [visibles]);
+
   return (
-    <div>
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       {cuotas.length > 0 && (
         <FiltrosCuotasBar
           numeroCuota={filtroNumero}
@@ -267,6 +323,7 @@ export const DesgloseCentralTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
           estadosDisponibles={estados}
           fecha={filtroFecha}
           onFechaChange={setFiltroFecha}
+          resumen={resumen}
           onLimpiar={() => {
             setFiltroNumero('');
             setFiltroEstado('TODOS');
@@ -274,45 +331,54 @@ export const DesgloseCentralTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
           }}
         />
       )}
-      <div className="max-h-[350px] overflow-y-auto">
-        <table className="w-full border-collapse text-[0.8rem] text-left">
-          <thead className="bg-[#f8fafc] sticky top-0 [border-bottom:1px_solid_#e2e8f0]">
+      <div className="flex-1 min-h-0 overflow-auto px-6 pb-4 bg-[#ffffff]">
+        <table className="w-full border-collapse text-[0.78rem] text-left [font-variant-numeric:tabular-nums]">
+          <thead className={stickyTheadCls}>
             <tr>
-              <th className="p-[0.5rem_0.75rem]">Cuota</th>
-              <th className="p-[0.5rem_0.75rem]">Período</th>
-              <th className="p-[0.5rem_0.75rem]">Concepto (Sistema Central)</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Importe</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Cobrado</th>
-              <th className="p-[0.5rem_0.75rem] text-right">Pendiente</th>
-              <th className="p-[0.5rem_0.75rem] text-center">Estado</th>
+              <th className={thCls}>Cuota</th>
+              <th className={thCls}>Período</th>
+              <th className={thCls}>Concepto (Sistema Central)</th>
+              <th className={`${thCls} text-right`}>Importe</th>
+              <th className={`${thCls} text-right`}>Cobrado</th>
+              <th className={`${thCls} text-right`}>Pendiente</th>
+              <th className={`${thCls} text-center`}>Estado</th>
             </tr>
           </thead>
           <tbody>
             {visibles.length > 0 ? (
               visibles.map((d, i) => (
-                <tr key={`${d.id || i}`} className="[border-bottom:1px_solid_#f1f5f9]">
-                  <td className="p-[0.5rem_0.75rem] font-semibold">
-                    {d.numeroCuota ? `${d.numeroCuota}${d.cantidadCuotas ? ` de ${d.cantidadCuotas}` : ''}` : '—'}
+                <tr
+                  key={`${d.id || i}`}
+                  className={`[border-bottom:1px_solid_#f1f5f9] ${
+                    i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafcff]'
+                  }`}
+                >
+                  <td className={`${tdCls} font-semibold`}>
+                    {d.numeroCuota ? `${d.numeroCuota}${d.cantidadCuotas ? ` / ${d.cantidadCuotas}` : ''}` : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem]">
+                  <td className={tdCls}>
                     {d.periodoObligacion ? d.periodoObligacion.substring(0, 10) : '—'}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-[#475569]">
-                    <div>{d.planNombre || d.concepto}</div>
+                  <td className={`${tdCls} text-[#475569]`}>
+                    <span>{d.planNombre || d.concepto}</span>
                     {(d.banco || d.origen) && (
-                      <div className="text-[0.7rem] text-[#94a3b8]">
-                        {[d.concepto, d.banco, d.origen].filter(Boolean).join(' · ')}
-                      </div>
+                      <span className="ml-2 text-[0.7rem] text-[#94a3b8]">
+                        ({[d.concepto, d.banco, d.origen].filter(Boolean).join(' · ')})
+                      </span>
                     )}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-right">{formatPesos(d.importePresentado)}</td>
-                  <td className="p-[0.5rem_0.75rem] text-right text-[#16a34a] font-semibold">
+                  <td className={`${tdCls} text-right`}>{formatPesos(d.importePresentado)}</td>
+                  <td className={`${tdCls} text-right text-[#16a34a] font-semibold`}>
                     {formatPesos(d.importeCobrado)}
                   </td>
-                  <td className={`p-[0.5rem_0.75rem] text-right ${d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'}`}>
+                  <td
+                    className={`${tdCls} text-right ${
+                      d.importePendiente > 0 ? 'text-[#b91c1c]' : 'text-[#64748b]'
+                    }`}
+                  >
                     {formatPesos(d.importePendiente)}
                   </td>
-                  <td className="p-[0.5rem_0.75rem] text-center">
+                  <td className={`${tdCls} text-center`}>
                     <Badge variant={estadoBadgeVariant(d.estado)}>{d.estado}</Badge>
                   </td>
                 </tr>
@@ -334,26 +400,31 @@ export const DesgloseCentralTab: React.FC<{ cuotas: DesgloseCuentaCorriente[] }>
 };
 
 export const PeriodosTab: React.FC<{ periodos: PeriodoCuentaCorriente[] }> = ({ periodos }) => (
-  <div className="max-h-[350px] overflow-y-auto">
-    <table className="w-full border-collapse text-[0.8rem] text-left">
-      <thead className="bg-[#f8fafc] sticky top-0 [border-bottom:1px_solid_#e2e8f0]">
+  <div className="flex-1 min-h-0 overflow-auto px-6 pb-4 bg-[#ffffff]">
+    <table className="w-full border-collapse text-[0.78rem] text-left [font-variant-numeric:tabular-nums]">
+      <thead className={stickyTheadCls}>
         <tr>
-          <th className="p-[0.5rem_0.75rem]">Mes</th>
-          <th className="p-[0.5rem_0.75rem] text-right">Esperado</th>
-          <th className="p-[0.5rem_0.75rem] text-right">Cubierto</th>
-          <th className="p-[0.5rem_0.75rem] text-center">Cobrados</th>
-          <th className="p-[0.5rem_0.75rem] text-center">Pendientes</th>
+          <th className={thCls}>Mes</th>
+          <th className={`${thCls} text-right`}>Esperado</th>
+          <th className={`${thCls} text-right`}>Cubierto</th>
+          <th className={`${thCls} text-center`}>Cobrados</th>
+          <th className={`${thCls} text-center`}>Pendientes</th>
         </tr>
       </thead>
       <tbody>
         {periodos.length > 0 ? (
           periodos.map((pe, i) => (
-            <tr key={`${pe.mes}-${i}`} className="[border-bottom:1px_solid_#f1f5f9]">
-              <td className="p-[0.5rem_0.75rem] font-semibold">{pe.mes ? pe.mes.substring(0, 7) : '—'}</td>
-              <td className="p-[0.5rem_0.75rem] text-right">{formatPesos(pe.esperado)}</td>
-              <td className="p-[0.5rem_0.75rem] text-right text-[#16a34a] font-semibold">{formatPesos(pe.cubierto)}</td>
-              <td className="p-[0.5rem_0.75rem] text-center">{pe.cobrados}</td>
-              <td className="p-[0.5rem_0.75rem] text-center">{pe.pendientes}</td>
+            <tr
+              key={`${pe.mes}-${i}`}
+              className={`[border-bottom:1px_solid_#f1f5f9] ${
+                i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafcff]'
+              }`}
+            >
+              <td className={`${tdCls} font-semibold`}>{pe.mes ? pe.mes.substring(0, 7) : '—'}</td>
+              <td className={`${tdCls} text-right`}>{formatPesos(pe.esperado)}</td>
+              <td className={`${tdCls} text-right text-[#16a34a] font-semibold`}>{formatPesos(pe.cubierto)}</td>
+              <td className={`${tdCls} text-center`}>{pe.cobrados}</td>
+              <td className={`${tdCls} text-center`}>{pe.pendientes}</td>
             </tr>
           ))
         ) : (
@@ -367,28 +438,33 @@ export const PeriodosTab: React.FC<{ periodos: PeriodoCuentaCorriente[] }> = ({ 
 );
 
 export const MovimientosTab: React.FC<{ movimientos: MovimientoCuentaCorriente[] }> = ({ movimientos }) => (
-  <div className="max-h-[350px] overflow-y-auto">
-    <table className="w-full border-collapse text-[0.8rem] text-left">
-      <thead className="bg-[#f8fafc] sticky top-0 [border-bottom:1px_solid_#e2e8f0]">
+  <div className="flex-1 min-h-0 overflow-auto px-6 pb-4 bg-[#ffffff]">
+    <table className="w-full border-collapse text-[0.78rem] text-left [font-variant-numeric:tabular-nums]">
+      <thead className={stickyTheadCls}>
         <tr>
-          <th className="p-[0.5rem_0.75rem]">Fecha</th>
-          <th className="p-[0.5rem_0.75rem]">Origen / Banco</th>
-          <th className="p-[0.5rem_0.75rem]">Concepto</th>
-          <th className="p-[0.5rem_0.75rem] text-right">Importe</th>
-          <th className="p-[0.5rem_0.75rem] text-center">Estado</th>
+          <th className={thCls}>Fecha</th>
+          <th className={thCls}>Origen / Banco</th>
+          <th className={thCls}>Concepto</th>
+          <th className={`${thCls} text-right`}>Importe</th>
+          <th className={`${thCls} text-center`}>Estado</th>
         </tr>
       </thead>
       <tbody>
         {movimientos.length > 0 ? (
           movimientos.map((m, i) => (
-            <tr key={`${m.id}-${i}`} className="[border-bottom:1px_solid_#f1f5f9]">
-              <td className="p-[0.5rem_0.75rem]">{m.fechaImpacto ? m.fechaImpacto.substring(0, 10) : '—'}</td>
-              <td className="p-[0.5rem_0.75rem]">{m.origen || '—'}</td>
-              <td className="p-[0.5rem_0.75rem] text-[#475569]">{m.concepto}</td>
-              <td className="p-[0.5rem_0.75rem] text-right font-semibold text-[#0f172a]">
+            <tr
+              key={`${m.id}-${i}`}
+              className={`[border-bottom:1px_solid_#f1f5f9] ${
+                i % 2 === 0 ? 'bg-[#ffffff]' : 'bg-[#fafcff]'
+              }`}
+            >
+              <td className={tdCls}>{m.fechaImpacto ? m.fechaImpacto.substring(0, 10) : '—'}</td>
+              <td className={tdCls}>{m.origen || '—'}</td>
+              <td className={`${tdCls} text-[#475569]`}>{m.concepto}</td>
+              <td className={`${tdCls} text-right font-semibold text-[#0f172a]`}>
                 {formatPesos(m.montoPesos)}
               </td>
-              <td className="p-[0.5rem_0.75rem] text-center">
+              <td className={`${tdCls} text-center`}>
                 <Badge variant={estadoBadgeVariant(m.estado)}>{m.estado}</Badge>
               </td>
             </tr>

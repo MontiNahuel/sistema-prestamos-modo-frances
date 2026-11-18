@@ -130,46 +130,25 @@ class PrestamoService:
             for c in plan.cronograma
         ]
 
-        # 2. Persistir PRIMERO en la base de datos local
+        # 2. Persistir PRIMERO en la base de datos local (sin pre-insertar cuotas futuras en CoopYa;
+        # CoopYa recién recibe el movimiento cuando la cuota se presenta al banco o se cobra).
         creado = self.repository.create(nuevo_prestamo, cuotas, snapshot=snapshot)
 
-        # 3. Solo si la base local persistió con éxito, sincronizar con el Monolito CoopYa
-        if self.coopya_db and getattr(self.coopya_db, "enabled", True):
-            cuotas_raw = [
-                {"numero_cuota": c.numero_cuota, "fecha_vencimiento": c.fecha_vencimiento,
-                 "cuota_total_centavos": c.cuota_total_centavos, "capital_centavos": c.capital_centavos,
-                 "interes_centavos": c.interes_centavos, "iva_interes_centavos": c.iva_interes_centavos,
-                 "costo_operativo_centavos": c.costo_operativo_centavos}
-                for c in plan.cronograma
-            ]
-            try:
-                vinculos = self.coopya_db.impactar_cuotas_prestamo(persona_id=req.persona_id, prestamo_id=prestamo_id, cuotas=cuotas_raw)
-                vinculos_map = {v["numero_cuota"]: v for v in vinculos}
-                for c in creado.cuotas:
-                    v = vinculos_map.get(c.numero_cuota)
-                    if v:
-                        c.movimiento_coopya_id = v.get("movimiento_id")
-                        c.desglose_coopya_id = v.get("desglose_id")
-                self.repository.db.commit()
-            except Exception as e:
-                try:
-                    self.repository.db.delete(creado)
-                    self.repository.db.commit()
-                except Exception:
-                    self.repository.db.rollback()
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Fallo al sincronizar cuotas con Monolito CoopYa (operación local revertida): {str(e)}"
-                )
-
-        if req.incluir_cuota_social and req.cuota_social_centavos > 0:
-            CuotaSocialService(self.repository.db).activar_socio(
-                socio_id=req.persona_id,
-                valor_centavos=req.cuota_social_centavos,
-                prestamo_id=creado.id,
-                fecha_primer_vencimiento=fecha_venc,
-                commit=True,
+        if req.incluir_cuota_social:
+            cs_service = CuotaSocialService(self.repository.db)
+            valor_cs = (
+                req.cuota_social_centavos
+                if req.cuota_social_centavos is not None
+                else cs_service.obtener_valor_default_centavos()
             )
+            if valor_cs > 0:
+                cs_service.activar_socio(
+                    socio_id=req.persona_id,
+                    valor_centavos=valor_cs,
+                    prestamo_id=creado.id,
+                    fecha_primer_vencimiento=fecha_venc,
+                    commit=True,
+                )
 
         self._auditar(prestamo_id, "CREATE", {"monto_centavos": creado.monto_solicitado_centavos, "plazo": creado.plazo_meses, "socio_id": creado.persona_id, "cft_tea": str(creado.cft_tea)}, usuario_operador, "Otorgamiento de préstamo formal")
         return creado
@@ -184,8 +163,8 @@ class PrestamoService:
                 c.estado = "CANCELADA"
         actualizado = self.repository.update(prestamo)
 
-        # Soft-delete en CoopYa de las cuotas pendientes
-        if self.coopya_db:
+        # Soft-delete en CoopYa únicamente de las cuotas ya presentadas que no fueron pagadas
+        if self._coopya_habilitado():
             mov_ids = [c.movimiento_coopya_id for c in prestamo.cuotas if c.movimiento_coopya_id and c.estado != "PAGADA"]
             if mov_ids:
                 try:
@@ -215,14 +194,45 @@ class PrestamoService:
 
         actualizado = self.repository.update(prestamo)
 
-        if cuota.movimiento_coopya_id and self.coopya_db:
+        if self._coopya_habilitado():
             try:
-                self.coopya_db.registrar_cobro_cuota(movimiento_id=cuota.movimiento_coopya_id, monto_pesos=round(restante / 100.0, 2))
+                if cuota.movimiento_coopya_id:
+                    self.coopya_db.registrar_cobro_cuota(
+                        movimiento_id=cuota.movimiento_coopya_id,
+                        monto_pesos=round(cuota.cuota_total_centavos / 100.0, 2),
+                    )
+                else:
+                    vinculo = self.coopya_db.registrar_cobro_cuota_directa(
+                        persona_id=prestamo.persona_id,
+                        prestamo_id=prestamo.id,
+                        cuota={
+                            "numero_cuota": cuota.numero_cuota,
+                            "total_cuotas": prestamo.plazo_meses,
+                            "fecha_vencimiento": cuota.fecha_vencimiento,
+                            "cuota_total_centavos": cuota.cuota_total_centavos,
+                            "capital_centavos": cuota.capital_centavos,
+                            "interes_centavos": cuota.interes_centavos,
+                            "iva_interes_centavos": cuota.iva_interes_centavos,
+                        },
+                        fecha_cobro=date.today(),
+                    )
+                    if vinculo:
+                        cuota.movimiento_coopya_id = vinculo.get("movimiento_id")
+                        cuota.desglose_coopya_id = vinculo.get("desglose_id")
+                        self.repository.db.commit()
             except Exception:
                 pass
 
         self._auditar(prestamo_id, "PAGAR_CUOTA", {"cuota_numero": numero_cuota, "monto_centavos": restante}, usuario_operador, f"Cobro de cuota #{numero_cuota}")
         return actualizado
+
+    def _coopya_habilitado(self) -> bool:
+        if not (self.coopya_db and getattr(self.coopya_db, "enabled", True)):
+            return False
+        bind = getattr(self.repository.db, "bind", None)
+        if self.coopya_db is coopya_db_client and bind is not None and bind.dialect.name == "sqlite":
+            return False
+        return True
 
     def _validar_linea(self, req: PrestamoCreate):
         linea = self.linea_repository.get_by_id(req.linea_id)

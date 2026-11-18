@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
 import { construirReporte, fechaArgentina } from '../src/features/reportes/reportes.ts';
 import { crearLibroReporte } from '../src/features/reportes/exportarReporte.ts';
-import { cargarCartera } from '../src/features/reportes/reportesApi.ts';
+import { cargarCartera, cargarCuotasSocialesPeriodo } from '../src/features/reportes/reportesApi.ts';
 
 const filtros = (tipo, otros = {}) => ({ tipo, desde: '2026-10-01', hasta: '2026-10-31', buscar: '', numeroPrestamo: '', estadoPrestamo: '', estadoCuota: '', ...otros });
 const cuota = (numero, otros = {}) => ({ id: `c${numero}`, numero_cuota: numero, fecha_vencimiento: `2026-10-${String(numero * 10).padStart(2, '0')}`, capital_centavos: 10000, interes_centavos: 1000, iva_interes_centavos: 210, cuota_total_centavos: 11210, estado: 'PENDIENTE', monto_pagado_centavos: 0, fecha_pago: null, ...otros });
@@ -208,4 +208,142 @@ test('API: cronograma faltante se recupera del detalle; incompleto impide totale
   assert.equal((await cargarCartera(new AbortController().signal, () => {}))[0].cuotas.length, 2);
   globalThis.fetch = async () => Response.json([prestamo({ cuotas: [] })]);
   await assert.rejects(cargarCartera(new AbortController().signal, () => {}), /cronograma incompleto/);
+});
+
+test('caída: filtra primera cuota, última cuota o una cuota elegida según el plazo de cada préstamo', async () => {
+  const corto = prestamo({
+    id: 'p-corto',
+    plazo_meses: 2,
+    cuotas: [
+      cuota(1, { fecha_vencimiento: '2026-10-05', cuota_total_centavos: 10000 }),
+      cuota(2, { fecha_vencimiento: '2026-10-20', cuota_total_centavos: 15000 })
+    ]
+  });
+  const largo = prestamo({
+    id: 'p-largo',
+    numero_prestamo: 238,
+    plazo_meses: 3,
+    cuotas: [
+      cuota(1, { fecha_vencimiento: '2026-10-06', cuota_total_centavos: 20000 }),
+      cuota(2, { fecha_vencimiento: '2026-10-15', cuota_total_centavos: 21000 }),
+      cuota(3, { fecha_vencimiento: '2026-10-25', cuota_total_centavos: 22000 })
+    ]
+  });
+
+  const primera = generar('caida', [corto, largo], { filtroCuota: 'primera' });
+  assert.deepEqual(primera.filas.map(f => [f.prestamo, f.cuota]), [['p-corto', 1], ['p-largo', 1]]);
+  assert.equal(primera.resumen[1].valor, 30000);
+
+  const ultima = generar('caida', [corto, largo], { filtroCuota: 'ultima' });
+  assert.deepEqual(ultima.filas.map(f => [f.prestamo, f.cuota]), [['p-corto', 2], ['p-largo', 3]]);
+  assert.equal(ultima.resumen[1].valor, 37000);
+
+  const elegida = generar('caida', [corto, largo], { filtroCuota: 'especifica', numeroCuota: '3' });
+  assert.deepEqual(elegida.filas.map(f => [f.prestamo, f.cuota]), [['p-largo', 3]]);
+  assert.equal(elegida.resumen[1].valor, 22000);
+
+  assert.throws(() => generar('caida', [corto], { filtroCuota: 'especifica', numeroCuota: '' }), /número de cuota válido/);
+
+  const libro = await crearLibroReporte(
+    ultima,
+    filtros('caida', { filtroCuota: 'ultima' }),
+    '2026-10-26T12:00:00Z'
+  );
+  const resumen = libro.getWorksheet('Resumen');
+  const filasResumen = [];
+  resumen.eachRow(row => filasResumen.push([row.getCell(1).value, row.getCell(2).value]));
+  assert.ok(filasResumen.some(([k, v]) => k === 'Cuota filtrada' && v === 'Última cuota'));
+});
+
+test('caída: soporta concepto Cuota Social y Préstamo y Cuota Social sin proyectar meses futuros', async t => {
+  const csNov = {
+    id: 'cs-1',
+    socio_id: 42,
+    persona_nombre: 'Asociado de prueba',
+    persona_doc: '001234',
+    prestamo_id: 'prestamo-1',
+    numero_prestamo: 237,
+    periodo: '2026-10',
+    fecha_vencimiento: '2026-10-15',
+    valor_centavos: 550000,
+    monto_pagado_centavos: 0,
+    estado: 'PENDIENTE',
+    fecha_pago: null,
+    cuota_social_activa: true,
+  };
+  const csPagada = {
+    id: 'cs-2',
+    socio_id: 43,
+    persona_nombre: 'Socio Pagado',
+    persona_doc: '30999888',
+    prestamo_id: null,
+    numero_prestamo: null,
+    periodo: '2026-10',
+    fecha_vencimiento: '2026-10-10',
+    valor_centavos: 550000,
+    monto_pagado_centavos: 550000,
+    estado: 'PAGADA',
+    fecha_pago: '2026-10-10T10:00:00',
+    cuota_social_activa: true,
+  };
+  const csAnulada = {
+    ...csPagada,
+    id: 'cs-anulada',
+    socio_id: 44,
+    estado: 'ANULADA',
+  };
+
+  // Solo Cuota Social en el período vigente
+  const soloCs = construirReporte(
+    [],
+    filtros('caida', { conceptoCaida: 'CUOTA_SOCIAL' }),
+    '2026-10-23',
+    [csNov, csPagada, csAnulada]
+  );
+  assert.equal(soloCs.filas.length, 2);
+  assert.deepEqual(soloCs.filas.map(f => f.estado), ['PAGADA', 'VENCIDA']);
+  assert.equal(soloCs.resumen[0].valor, 2);
+  assert.equal(soloCs.resumen[1].valor, 1100000);
+  assert.equal(soloCs.resumen[2].valor, 550000);
+  assert.equal(soloCs.resumen[3].valor, 2);
+  assert.equal(soloCs.advertencias.length, 0);
+
+  // Período con fechas futuras advierte que no proyecta cuotas sociales a futuro
+  const futuro = construirReporte(
+    [prestamo({ cuotas: [cuota(1, { fecha_vencimiento: '2026-11-10' })] })],
+    filtros('caida', {
+      conceptoCaida: 'PRESTAMO_Y_CUOTA_SOCIAL',
+      desde: '2026-10-01',
+      hasta: '2026-12-31',
+    }),
+    '2026-10-23',
+    [csNov, csPagada]
+  );
+  assert.equal(futuro.filas.length, 3);
+  assert.equal(futuro.filas.filter(f => f.concepto === 'Cuota Social').length, 2);
+  assert.equal(futuro.filas.filter(f => f.concepto === 'Préstamo').length, 1);
+  assert.equal(futuro.resumen[3].valor, 1100000);
+  assert.ok(futuro.advertencias.some(a => /no se proyectan a futuro/i.test(a)));
+
+  const libro = await crearLibroReporte(
+    futuro,
+    filtros('caida', {
+      conceptoCaida: 'PRESTAMO_Y_CUOTA_SOCIAL',
+      desde: '2026-10-01',
+      hasta: '2026-12-31',
+    }),
+    '2026-10-26T12:00:00Z'
+  );
+  const filasResumen = [];
+  libro.getWorksheet('Resumen').eachRow(row => filasResumen.push([row.getCell(1).value, row.getCell(2).value]));
+  assert.ok(filasResumen.some(([k, v]) => k === 'Concepto' && v === 'Préstamo y Cuota Social'));
+
+  // API cargarCuotasSocialesPeriodo
+  globalThis.localStorage = { getItem: () => null };
+  t.mock.method(globalThis, 'fetch', async url => {
+    assert.match(String(url), /\/api\/v1\/cuotas-sociales\/periodos\?desde=2026-10-01&hasta=2026-10-31$/);
+    return Response.json([csNov]);
+  });
+  const cargadas = await cargarCuotasSocialesPeriodo('2026-10-01', '2026-10-31', new AbortController().signal);
+  assert.equal(cargadas.length, 1);
 });

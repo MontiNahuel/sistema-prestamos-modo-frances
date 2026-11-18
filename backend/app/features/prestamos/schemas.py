@@ -3,7 +3,6 @@ from decimal import Decimal
 from typing import Optional, List, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.features.socios.schemas import SocioResponse
-from app.features.cuotas_sociales.schemas import DEFAULT_CUOTA_SOCIAL_CENTAVOS
 from app.domain.calculadoras.romi import CuotaRomiExacta
 from app.domain.enums import TipoCostoOperativo
 
@@ -67,7 +66,7 @@ class PrestamoCreate(BaseModel):
     costo_operativo_centavos: int = Field(default=0, ge=0)
     costo_operativo_porcentaje: Decimal = Field(default=Decimal("0"), ge=0)
     incluir_cuota_social: bool = True
-    cuota_social_centavos: int = Field(default=DEFAULT_CUOTA_SOCIAL_CENTAVOS, ge=0)
+    cuota_social_centavos: Optional[int] = Field(default=None, ge=0)
 
     @field_validator("costo_operativo_centavos", mode="before")
     @classmethod
@@ -82,7 +81,7 @@ class PrestamoCreate(BaseModel):
     @field_validator("cuota_social_centavos", mode="before")
     @classmethod
     def _default_cuota_social_centavos(cls, v):
-        return DEFAULT_CUOTA_SOCIAL_CENTAVOS if v is None or v == "" else v
+        return None if v is None or v == "" else v
 
 
 class PrestamoResponse(BaseModel):

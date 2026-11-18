@@ -43,16 +43,19 @@ class CoopYaClient:
         nombre_apellido: str = "",
         documento: str = "",
         id_persona: Optional[int] = None,
+        nro_socio: Optional[int] = None,
         token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Llama a POST /Personas/BuscarPersona?token={token}"""
         auth_token = token or self.default_token
         url = f"{self.base_url}/Personas/BuscarPersona?token={auth_token}"
-        payload = {
+        payload: Dict[str, Any] = {
             "nombreApellido": nombre_apellido,
             "documento": documento,
             "idPersona": id_persona
         }
+        if nro_socio is not None:
+            payload["nroSocio"] = nro_socio
 
         async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
             try:

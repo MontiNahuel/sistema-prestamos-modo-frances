@@ -28,6 +28,11 @@ from app.features.presentaciones_bapro.schemas import (
     ProcesarRespuestaBaproResponse,
 )
 from app.features.auditoria.service import AuditoriaService
+from app.integrations.coopya_db_client import (
+    CoopYaDbClient,
+    coopya_db_client,
+    sincronizar_cuotas_presentadas_con_coopya,
+)
 
 
 def _parse_fecha_impacto(fecha_str: Optional[str]) -> str:
@@ -43,13 +48,14 @@ def _parse_fecha_impacto(fecha_str: Optional[str]) -> str:
 class PresentacionBaproService:
     STORAGE_DIR = os.path.join(os.getcwd(), "storage", "presentaciones", "bapro")
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, coopya_db: Optional[CoopYaDbClient] = coopya_db_client):
         self.db = db
         self.repo = PresentacionBaproRepository(db)
         self.empresa_repo = EmpresaOriginanteRepository(db)
         self.dni_repo = DniExcluidoBaproRepository(db)
         self.filtro_repo = PresentacionFiltroMasivoBaproRepository(db)
         self.auditoria_service = AuditoriaService(db)
+        self.coopya_db = coopya_db
 
     def obtener_proximo_nro_lista(self) -> int:
         return self.repo.obtener_proximo_nro_archivo_local()
@@ -127,11 +133,13 @@ class PresentacionBaproService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron cuotas para los IDs provistos")
 
         objetivos = []
+        prestamos_por_cuota_id = {}
         for cuota, prestamo, socio in cuotas:
             saldo = cuota.cuota_total_centavos - cuota.monto_pagado_centavos
             if prestamo.estado not in ('ACTIVO', 'MORA') or cuota.estado in ('PAGADA', 'CANCELADA') or saldo <= 0:
                 raise HTTPException(409, 'Una cuota seleccionada ya no admite débitos. Actualice la búsqueda.')
             objetivos.append(("Prestamo", cuota, cuota.id, None, saldo, socio))
+            prestamos_por_cuota_id[cuota.id] = prestamo
 
         for cs, socio in cuotas_sociales:
             saldo = cs.valor_centavos - cs.monto_pagado_centavos
@@ -145,6 +153,7 @@ class PresentacionBaproService:
 
         lineas: List[str] = []
         detalles: List[PresentacionBaproAuditoria] = []
+        cuotas_prestamo_presentadas = []
         numero_op = req.numero_operacion_inicial
         total_centavos = 0
 
@@ -188,6 +197,8 @@ class PresentacionBaproService:
                 numero_op += 1
 
             modelo.estado = "PRESENTADA"
+            if cuota_id and cuota_id in prestamos_por_cuota_id:
+                cuotas_prestamo_presentadas.append((modelo, prestamos_por_cuota_id[cuota_id]))
 
         contenido_bytes = ("\r\n".join(lineas) + "\r\n").encode("ascii")
         with open(ruta_archivo, "wb") as f:
@@ -203,6 +214,15 @@ class PresentacionBaproService:
             det.presentacion_archivo_id = archivo.id
         self.repo.insertar_detalles(detalles)
         self.db.commit()
+
+        sincronizar_cuotas_presentadas_con_coopya(
+            db=self.db,
+            cuotas_y_prestamos=cuotas_prestamo_presentadas,
+            banco="BAPRO",
+            nro_archivo=nro_archivo,
+            fecha_impacto_str=req.fecha_impacto,
+            coopya_db=self.coopya_db,
+        )
 
         self.auditoria_service.auditar_presentacion_bapro(
             accion="GENERAR", nro_archivo=nro_archivo, presentacion_archivo_id=archivo.id,

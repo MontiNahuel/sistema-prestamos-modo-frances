@@ -77,13 +77,16 @@ export const PersonasTabla: React.FC<PersonasTablaProps> = ({
                   </td>
                   <td className="p-[0.85rem_1rem] text-[#64748b]">{p.cuil}</td>
                   <td className="p-[0.85rem_1rem]">
-                    <Badge
-                      variant={
-                        p.estadoNombre === 'Activo' ? 'success' : 'danger'
-                      }
-                    >
-                      {p.estadoNombre}
-                    </Badge>
+                    {(() => {
+                      const estado = p.estadoNombre?.trim();
+                      const variant =
+                        estado === 'Activo'
+                          ? 'success'
+                          : estado
+                            ? 'danger'
+                            : 'neutral';
+                      return <Badge variant={variant}>{estado || 'Sin estado'}</Badge>;
+                    })()}
                   </td>
                   <td className="p-[0.85rem_1rem] text-center">
                     <button

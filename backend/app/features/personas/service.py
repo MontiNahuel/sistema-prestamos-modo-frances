@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 from app.integrations.coopya_client import CoopYaClient, coopya_client
+from app.integrations.coopya_db_client import CoopYaDbClient, coopya_db_client
 from app.integrations.oracle_client import OracleClient, oracle_client
 from app.features.personas.schemas import PersonaCreateRequest, PersonaCreateResponse
 from app.features.auditoria.repository import AuditoriaRepository
@@ -26,27 +27,73 @@ class PersonasService:
         client: CoopYaClient = coopya_client,
         oracle: OracleClient = oracle_client,
         auditoria_repo: Optional[AuditoriaRepository] = None,
-        socio_repo: Optional[SocioRepository] = None
+        socio_repo: Optional[SocioRepository] = None,
+        db_client: CoopYaDbClient = coopya_db_client,
     ):
         self.client = client
         self.oracle = oracle
         self.auditoria_repo = auditoria_repo
         self.socio_repo = socio_repo
+        self.db_client = db_client
 
     async def buscar_personas(
         self,
         nombre_apellido: str = "",
         documento: str = "",
         id_persona: Optional[int] = None,
+        nro_socio: Optional[int] = None,
         token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         try:
-            return await self.client.buscar_personas(
+            if nro_socio is None:
+                return await self.client.buscar_personas(
+                    nombre_apellido=nombre_apellido,
+                    documento=documento,
+                    id_persona=id_persona,
+                    token=token
+                )
+
+            ids_socio = self.db_client.buscar_persona_ids_por_nro_socio(nro_socio)
+            if ids_socio is not None:
+                if not ids_socio:
+                    return []
+                if id_persona is not None:
+                    if id_persona not in ids_socio:
+                        return []
+                    objetivos = [id_persona]
+                else:
+                    objetivos = ids_socio[:20]
+
+                acumulado: List[Dict[str, Any]] = []
+                vistos = set()
+                for pid in objetivos:
+                    lote = await self.client.buscar_personas(
+                        nombre_apellido=nombre_apellido,
+                        documento=documento,
+                        id_persona=pid,
+                        token=token
+                    )
+                    for item in lote:
+                        clave = item.get("idPersona")
+                        if clave is not None and clave in vistos:
+                            continue
+                        if clave is not None:
+                            vistos.add(clave)
+                        acumulado.append(item)
+                return acumulado
+
+            # Fallback cuando la conexión directa a CoopYa DB no está disponible
+            resultados = await self.client.buscar_personas(
                 nombre_apellido=nombre_apellido,
                 documento=documento,
                 id_persona=id_persona,
+                nro_socio=nro_socio,
                 token=token
             )
+            return [
+                item for item in resultados
+                if item.get("nroSocio") is not None and str(item.get("nroSocio")).strip() == str(nro_socio)
+            ]
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -72,8 +119,13 @@ class PersonasService:
             pass
 
         local_res = None
+        default_cs_centavos = 550000
         if self.socio_repo:
             try:
+                from app.features.cuotas_sociales.config_service import CuotaSocialConfigService
+                default_cs_centavos = CuotaSocialConfigService(
+                    self.socio_repo.db
+                ).obtener_valor_default_centavos()
                 socio = self.socio_repo.get_by_id(id_persona)
                 if socio:
                     if getattr(socio, "cuota_social_activa", False):
@@ -88,7 +140,11 @@ class PersonasService:
                         .order_by(Prestamo.numero_prestamo.asc(), Prestamo.fecha_alta.asc())
                         .all()
                     )
-                    local_res = construir_cuenta_corriente_local(socio, prestamos)
+                    local_res = construir_cuenta_corriente_local(
+                        socio,
+                        prestamos,
+                        default_cuota_social_centavos=default_cs_centavos,
+                    )
             except Exception as exc:
                 self.socio_repo.db.rollback()
                 logger.exception("Error cargando cuenta corriente local para persona #%s", id_persona)
@@ -100,7 +156,10 @@ class PersonasService:
         if coopya_res and local_res:
             return fusionar_cuenta_corriente(coopya_res, local_res)
         elif coopya_res:
-            return normalizar_cuenta_corriente_central(coopya_res)
+            return normalizar_cuenta_corriente_central(
+                coopya_res,
+                default_cuota_social_centavos=default_cs_centavos,
+            )
         elif local_res:
             return local_res
         else:

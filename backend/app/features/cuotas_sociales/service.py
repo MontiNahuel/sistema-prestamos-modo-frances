@@ -5,12 +5,17 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy import true
 from sqlalchemy.orm import Session
+from app.features.cuotas_sociales.config_service import CuotaSocialConfigService
 from app.features.cuotas_sociales.model import CuotaSocial
 from app.features.cuotas_sociales.schemas import (
-    DEFAULT_CUOTA_SOCIAL_CENTAVOS,
-    SocioCuotaSocialEstadoResponse,
+    ActualizarCuotaSocialConfigResponse,
+    CuotaSocialConfigResponse,
+    CuotaSocialReporteItem,
     CuotaSocialResponse,
+    CuotaSocialSociosActivosResponse,
+    SocioCuotaSocialEstadoResponse,
 )
+from app.features.prestamos.model import Prestamo
 from app.features.socios.model import Socio
 import app.features.prestamos.model  # noqa: F401
 import app.features.respuestas_bancarias.model  # noqa: F401
@@ -33,11 +38,42 @@ class CuotaSocialService:
 
     def __init__(self, db: Session):
         self.db = db
+        self._config_service = CuotaSocialConfigService(db)
+
+    def obtener_valor_default_centavos(self) -> int:
+        return self._config_service.obtener_valor_default_centavos()
+
+    def obtener_configuracion_global(self) -> CuotaSocialConfigResponse:
+        return self._config_service.obtener_configuracion_global()
+
+    def actualizar_configuracion_global(
+        self,
+        valor_default_centavos: int,
+        aplicar_a_activos: bool = False,
+        usuario_operador: Optional[str] = None,
+    ) -> ActualizarCuotaSocialConfigResponse:
+        return self._config_service.actualizar_configuracion_global(
+            valor_default_centavos=valor_default_centavos,
+            aplicar_a_activos=aplicar_a_activos,
+            usuario_operador=usuario_operador,
+        )
+
+    def listar_socios_activos(
+        self,
+        buscar: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> CuotaSocialSociosActivosResponse:
+        return self._config_service.listar_socios_activos(
+            buscar=buscar,
+            limit=limit,
+            offset=offset,
+        )
 
     def activar_socio(
         self,
         socio_id: int,
-        valor_centavos: int = DEFAULT_CUOTA_SOCIAL_CENTAVOS,
+        valor_centavos: Optional[int] = None,
         prestamo_id: Optional[str] = None,
         fecha_primer_vencimiento: Optional[date] = None,
         commit: bool = True,
@@ -45,7 +81,12 @@ class CuotaSocialService:
         socio = self.db.get(Socio, socio_id)
         if not socio:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Socio no encontrado.")
-        if valor_centavos <= 0:
+        valor_final = (
+            int(valor_centavos)
+            if valor_centavos is not None
+            else self.obtener_valor_default_centavos()
+        )
+        if valor_final <= 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El valor de la cuota social debe ser mayor a cero.")
 
         hoy = date.today()
@@ -53,7 +94,7 @@ class CuotaSocialService:
         dia_objetivo = fecha_inicial.day
 
         socio.cuota_social_activa = True
-        socio.cuota_social_valor_centavos = int(valor_centavos)
+        socio.cuota_social_valor_centavos = valor_final
         if prestamo_id:
             socio.cuota_social_prestamo_id = prestamo_id
         socio.cuota_social_fecha_alta = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -63,7 +104,7 @@ class CuotaSocialService:
         self._asegurar_periodo(
             socio=socio,
             fecha_vencimiento=fecha_inicial,
-            valor_centavos=int(valor_centavos),
+            valor_centavos=valor_final,
             prestamo_id=prestamo_id or socio.cuota_social_prestamo_id,
             reactivar_si_anulada=True,
         )
@@ -79,7 +120,7 @@ class CuotaSocialService:
             .all()
         )
         for c in pendientes:
-            c.valor_centavos = int(valor_centavos)
+            c.valor_centavos = valor_final
 
         self.db.flush()
         if commit:
@@ -224,12 +265,13 @@ class CuotaSocialService:
         socio_id: int,
         generar_actual: bool = True,
     ) -> SocioCuotaSocialEstadoResponse:
+        default_valor = self.obtener_valor_default_centavos()
         socio = self.db.get(Socio, socio_id)
         if not socio:
             return SocioCuotaSocialEstadoResponse(
                 socio_id=socio_id,
                 activa=False,
-                valor_centavos=DEFAULT_CUOTA_SOCIAL_CENTAVOS,
+                valor_centavos=default_valor,
                 cuotas=[],
             )
 
@@ -245,10 +287,66 @@ class CuotaSocialService:
         return SocioCuotaSocialEstadoResponse(
             socio_id=socio.id,
             activa=bool(socio.cuota_social_activa),
-            valor_centavos=int(socio.cuota_social_valor_centavos or DEFAULT_CUOTA_SOCIAL_CENTAVOS),
+            valor_centavos=int(socio.cuota_social_valor_centavos or default_valor),
             prestamo_id=socio.cuota_social_prestamo_id,
             fecha_alta=socio.cuota_social_fecha_alta,
             fecha_baja=socio.cuota_social_fecha_baja,
             dia_vencimiento=int(socio.cuota_social_ultimo_vencimiento_dia or 10),
             cuotas=[CuotaSocialResponse.model_validate(c) for c in cuotas],
         )
+
+    def listar_periodos_reporte(
+        self,
+        desde: date,
+        hasta: date,
+        incluir_anuladas: bool = False,
+        hoy: Optional[date] = None,
+    ) -> List[CuotaSocialReporteItem]:
+        """Lista cuotas sociales reales en el rango [desde, hasta] sin proyectar meses futuros."""
+        if desde > hasta:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La fecha 'desde' no puede ser posterior a 'hasta'.",
+            )
+
+        fecha_actual = hoy or date.today()
+        fin_mes_actual = _fecha_vencimiento_mes(fecha_actual.year, fecha_actual.month, 31)
+        limite_asegurar = min(hasta, fin_mes_actual)
+        self.asegurar_periodos_hasta(fecha_hasta=limite_asegurar, commit=True)
+
+        q = (
+            self.db.query(CuotaSocial, Socio, Prestamo.numero_prestamo)
+            .join(Socio, CuotaSocial.socio_id == Socio.id)
+            .outerjoin(Prestamo, CuotaSocial.prestamo_id == Prestamo.id)
+            .filter(
+                CuotaSocial.fecha_vencimiento >= desde,
+                CuotaSocial.fecha_vencimiento <= hasta,
+            )
+        )
+        if not incluir_anuladas:
+            q = q.filter(CuotaSocial.estado != "ANULADA")
+
+        filas = q.order_by(
+            CuotaSocial.fecha_vencimiento.asc(),
+            Socio.nombre_completo.asc(),
+            CuotaSocial.socio_id.asc(),
+        ).all()
+
+        return [
+            CuotaSocialReporteItem(
+                id=cs.id,
+                socio_id=cs.socio_id,
+                persona_nombre=socio.nombre_completo,
+                persona_doc=socio.documento,
+                prestamo_id=cs.prestamo_id,
+                numero_prestamo=numero_prestamo,
+                periodo=cs.periodo,
+                fecha_vencimiento=cs.fecha_vencimiento,
+                valor_centavos=int(cs.valor_centavos),
+                monto_pagado_centavos=int(cs.monto_pagado_centavos or 0),
+                estado=cs.estado,
+                fecha_pago=cs.fecha_pago,
+                cuota_social_activa=bool(socio.cuota_social_activa),
+            )
+            for cs, socio, numero_prestamo in filas
+        ]

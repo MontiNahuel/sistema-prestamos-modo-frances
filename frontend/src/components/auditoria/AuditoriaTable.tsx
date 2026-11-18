@@ -118,7 +118,11 @@ export const AuditoriaTable: React.FC<AuditoriaTableProps> = ({
                 <td style={{ padding: '0.65rem 1rem' }}><Badge variant="neutral">{c.tipo_entidad}</Badge></td>
                 <td style={{ padding: '0.65rem 1rem', fontWeight: 600 }}>{c.codigo || c.nombre || `#${c.entidad_id}`}</td>
                 <td style={{ padding: '0.65rem 1rem' }}><Badge variant={c.accion === 'CREATE' ? 'success' : c.accion === 'UPDATE' ? 'warning' : 'danger'}>{c.accion}</Badge></td>
-                <td style={{ padding: '0.65rem 1rem' }}>{c.tasa_anterior !== undefined ? `${c.tasa_anterior}% → ` : ''}{c.tasa_nueva !== undefined ? `${c.tasa_nueva}%` : '-'}</td>
+                <td style={{ padding: '0.65rem 1rem' }}>
+                  {c.tipo_entidad === 'CUOTA_SOCIAL' && c.cambios_json?.valor_nuevo_centavos != null
+                    ? `$${(Number(c.cambios_json.valor_anterior_centavos ?? 0) / 100).toLocaleString('es-AR')} → $${(Number(c.cambios_json.valor_nuevo_centavos) / 100).toLocaleString('es-AR')}`
+                    : `${c.tasa_anterior != null ? `${c.tasa_anterior}% → ` : ''}${c.tasa_nueva != null ? `${c.tasa_nueva}%` : '-'}`}
+                </td>
                 <td style={{ padding: '0.65rem 1rem', color: '#64748b' }}>{c.usuario_operador || 'SISTEMA'}</td>
                 <td style={{ padding: '0.65rem 1rem', textAlign: 'right' }}>
                   <button onClick={() => onVerDetalle(`Auditoría ${c.tipo_entidad} #${c.entidad_id}`, c.cambios_json)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '3px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>Detalle</button>

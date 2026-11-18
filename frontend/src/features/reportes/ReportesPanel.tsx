@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { construirReporte, hoyArgentina, TIPOS_REPORTE } from './reportes';
+import { construirReporte, CONCEPTOS_CAIDA, hoyArgentina, TIPOS_REPORTE } from './reportes';
 import type {
   Columna,
+  ConceptoCaida,
+  FiltroCuotaCaida,
   FiltrosReporte,
   Reporte,
   TablaReporte,
+  TipoReporte,
   Valor
 } from './reportes';
-import { cargarCartera } from './reportesApi';
+import { cargarCartera, cargarCuotasSocialesPeriodo } from './reportesApi';
 import { descargarReporte } from './exportarReporte';
 import { formatMoney, formatPct } from '../../utils/formatters';
 import { apiClient } from '../../services/api/client';
+import type { CuotaSocialReporteItem } from '../../types/cuotaSocial';
 import type { Prestamo } from '../../types/prestamo';
 import { PrestamoDetalleModal } from '../../components/prestamos/PrestamoDetalleModal';
 import { PadronGestion } from './PadronGestion';
@@ -124,6 +128,9 @@ export function ReportesPanel({
     numeroPrestamo: '',
     estadoPrestamo: '',
     estadoCuota: '',
+    conceptoCaida: 'PRESTAMO',
+    filtroCuota: 'todas',
+    numeroCuota: '',
     todoPeriodo: true
   });
   const filtrosIniciales = useRef(filtros);
@@ -132,6 +139,7 @@ export function ReportesPanel({
     filtros: FiltrosReporte;
     generado: string;
     cartera: Prestamo[];
+    cuotasSociales: CuotaSocialReporteItem[];
   } | null>(null);
   const [cargando, setCargando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -165,6 +173,15 @@ export function ReportesPanel({
       setError('Seleccioná un período válido.');
       return;
     }
+    if (
+      consulta.tipo === 'caida' &&
+      (consulta.conceptoCaida ?? 'PRESTAMO') !== 'CUOTA_SOCIAL' &&
+      consulta.filtroCuota === 'especifica' &&
+      (!Number.isInteger(Number(consulta.numeroCuota)) || Number(consulta.numeroCuota) < 1)
+    ) {
+      setError('Ingresá un número de cuota válido (1 o mayor).');
+      return;
+    }
     peticion.current?.abort();
     const control = new AbortController();
     peticion.current = control;
@@ -179,19 +196,30 @@ export function ReportesPanel({
         if (control.signal.aborted) return;
         const buscar = consulta.buscar.trim().toLocaleLowerCase('es');
         const filas = personas.filter(p => !buscar || [p.id, p.socio, p.apellido, p.nombre, p.documento, p.cuil].some(v => String(v ?? '').toLocaleLowerCase('es').includes(buscar))).map(p => ({ ...p }));
-        setResultado({ reporte: { titulo: 'Padrón socios cooperativa', columnas: [{ key: 'id', titulo: 'ID persona', tipo: 'numero' }, { key: 'socio', titulo: 'N° socio', tipo: 'numero' }, { key: 'apellido', titulo: 'Apellido' }, { key: 'nombre', titulo: 'Nombre' }, { key: 'documento', titulo: 'Documento' }, { key: 'cuil', titulo: 'CUIL' }, { key: 'observacion', titulo: 'Observación' }], filas, resumen: [{ titulo: 'Socios', valor: filas.length }], notas: ['Personas cuya observación contiene En Padrón de May.'], advertencias: [] }, filtros: { ...consulta }, generado: new Date().toISOString(), cartera: [] });
+        setResultado({ reporte: { titulo: 'Padrón socios cooperativa', columnas: [{ key: 'id', titulo: 'ID persona', tipo: 'numero' }, { key: 'socio', titulo: 'N° socio', tipo: 'numero' }, { key: 'apellido', titulo: 'Apellido' }, { key: 'nombre', titulo: 'Nombre' }, { key: 'documento', titulo: 'Documento' }, { key: 'cuil', titulo: 'CUIL' }, { key: 'observacion', titulo: 'Observación' }], filas, resumen: [{ titulo: 'Socios', valor: filas.length }], notas: ['Personas cuya observación contiene En Padrón de May.'], advertencias: [] }, filtros: { ...consulta }, generado: new Date().toISOString(), cartera: [], cuotasSociales: [] });
         return;
       }
-      const cartera = await cargarCartera(control.signal, (cantidad) => {
-        if (!control.signal.aborted) setProgreso(cantidad);
-      });
+      const conceptoCaida = consulta.conceptoCaida ?? 'PRESTAMO';
+      const necesitaCartera = !(consulta.tipo === 'caida' && conceptoCaida === 'CUOTA_SOCIAL');
+      const necesitaCuotasSociales = consulta.tipo === 'caida' && conceptoCaida !== 'PRESTAMO';
+      const [cartera, cuotasSociales] = await Promise.all([
+        necesitaCartera
+          ? cargarCartera(control.signal, (cantidad) => {
+              if (!control.signal.aborted) setProgreso(cantidad);
+            })
+          : Promise.resolve<Prestamo[]>([]),
+        necesitaCuotasSociales
+          ? cargarCuotasSocialesPeriodo(consulta.desde, consulta.hasta, control.signal)
+          : Promise.resolve<CuotaSocialReporteItem[]>([]),
+      ]);
       if (control.signal.aborted) return;
       const generado = new Date().toISOString();
       setResultado({
-        reporte: construirReporte(cartera, consulta),
+        reporte: construirReporte(cartera, consulta, undefined, cuotasSociales),
         filtros: { ...consulta },
         generado,
-        cartera
+        cartera,
+        cuotasSociales,
       });
     } catch (err) {
       if (control.signal.aborted) return;
@@ -255,7 +283,7 @@ export function ReportesPanel({
       return {
         ...previo,
         cartera,
-        reporte: construirReporte(cartera, previo.filtros),
+        reporte: construirReporte(cartera, previo.filtros, undefined, previo.cuotasSociales),
         generado: new Date().toISOString()
       };
     });
@@ -282,6 +310,8 @@ export function ReportesPanel({
   const reporte = resultado?.reporte;
   const otorgados = filtros.tipo === 'otorgados';
   const todoPeriodo = otorgados && filtros.todoPeriodo === true;
+  const conceptoCaida = filtros.conceptoCaida ?? 'PRESTAMO';
+  const esSoloCuotaSocialCaida = filtros.tipo === 'caida' && conceptoCaida === 'CUOTA_SOCIAL';
   const paginas = Math.max(1, Math.ceil((reporte?.filas.length ?? 0) / 50));
   return (
     <section className="reportes" aria-labelledby="reportes-titulo">
@@ -296,24 +326,6 @@ export function ReportesPanel({
         <span className="reportes-etiqueta">Seguimiento mensual</span>
       </div>
 
-      <div className="reportes-tipos" aria-label="Tipo de reporte">
-        {TIPOS_REPORTE.map((tipo, i) => (
-          <button
-            key={tipo.id}
-            type="button"
-            aria-pressed={filtros.tipo === tipo.id}
-            onClick={() =>
-              cambiar({ tipo: tipo.id, estadoCuota: '', plazo: '' })
-            }
-          >
-            <span className="reportes-numero">0{i + 1}</span>
-            <strong>{tipo.titulo}</strong>
-            <span>{tipo.descripcion}</span>
-          </button>
-        ))}
-      </div>
-
-      {filtros.tipo === 'padron' && <PadronGestion onActualizado={() => void consultar(filtros)} />}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -321,6 +333,57 @@ export function ReportesPanel({
         }}
         className="reportes-filtros"
       >
+        <label className="reportes-selector">
+          Tipo de reporte
+          <select
+            aria-label="Tipo de reporte"
+            value={filtros.tipo}
+            onChange={(e) =>
+              cambiar({
+                tipo: e.target.value as TipoReporte,
+                estadoCuota: '',
+                filtroCuota: 'todas',
+                numeroCuota: '',
+                plazo: ''
+              })
+            }
+          >
+            {TIPOS_REPORTE.map((tipo, i) => (
+              <option key={tipo.id} value={tipo.id}>
+                {`0${i + 1} · ${tipo.titulo}`}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtros.tipo === 'caida' && (
+          <label>
+            Concepto
+            <select
+              aria-label="Concepto"
+              value={conceptoCaida}
+              onChange={(e) => {
+                const valor = e.target.value as ConceptoCaida;
+                cambiar({
+                  conceptoCaida: valor,
+                  ...(valor === 'CUOTA_SOCIAL'
+                    ? {
+                        numeroPrestamo: '',
+                        estadoPrestamo: '',
+                        filtroCuota: 'todas',
+                        numeroCuota: ''
+                      }
+                    : {})
+                });
+              }}
+            >
+              {CONCEPTOS_CAIDA.map((op) => (
+                <option key={op.value} value={op.value}>
+                  {op.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {otorgados && (
           <label className="reportes-check">
             <input
@@ -331,11 +394,10 @@ export function ReportesPanel({
             Todo el historial
           </label>
         )}
-        {filtros.tipo !== 'padron' && <><label>
+        {filtros.tipo !== 'padron' && !todoPeriodo && <><label>
           Mes de referencia
           <input
             type="month"
-            disabled={todoPeriodo}
             aria-label="Mes de referencia"
             value={filtros.desde.slice(0, 7)}
             onChange={(e) => {
@@ -353,8 +415,7 @@ export function ReportesPanel({
           Desde
           <input
             type="date"
-            disabled={todoPeriodo}
-            required={!todoPeriodo}
+            required
             value={filtros.desde}
             onChange={(e) => cambiar({ desde: e.target.value })}
           />
@@ -363,8 +424,7 @@ export function ReportesPanel({
           Hasta
           <input
             type="date"
-            disabled={todoPeriodo}
-            required={!todoPeriodo}
+            required
             value={filtros.hasta}
             onChange={(e) => cambiar({ hasta: e.target.value })}
           />
@@ -379,7 +439,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ buscar: e.target.value })}
           />
         </label>
-        {filtros.tipo !== 'padron' && <label>
+        {filtros.tipo !== 'padron' && !esSoloCuotaSocialCaida && <label>
           N° préstamo
           <input
             type="number"
@@ -390,7 +450,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ numeroPrestamo: e.target.value })}
           />
         </label>}
-        {filtros.tipo !== 'padron' && <label>
+        {filtros.tipo !== 'padron' && !esSoloCuotaSocialCaida && <label>
           Estado del préstamo
           <select
             value={filtros.estadoPrestamo}
@@ -417,6 +477,43 @@ export function ReportesPanel({
             </select>
           </label>
         )}
+        {filtros.tipo === 'caida' && !esSoloCuotaSocialCaida && (
+          <>
+            <label>
+              Cuota
+              <select
+                aria-label="Cuota"
+                value={filtros.filtroCuota ?? 'todas'}
+                onChange={(e) => {
+                  const valor = e.target.value as FiltroCuotaCaida;
+                  cambiar({
+                    filtroCuota: valor,
+                    numeroCuota: valor === 'especifica' ? filtros.numeroCuota ?? '' : ''
+                  });
+                }}
+              >
+                <option value="todas">Todas</option>
+                <option value="primera">Primera cuota</option>
+                <option value="ultima">Última cuota</option>
+                <option value="especifica">Elegir cuota</option>
+              </select>
+            </label>
+            {filtros.filtroCuota === 'especifica' && (
+              <label>
+                N° cuota
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  required
+                  placeholder="Ej: 3"
+                  value={filtros.numeroCuota ?? ''}
+                  onChange={(e) => cambiar({ numeroCuota: e.target.value })}
+                />
+              </label>
+            )}
+          </>
+        )}
         {filtros.tipo === 'condiciones' && (
           <label>
             Plazo (meses)
@@ -436,10 +533,11 @@ export function ReportesPanel({
             </datalist>
           </label>
         )}
-        <button className="reportes-primario" type="submit" disabled={cargando}>
+        <button className="reportes-primario ml-auto" type="submit" disabled={cargando}>
           {cargando ? 'Consultando…' : 'Consultar reporte'}
         </button>
       </form>
+      {filtros.tipo === 'padron' && <PadronGestion onActualizado={() => void consultar(filtros)} />}
       {otorgados && (
         <p className="reportes-ayuda">
           Consultá todo el historial o desmarcá la opción para filtrar por fecha
@@ -462,7 +560,11 @@ export function ReportesPanel({
       )}
       {cargando && (
         <div className="reportes-vacio" role="status">
-          {filtros.tipo === 'padron' ? 'Consultando el padrón…' : `Consultando la cartera completa… ${progreso} préstamos recuperados.`}
+          {filtros.tipo === 'padron'
+            ? 'Consultando el padrón…'
+            : esSoloCuotaSocialCaida
+            ? 'Consultando períodos reales de Cuota Social…'
+            : `Consultando la cartera completa… ${progreso} préstamos recuperados.`}
         </div>
       )}
       {!cargando && !resultado && (
@@ -534,7 +636,7 @@ export function ReportesPanel({
                   {reporte.filas
                     .slice((pagina - 1) * 50, pagina * 50)
                     .map((fila, i) => (
-                      <tr key={`${fila.prestamo}-${fila.cuota ?? ''}-${i}`}>
+                      <tr key={String(fila.cuotaSocialId ?? `${fila.prestamo ?? 'fila'}-${fila.cuota ?? fila.periodo ?? ''}-${i}`)}>
                         {reporte.columnas.map((c) => (
                           <td
                             key={c.key}

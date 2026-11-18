@@ -17,10 +17,38 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   resumen.addRow(['N° préstamo', filtros.numeroPrestamo || 'Todos']);
   resumen.addRow(['Estado préstamo', filtros.estadoPrestamo || 'Todos']);
   resumen.addRow(['Estado cuota', filtros.estadoCuota || 'Todos']);
+  if (filtros.tipo === 'caida') {
+    const concepto =
+      filtros.conceptoCaida === 'CUOTA_SOCIAL'
+        ? 'Cuota Social'
+        : filtros.conceptoCaida === 'PRESTAMO_Y_CUOTA_SOCIAL'
+        ? 'Préstamo y Cuota Social'
+        : 'Préstamo';
+    resumen.addRow(['Concepto', concepto]);
+    if (filtros.conceptoCaida !== 'CUOTA_SOCIAL') {
+      const descCuota =
+        filtros.filtroCuota === 'primera'
+          ? 'Primera cuota'
+          : filtros.filtroCuota === 'ultima'
+          ? 'Última cuota'
+          : filtros.filtroCuota === 'especifica'
+          ? `Cuota N° ${filtros.numeroCuota || '-'}`
+          : 'Todas';
+      resumen.addRow(['Cuota filtrada', descCuota]);
+    }
+  }
   } else resumen.addRow(['Búsqueda', filtros.buscar || 'Todos los socios']);
   if (filtros.tipo === 'condiciones') resumen.addRow(['Plazo (meses)', filtros.plazo ? Number(filtros.plazo) : 'Todos']);
   resumen.addRow(['Generado (Buenos Aires)', new Date(generado).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })]);
-  resumen.addRow(['Fuente', filtros.tipo === 'padron' ? 'CoopYa: dbo.Personas.' : 'API /api/v1/prestamos y detalle de cuotas. Consulta completa paginada.']);
+  const fuente =
+    filtros.tipo === 'padron'
+      ? 'CoopYa: dbo.Personas.'
+      : filtros.tipo === 'caida' && filtros.conceptoCaida === 'CUOTA_SOCIAL'
+      ? 'API /api/v1/cuotas-sociales/periodos (períodos reales sin proyección futura).'
+      : filtros.tipo === 'caida' && filtros.conceptoCaida === 'PRESTAMO_Y_CUOTA_SOCIAL'
+      ? 'API /api/v1/prestamos y /api/v1/cuotas-sociales/periodos.'
+      : 'API /api/v1/prestamos y detalle de cuotas. Consulta completa paginada.';
+  resumen.addRow(['Fuente', fuente]);
   resumen.addRow([]);
   for (const dato of reporte.resumen) {
     const fila = resumen.addRow([dato.titulo, dato.dinero ? dato.valor / 100 : dato.valor]);

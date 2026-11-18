@@ -11,7 +11,16 @@ import {
 } from './Icons';
 
 export type TabKey =
-  'personas' | 'simulador' | 'bapro' | 'bna' | 'respuestas' | 'lineas' | 'motores' | 'reportes' | 'auditoria';
+  | 'personas'
+  | 'simulador'
+  | 'bapro'
+  | 'bna'
+  | 'respuestas'
+  | 'lineas'
+  | 'motores'
+  | 'cuotas_sociales'
+  | 'reportes'
+  | 'auditoria';
 
 interface NavbarProps {
   currentTab: TabKey;
@@ -31,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const adminItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={15} /> },
     { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={15} /> },
+    { key: 'cuotas_sociales', label: 'Cuotas Sociales', icon: <UsersIcon size={15} /> },
     ...(esAccesoCompleto
       ? [{ key: 'auditoria' as TabKey, label: 'Auditoría', icon: <FileTextIcon size={15} /> }]
       : [])
@@ -152,6 +162,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-2.5">
         <a
           href={sistemaCentralUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md [border:1px_solid_#bfdbfe] bg-[#eff6ff] text-[#1d4ed8] text-[0.8rem] font-semibold no-underline hover:bg-[#dbeafe] transition-colors whitespace-nowrap"
         >
           <ExternalLinkIcon size={14} color="#1d4ed8" />

@@ -12,6 +12,8 @@ import { OtorgarPrestamoModal } from './components/simulador/OtorgarPrestamoModa
 import { MotoresPanel } from './components/abm/motores/MotoresPanel';
 import { LineasPanel } from './components/abm/lineas/LineasPanel';
 import { LineaModal } from './components/abm/lineas/LineaModal';
+import { CuotasSocialesAdminPanel } from './components/abm/cuotas_sociales/CuotasSocialesAdminPanel';
+import { getConfiguracionCuotaSocial } from './services/api/cuotasSocialesApi';
 import { ReportesPanel } from './features/reportes/ReportesPanel';
 import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
 import { PresentacionesBaproPanel } from './components/presentaciones_bapro/PresentacionesBaproPanel';
@@ -115,7 +117,26 @@ export default function App() {
   const [nuevaLinea, setNuevaLinea] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
   const [incluirCuotaSocial, setIncluirCuotaSocial] = useState<boolean>(true);
+  const [cuotaSocialDefaultPesos, setCuotaSocialDefaultPesos] = useState<number>(5500);
   const [cuotaSocialPesos, setCuotaSocialPesos] = useState<number | ''>(5500);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelado = false;
+    getConfiguracionCuotaSocial()
+      .then((cfg) => {
+        if (cancelado) return;
+        const pesos = cfg.valor_default_centavos / 100;
+        setCuotaSocialDefaultPesos(pesos);
+        setCuotaSocialPesos((actual) => (actual === 5500 ? pesos : actual));
+      })
+      .catch(() => {
+        // Conserva valor por defecto local si el endpoint no responde
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [token]);
   const revisionSimulacion = useRef(0);
   const condicionesSimuladas = useMemo(
     () =>
@@ -330,6 +351,7 @@ export default function App() {
                   ccResumen={ccResumen}
                   cargandoCc={cargandoCc}
                   onSimularParaSocio={handleSimularParaSocio}
+                  defaultCuotaSocialPesos={cuotaSocialDefaultPesos}
                 />
               )}
             </div>
@@ -415,6 +437,7 @@ export default function App() {
                 onIncluirCuotaSocialChange={setIncluirCuotaSocial}
                 cuotaSocialPesos={cuotaSocialPesos}
                 onCuotaSocialPesosChange={setCuotaSocialPesos}
+                cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
               />
 
               <div>
@@ -517,6 +540,7 @@ export default function App() {
               onIncluirCuotaSocialChange={setIncluirCuotaSocial}
               cuotaSocialPesos={cuotaSocialPesos}
               onCuotaSocialPesosChange={setCuotaSocialPesos}
+              cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
               onOtorgado={handlePrestamoOtorgado}
             />
             <LineaModal
@@ -553,6 +577,16 @@ export default function App() {
 
         {/* Pestaña: ABM Motores de Fórmulas */}
         {currentTab === 'motores' && <MotoresPanel />}
+
+        {/* Pestaña: Administración Cuotas Sociales */}
+        {currentTab === 'cuotas_sociales' && (
+          <CuotasSocialesAdminPanel
+            onConfigActualizada={(nuevoValorPesos) => {
+              setCuotaSocialDefaultPesos(nuevoValorPesos);
+              setCuotaSocialPesos(nuevoValorPesos);
+            }}
+          />
+        )}
 
         {/* Pestaña: Auditoría y Trazabilidad */}
         {currentTab === 'auditoria' && <AuditoriaPanel />}

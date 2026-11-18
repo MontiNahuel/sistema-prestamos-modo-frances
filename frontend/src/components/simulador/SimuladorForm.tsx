@@ -33,6 +33,7 @@ interface SimuladorFormProps {
   onIncluirCuotaSocialChange: (val: boolean) => void;
   cuotaSocialPesos: number | '';
   onCuotaSocialPesosChange: (val: number | '') => void;
+  cuotaSocialDefaultPesos?: number;
 }
 
 export const SimuladorForm: React.FC<SimuladorFormProps> = ({
@@ -46,7 +47,8 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   incluirCuotaSocial,
   onIncluirCuotaSocialChange,
   cuotaSocialPesos,
-  onCuotaSocialPesosChange
+  onCuotaSocialPesosChange,
+  cuotaSocialDefaultPesos = 5500
 }) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [selectedLineaId, setSelectedLineaId] = useState<number | ''>('');
@@ -352,7 +354,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
               type="number"
               min="0"
               step="any"
-              placeholder="5500"
+              placeholder={String(cuotaSocialDefaultPesos)}
               value={cuotaSocialPesos}
               onChange={(e) => onCuotaSocialPesosChange(e.target.value === '' ? '' : Number(e.target.value))}
               className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#93c5fd] text-[0.875rem] bg-[#ffffff] text-[#0f172a]"

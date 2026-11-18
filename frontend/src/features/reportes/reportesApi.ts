@@ -1,3 +1,4 @@
+import type { CuotaSocialReporteItem } from '../../types/cuotaSocial';
 import type { Prestamo } from '../../types/prestamo';
 import { apiClient } from '../../services/api/client.ts';
 
@@ -29,4 +30,16 @@ export async function cargarCartera(signal: AbortSignal, progreso: (cantidad: nu
     }
   }));
   return prestamos;
+}
+
+/** Lista los períodos reales de Cuota Social entre desde y hasta (sin proyectar meses futuros). */
+export async function cargarCuotasSocialesPeriodo(
+  desde: string,
+  hasta: string,
+  signal: AbortSignal
+): Promise<CuotaSocialReporteItem[]> {
+  const qs = new URLSearchParams({ desde, hasta });
+  const res = await apiClient<CuotaSocialReporteItem[]>(`/api/v1/cuotas-sociales/periodos?${qs.toString()}`, { signal });
+  if (!Array.isArray(res)) throw new Error('La API no devolvió un listado de cuotas sociales válido.');
+  return res;
 }

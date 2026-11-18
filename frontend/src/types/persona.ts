@@ -12,7 +12,7 @@ export interface Persona {
   cuil: string;
   apellido: string;
   nombre: string;
-  estadoNombre: string;
+  estadoNombre: string | null;
   nroSocio: number;
   calle: string;
   localidadId: number;
@@ -116,6 +116,7 @@ export interface PersonaBusquedaParams {
   nombreApellido?: string;
   documento?: string;
   idPersona?: number | null;
+  nroSocio?: number | null;
 }
 
 

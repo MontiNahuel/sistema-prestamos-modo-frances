@@ -5,6 +5,17 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 
+class CuotaSocialConfig(Base):
+    """Configuración global del valor por defecto de la Cuota Social."""
+
+    __tablename__ = "cuotas_sociales_config"
+
+    id = Column(Integer, primary_key=True, default=1)
+    valor_default_centavos = Column(BigInteger, default=550000, nullable=False)
+    fecha_actualizacion = Column(DateTime, default=datetime.utcnow, nullable=False)
+    actualizado_por = Column(String(100), nullable=True)
+
+
 class CuotaSocial(Base):
     """Registro mensual de Cuota Social cobrada aparte de los préstamos hasta la baja del socio."""
 

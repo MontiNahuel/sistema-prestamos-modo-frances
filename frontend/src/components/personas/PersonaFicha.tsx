@@ -23,13 +23,15 @@ interface PersonaFichaProps {
   ccResumen: CuentaCorrienteResumen | null;
   cargandoCc: boolean;
   onSimularParaSocio: (p: Persona) => void;
+  defaultCuotaSocialPesos?: number;
 }
 
 export const PersonaFicha: React.FC<PersonaFichaProps> = ({
   persona,
   ccResumen,
   cargandoCc,
-  onSimularParaSocio
+  onSimularParaSocio,
+  defaultCuotaSocialPesos = 5500
 }) => {
   const [prestamosSocio, setPrestamosSocio] = useState<Prestamo[]>([]);
   const [modalCcAbierto, setModalCcAbierto] = useState(false);
@@ -79,7 +81,7 @@ export const PersonaFicha: React.FC<PersonaFichaProps> = ({
     if (!persona?.idPersona) return;
     const valorActual = cuotaSocialEstado?.valor_centavos
       ? cuotaSocialEstado.valor_centavos / 100
-      : 5500;
+      : defaultCuotaSocialPesos;
     const ingresado = window.prompt('Importe mensual de Cuota Social ($):', String(valorActual));
     if (ingresado === null) return;
     const montoPesos = Number(ingresado);

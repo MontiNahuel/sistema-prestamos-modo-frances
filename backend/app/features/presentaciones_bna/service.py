@@ -20,6 +20,11 @@ from app.features.presentaciones_bna.schemas import (
     ProcesarRespuestaBnaResponse,
 )
 from app.features.presentaciones_bna.response_service import PresentacionBnaResponseService
+from app.integrations.coopya_db_client import (
+    CoopYaDbClient,
+    coopya_db_client,
+    sincronizar_cuotas_presentadas_con_coopya,
+)
 
 
 def _parse_fecha_aaaammdd(fecha_str: Optional[str]) -> str:
@@ -37,11 +42,12 @@ def _parse_fecha_aaaammdd(fecha_str: Optional[str]) -> str:
 class PresentacionBnaService:
     STORAGE_DIR = os.path.join(os.getcwd(), "storage", "presentaciones", "bna")
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, coopya_db: Optional[CoopYaDbClient] = coopya_db_client):
         self.db = db
         self.repo = PresentacionBnaRepository(db)
         self.mapa_sucursales = obtener_mapa_sucursales_bna()
         self.response_service = PresentacionBnaResponseService(db, self.repo)
+        self.coopya_db = coopya_db
 
     def obtener_proximo_nro_lista(self) -> int:
         return self.repo.obtener_proximo_nro_archivo_local()
@@ -107,11 +113,13 @@ class PresentacionBnaService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron cuotas para los IDs provistos")
 
         objetivos = []
+        prestamos_por_cuota_id = {}
         for cuota, prestamo, socio in cuotas:
             saldo = max(0, cuota.cuota_total_centavos - cuota.monto_pagado_centavos)
             if prestamo.estado not in ("ACTIVO", "MORA") or cuota.estado in ("PAGADA", "CANCELADA") or saldo <= 0:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Una cuota seleccionada ya no admite débitos.")
             objetivos.append(("Prestamo", cuota, cuota.id, None, saldo, socio))
+            prestamos_por_cuota_id[cuota.id] = prestamo
 
         for cs, socio in cuotas_sociales:
             saldo = max(0, cs.valor_centavos - cs.monto_pagado_centavos)
@@ -125,6 +133,7 @@ class PresentacionBnaService:
 
         lineas: List[str] = []
         detalles: List[PresentacionBnaAuditoria] = []
+        cuotas_prestamo_presentadas = []
         numero_op = req.numero_operacion_inicial
         total_centavos = 0
 
@@ -164,6 +173,8 @@ class PresentacionBnaService:
             lineas.append(linea_det)
             total_centavos += saldo_centavos
             modelo.estado = "PRESENTADA"
+            if cuota_id and cuota_id in prestamos_por_cuota_id:
+                cuotas_prestamo_presentadas.append((modelo, prestamos_por_cuota_id[cuota_id]))
 
             detalles.append(
                 PresentacionBnaAuditoria(
@@ -213,6 +224,15 @@ class PresentacionBnaService:
         for d in detalles:
             d.presentacion_archivo_id = archivo_creado.id
         self.repo.insertar_detalles(detalles)
+
+        sincronizar_cuotas_presentadas_con_coopya(
+            db=self.db,
+            cuotas_y_prestamos=cuotas_prestamo_presentadas,
+            banco="NACION",
+            nro_archivo=nro_archivo,
+            fecha_impacto_str=req.fecha_impacto,
+            coopya_db=self.coopya_db,
+        )
 
         resp = GenerarPresentacionBnaResponse(
             archivo_id=archivo_creado.id,

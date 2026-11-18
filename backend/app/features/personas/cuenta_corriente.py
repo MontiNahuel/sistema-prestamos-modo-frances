@@ -39,7 +39,10 @@ def es_movimiento_espejo_frances(
     )
 
 
-def normalizar_cuenta_corriente_central(coopya_cc: Dict[str, Any]) -> Dict[str, Any]:
+def normalizar_cuenta_corriente_central(
+    coopya_cc: Dict[str, Any],
+    default_cuota_social_centavos: int = 550000,
+) -> Dict[str, Any]:
     """Separa desglose central y deja explícito desglosePrestamos vacío cuando no hay créditos locales."""
     desglose_central = [
         d for d in coopya_cc.get("desglose", []) if not es_desglose_frances(d)
@@ -56,7 +59,7 @@ def normalizar_cuenta_corriente_central(coopya_cc: Dict[str, Any]) -> Dict[str, 
         "desgloseCuotasSociales": [],
         "cuotaSocial": {
             "activa": False,
-            "valorCentavos": 550000,
+            "valorCentavos": default_cuota_social_centavos,
             "fechaAlta": None,
             "fechaBaja": None,
         },
@@ -101,7 +104,8 @@ def _registrar_periodo(periodos_dict: Dict[str, Dict[str, Any]], cuota: Any, cuo
 
 def construir_cuenta_corriente_local(
     socio: Socio,
-    prestamos: List[Prestamo]
+    prestamos: List[Prestamo],
+    default_cuota_social_centavos: int = 550000,
 ) -> Dict[str, Any]:
     """
     Construye el payload de Cuenta Corriente a partir de los préstamos franceses
@@ -226,7 +230,7 @@ def construir_cuenta_corriente_local(
         totales_cobrado += cs_cobrado
         totales_saldo += cs_saldo
         prox_cs = next((cs for cs in cuotas_soc_activas if cs.estado != "PAGADA"), None)
-        valor_cs = ((getattr(socio, "cuota_social_valor_centavos", 550000) or 550000) / 100.0)
+        valor_cs = ((getattr(socio, "cuota_social_valor_centavos", default_cuota_social_centavos) or default_cuota_social_centavos) / 100.0)
         conceptos.append({
             "concepto": "CUOTA_SOCIAL",
             "etiqueta": "Cuota Social",
@@ -314,7 +318,7 @@ def construir_cuenta_corriente_local(
         "desgloseCuotasSociales": desglose_cs,
         "cuotaSocial": {
             "activa": bool(getattr(socio, "cuota_social_activa", False)),
-            "valorCentavos": int(getattr(socio, "cuota_social_valor_centavos", 550000) or 550000),
+            "valorCentavos": int(getattr(socio, "cuota_social_valor_centavos", default_cuota_social_centavos) or default_cuota_social_centavos),
             "fechaAlta": socio.cuota_social_fecha_alta.isoformat() if getattr(socio, "cuota_social_fecha_alta", None) else None,
             "fechaBaja": socio.cuota_social_fecha_baja.isoformat() if getattr(socio, "cuota_social_fecha_baja", None) else None,
         },

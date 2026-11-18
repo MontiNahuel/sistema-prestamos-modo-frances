@@ -239,6 +239,18 @@ def _asegurar_columnas_criticas(db_engine):
             IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('respuestas_bancarias_detalle') AND name = 'cuota_social_centavos')
                 ALTER TABLE respuestas_bancarias_detalle ADD cuota_social_centavos BIGINT NOT NULL CONSTRAINT DF_resp_det_cuota_social DEFAULT 0;
         END
+        """,
+        """
+        IF OBJECT_ID('dbo.cuotas_sociales_config', 'U') IS NULL
+        CREATE TABLE dbo.cuotas_sociales_config (
+            id INT NOT NULL PRIMARY KEY,
+            valor_default_centavos BIGINT NOT NULL CONSTRAINT DF_cuotas_soc_cfg_valor DEFAULT 550000,
+            fecha_actualizacion DATETIME NOT NULL CONSTRAINT DF_cuotas_soc_cfg_fecha DEFAULT GETDATE(),
+            actualizado_por VARCHAR(100) NULL
+        );
+        IF NOT EXISTS (SELECT 1 FROM dbo.cuotas_sociales_config WHERE id = 1)
+            INSERT INTO dbo.cuotas_sociales_config (id, valor_default_centavos, fecha_actualizacion, actualizado_por)
+            VALUES (1, 550000, GETDATE(), 'SISTEMA');
         """
     ]
     try:

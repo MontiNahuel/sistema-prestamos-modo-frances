@@ -216,3 +216,60 @@ def test_sincronizar_socio_cbu_no_falla_fk_si_tipo_bancos_vacio_y_seed_es_idempo
     assert db.query(MedioDePago).filter_by(socio_id=165603).one().banco_id == 5
     assert db.query(MedioDePago).filter_by(socio_id=165604).one().banco_id == 3
     assert db.query(MedioDePago).filter_by(socio_id=165605).one().banco_id is None
+
+
+def test_buscar_personas_por_nro_socio(monkeypatch):
+    from fastapi.testclient import TestClient
+    from main import app
+    from app.integrations.coopya_client import coopya_client
+    from app.integrations.coopya_db_client import coopya_db_client
+
+    llamadas = []
+
+    async def fake_buscar_personas(
+        nombre_apellido="",
+        documento="",
+        id_persona=None,
+        nro_socio=None,
+        token=None,
+    ):
+        llamadas.append(
+            {
+                "nombre_apellido": nombre_apellido,
+                "documento": documento,
+                "id_persona": id_persona,
+                "nro_socio": nro_socio,
+            }
+        )
+        catalogo = [
+            {"idPersona": 165601, "nroSocio": 4321, "apellido": "MONTI", "nombre": "NAHUEL", "numeroDoc": "44798591", "cuil": "20447985919", "estadoNombre": "Activo", "calle": "", "localidadId": 1, "mediosDePago": []},
+            {"idPersona": 165999, "nroSocio": 9999, "apellido": "OTRO", "nombre": "SOCIO", "numeroDoc": "30111222", "cuil": "20301112229", "estadoNombre": "Activo", "calle": "", "localidadId": 1, "mediosDePago": []},
+        ]
+        if id_persona is not None:
+            return [p for p in catalogo if p["idPersona"] == id_persona]
+        return catalogo
+
+    monkeypatch.setattr(coopya_client, "buscar_personas", fake_buscar_personas)
+
+    client = TestClient(app)
+
+    # 1. Resolución vía SQL dbo.Personas (NroSocio -> IdPersona)
+    monkeypatch.setattr(coopya_db_client, "buscar_persona_ids_por_nro_socio", lambda n: [165601] if n == 4321 else [])
+    res_db = client.post("/api/v1/personas/buscar", json={"nroSocio": 4321})
+    assert res_db.status_code == 200
+    assert len(res_db.json()) == 1
+    assert res_db.json()[0]["idPersona"] == 165601
+    assert res_db.json()[0]["nroSocio"] == 4321
+    assert llamadas[-1]["id_persona"] == 165601
+
+    # 2. NroSocio inexistente en SQL retorna lista vacía sin falsos positivos
+    res_vacio = client.post("/api/v1/personas/buscar", json={"nroSocio": 7777})
+    assert res_vacio.status_code == 200
+    assert res_vacio.json() == []
+
+    # 3. Fallback cuando CoopYa DB no está disponible: filtra por nroSocio devuelto por la API
+    monkeypatch.setattr(coopya_db_client, "buscar_persona_ids_por_nro_socio", lambda _n: None)
+    res_fb = client.post("/api/v1/personas/buscar", json={"nroSocio": 4321})
+    assert res_fb.status_code == 200
+    assert [p["idPersona"] for p in res_fb.json()] == [165601]
+    assert llamadas[-1]["nro_socio"] == 4321

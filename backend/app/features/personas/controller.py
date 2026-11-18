@@ -132,6 +132,7 @@ async def buscar_personas(
         nombre_apellido=req.nombreApellido or "",
         documento=req.documento or "",
         id_persona=req.idPersona,
+        nro_socio=req.nroSocio,
         token=auth_token
     )
 

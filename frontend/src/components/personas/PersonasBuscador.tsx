@@ -14,14 +14,17 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({
   const [texto, setTexto] = useState('');
   const [doc, setDoc] = useState('');
   const [idPersona, setIdPersona] = useState('');
+  const [nroSocio, setNroSocio] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const idNum = idPersona.trim() ? parseInt(idPersona.trim(), 10) : null;
+    const socioNum = nroSocio.trim() ? parseInt(nroSocio.trim(), 10) : null;
     onBuscar({
       nombreApellido: texto,
       documento: doc,
-      idPersona: isNaN(idNum as number) ? null : idNum
+      idPersona: isNaN(idNum as number) ? null : idNum,
+      nroSocio: isNaN(socioNum as number) ? null : socioNum
     });
   };
 
@@ -65,6 +68,19 @@ export const PersonasBuscador: React.FC<PersonasBuscadorProps> = ({
           placeholder="Ej: 309"
           value={idPersona}
           onChange={(e) => setIdPersona(e.target.value)}
+          className="w-full p-[0.625rem_0.875rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.9rem] text-[#0f172a] bg-[#ffffff] box-border"
+        />
+      </div>
+
+      <div className="w-[130px]">
+        <label className="block text-[0.75rem] font-semibold text-[#64748b] mb-1">
+          Id Socio
+        </label>
+        <input
+          type="number"
+          placeholder="Ej: 1234"
+          value={nroSocio}
+          onChange={(e) => setNroSocio(e.target.value)}
           className="w-full p-[0.625rem_0.875rem] rounded-lg [border:1px_solid_#cbd5e1] text-[0.9rem] text-[#0f172a] bg-[#ffffff] box-border"
         />
       </div>
