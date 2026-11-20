@@ -20,6 +20,7 @@ export type TabKey =
   | 'motores'
   | 'cuotas_sociales'
   | 'reportes'
+  | 'reportes_extra'
   | 'auditoria';
 
 interface NavbarProps {
@@ -54,8 +55,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const directTabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'personas', label: 'Buscar Personas', icon: <UsersIcon size={17} /> },
     { key: 'simulador', label: 'Simulador Francés', icon: <CalculatorIcon size={17} /> },
-    { key: 'respuestas', label: 'Carga de respuesta', icon: <FileTextIcon size={17} /> },
-    { key: 'reportes', label: 'Reportes', icon: <FileTextIcon size={17} /> }
+    { key: 'respuestas', label: 'Carga de respuesta', icon: <FileTextIcon size={17} /> }
+  ];
+
+  const reportesItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+    { key: 'reportes', label: 'Reportes del Sistema', icon: <FileTextIcon size={17} /> },
+    { key: 'reportes_extra', label: 'Reportes Extra', icon: <FileTextIcon size={17} /> }
   ];
 
   const renderDropdown = (
@@ -153,7 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {renderTabButton(directTabs[1])}
           {renderDropdown('presentaciones', 'Presentaciones', <BuildingIcon size={17} />, presentacionesItems)}
           {renderTabButton(directTabs[2])}
-          {renderTabButton(directTabs[3])}
+          {renderDropdown('reportes', 'Reportes', <FileTextIcon size={17} />, reportesItems)}
           {renderDropdown('admin', 'Admin', <SlidersIcon size={17} />, adminItems)}
         </nav>
       </div>

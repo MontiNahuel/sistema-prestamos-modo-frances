@@ -33,6 +33,7 @@ jobs:
           fi
           git fetch origin main
           git merge --ff-only origin/main
+          mkdir -p storage/presentaciones/bapro storage/presentaciones/bna
           docker compose build backend
           docker compose up -d --no-deps backend
           ready=0

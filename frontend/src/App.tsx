@@ -15,6 +15,7 @@ import { LineaModal } from './components/abm/lineas/LineaModal';
 import { CuotasSocialesAdminPanel } from './components/abm/cuotas_sociales/CuotasSocialesAdminPanel';
 import { getConfiguracionCuotaSocial } from './services/api/cuotasSocialesApi';
 import { ReportesPanel } from './features/reportes/ReportesPanel';
+import { ReportesExtraPanel } from './features/reportes_extra/ReportesExtraPanel';
 import { AuditoriaPanel } from './components/auditoria/AuditoriaPanel';
 import { PresentacionesBaproPanel } from './components/presentaciones_bapro/PresentacionesBaproPanel';
 import { RespuestasPanel } from './features/respuestas/RespuestasPanel';
@@ -569,6 +570,8 @@ export default function App() {
             prestamoInicialId={reportePrestamoId}
           />
         )}
+
+        {currentTab === 'reportes_extra' && <ReportesExtraPanel />}
 
         {/* Pestaña: ABM Líneas de Préstamo */}
         {currentTab === 'lineas' && (

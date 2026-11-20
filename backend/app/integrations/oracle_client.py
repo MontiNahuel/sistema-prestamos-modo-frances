@@ -152,5 +152,46 @@ class OracleClient:
             else:
                 raise RuntimeError(f"Error Oracle [{code}]: {msg}")
 
+    def ejecutar_consulta(
+        self,
+        sql: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> tuple[list[str], list[tuple[Any, ...]]]:
+        """Ejecuta una consulta SELECT parametrizada en Oracle y retorna (columnas_lower, filas)."""
+        if not self.enabled:
+            raise RuntimeError(
+                "La integración con Oracle está deshabilitada en la configuración (ORACLE_ENABLED=false)."
+            )
+        if not ORACLEDB_INSTALLED or oracledb is None:
+            raise RuntimeError(
+                "El driver python-oracledb no está instalado en el entorno del backend."
+            )
+        if not OracleClient._thick_initialized:
+            raise RuntimeError(
+                "Oracle Instant Client en modo thick no está inicializado; no es posible autenticar contra Oracle 10g."
+            )
+
+        bind_params = params or {}
+        try:
+            with oracledb.connect(
+                user=self.user,
+                password=self.password,
+                dsn=self.dsn,
+            ) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(sql, bind_params)
+                    columnas = [str(col[0]).lower() for col in (cursor.description or ())]
+                    filas = [tuple(row) for row in cursor.fetchall()]
+                    return columnas, filas
+        except oracledb.DatabaseError as e:
+            error_obj = e.args[0] if e.args else None
+            code = getattr(error_obj, "code", None)
+            msg = getattr(error_obj, "message", str(e)).strip()
+            logger.error("Error ejecutando consulta en Oracle [%s]: %s", code, msg)
+            raise RuntimeError(f"Error Oracle [{code}]: {msg}") from e
+        except Exception as e:
+            logger.error("Error inesperado consultando Oracle: %s", e)
+            raise RuntimeError(f"Error inesperado consultando Oracle: {e}") from e
+
 
 oracle_client = OracleClient()
