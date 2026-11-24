@@ -29,11 +29,6 @@ interface SimuladorFormProps {
   onParametrosChange: () => void;
   nuevaLinea?: boolean;
   revisionLineas?: number;
-  incluirCuotaSocial: boolean;
-  onIncluirCuotaSocialChange: (val: boolean) => void;
-  cuotaSocialPesos: number | '';
-  onCuotaSocialPesosChange: (val: number | '') => void;
-  cuotaSocialDefaultPesos?: number;
 }
 
 export const SimuladorForm: React.FC<SimuladorFormProps> = ({
@@ -43,12 +38,7 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
   onSeleccionarPersona,
   onParametrosChange,
   nuevaLinea = false,
-  revisionLineas = 0,
-  incluirCuotaSocial,
-  onIncluirCuotaSocialChange,
-  cuotaSocialPesos,
-  onCuotaSocialPesosChange,
-  cuotaSocialDefaultPesos = 5500
+  revisionLineas = 0
 }) => {
   const [lineas, setLineas] = useState<LineaPrestamo[]>([]);
   const [selectedLineaId, setSelectedLineaId] = useState<number | ''>('');
@@ -331,37 +321,6 @@ export const SimuladorForm: React.FC<SimuladorFormProps> = ({
             {costoOpTipo === 'PORCENTAJE'
               ? 'Porcentaje aplicado sobre el capital solicitado y sumado en cada cuota. Vacío = 0.'
               : 'Importe en pesos sumado en cada cuota. Si queda vacío se toma como $0.'}
-          </div>
-        )}
-      </div>
-
-      {/* Cuota Social (aparte del préstamo) */}
-      <div className="mb-6 p-3 rounded-lg bg-[#eff6ff] [border:1px_solid_#bfdbfe]">
-        <label className="flex items-center gap-2 text-[0.82rem] font-semibold text-[#1e3a8a] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={incluirCuotaSocial}
-            onChange={(e) => onIncluirCuotaSocialChange(e.target.checked)}
-          />
-          <span>Cobrar Cuota Social mensual al socio</span>
-        </label>
-        {incluirCuotaSocial && (
-          <div className="mt-2.5">
-            <label className="block font-semibold text-[0.75rem] mb-1 text-[#1e40af]">
-              Valor Cuota Social ($)
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              placeholder={String(cuotaSocialDefaultPesos)}
-              value={cuotaSocialPesos}
-              onChange={(e) => onCuotaSocialPesosChange(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full p-[0.55rem_0.75rem] rounded-lg [border:1px_solid_#93c5fd] text-[0.875rem] bg-[#ffffff] text-[#0f172a]"
-            />
-            <div className="text-[0.71rem] text-[#3b82f6] mt-1">
-              Va aparte del préstamo, mes a mes hasta que el socio solicite la baja.
-            </div>
           </div>
         )}
       </div>

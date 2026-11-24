@@ -1,11 +1,15 @@
 import React from 'react';
 import { TipoCuotaPresentacion } from '../../types/presentacionesBapro';
-import { OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
+import { incluyeCuotaSocial, OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
+import { ValorCuotaSocialInput } from '../common/ValorCuotaSocialInput';
 import { FiltrosOriginanteBna } from './FiltrosOriginanteBna';
 
 interface FiltrosBnaProps {
   tipoCuota: TipoCuotaPresentacion;
   onTipoCuotaChange: (val: TipoCuotaPresentacion) => void;
+  cuotaSocialPesos: number | '';
+  onCuotaSocialPesosChange: (val: number | '') => void;
+  cuotaSocialDefaultPesos: number;
   fechaImpacto: string;
   setFechaImpacto: (val: string) => void;
   fechaDesde: string;
@@ -38,6 +42,9 @@ interface FiltrosBnaProps {
 export const FiltrosBna: React.FC<FiltrosBnaProps> = ({
   tipoCuota,
   onTipoCuotaChange,
+  cuotaSocialPesos,
+  onCuotaSocialPesosChange,
+  cuotaSocialDefaultPesos,
   fechaImpacto,
   setFechaImpacto,
   fechaDesde,
@@ -192,6 +199,15 @@ export const FiltrosBna: React.FC<FiltrosBnaProps> = ({
               ))}
             </select>
           </div>
+          {incluyeCuotaSocial(tipoCuota) && (
+            <div style={{ minWidth: '170px' }}>
+              <ValorCuotaSocialInput
+                value={cuotaSocialPesos}
+                onChange={onCuotaSocialPesosChange}
+                defaultPesos={cuotaSocialDefaultPesos}
+              />
+            </div>
+          )}
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#334155', cursor: 'pointer', marginTop: '14px' }}>
             <input
               type="checkbox"

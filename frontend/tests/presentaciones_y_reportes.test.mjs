@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  aCuotaSocialCentavos,
+  aplicarValorCuotaSocialEnItems,
   claveItemPresentable,
   esItemCuotaSocial,
+  incluyeCuotaSocial,
   partirIdsSeleccionados,
 } from '../src/utils/presentacionHelpers.ts';
 import { construirReporte } from '../src/features/reportes/reportes.ts';
@@ -83,4 +86,34 @@ test('reportes muestran costo operativo y cft reales cuando el préstamo los reg
   const cob = construirReporte(cartera, { ...filtrosBase, tipo: 'cobranzas' }, '2026-10-25');
   assert.equal(cob.filas[0].otros, 2000);
   assert.equal(cob.filas[0].capital + cob.filas[0].interes + cob.filas[0].iva + cob.filas[0].otros, cob.filas[0].importe);
+});
+
+test('helpers de cuota social en presentaciones validan visibilidad, centavos y actualizacion de items', () => {
+  assert.equal(incluyeCuotaSocial('CUOTA_PRESTAMO'), false);
+  assert.equal(incluyeCuotaSocial('CUOTA_SOCIAL'), true);
+  assert.equal(incluyeCuotaSocial('PRESTAMO_Y_CUOTA_SOCIAL'), true);
+
+  assert.equal(aCuotaSocialCentavos('', 5500), 550000);
+  assert.equal(aCuotaSocialCentavos(10000, 5500), 1000000);
+  assert.equal(aCuotaSocialCentavos(0, 5500), null);
+  assert.equal(aCuotaSocialCentavos(-100, 5500), null);
+
+  const items = [
+    { cuota_id: 'c-1', cuota_social_id: null, tipo_item: 'CUOTA_PRESTAMO', numero_cuota: 1, estado: 'PENDIENTE', monto_centavos: 120000, monto_pesos: 1200 },
+    { cuota_id: null, cuota_social_id: 'cs-1', tipo_item: 'CUOTA_SOCIAL', numero_cuota: null, estado: 'PENDIENTE', monto_centavos: 550000, monto_pesos: 5500 },
+    { cuota_id: null, cuota_social_id: 'cs-2', tipo_item: 'CUOTA_SOCIAL', numero_cuota: null, estado: 'PAGADA', monto_centavos: 550000, monto_pesos: 5500 },
+    { cuota_id: null, cuota_social_id: 'cs-3', tipo_item: 'CUOTA_SOCIAL', numero_cuota: null, estado: 'PRESENTADA', monto_centavos: 550000, monto_pesos: 5500 },
+    { cuota_id: null, cuota_social_id: 'cs-4', tipo_item: 'CUOTA_SOCIAL', numero_cuota: null, estado: 'PRESENTADA', monto_centavos: 550000, monto_pesos: 5500 },
+  ];
+  const seleccion = new Set(['CS:cs-1', 'CS:cs-3']);
+  const actualizados = aplicarValorCuotaSocialEnItems(items, 1000000, seleccion);
+  assert.equal(actualizados[0].monto_centavos, 120000);
+  assert.equal(actualizados[1].monto_centavos, 1000000);
+  assert.equal(actualizados[1].monto_pesos, 10000);
+  assert.equal(actualizados[2].monto_centavos, 550000);
+  // cs-3 es PRESENTADA y está seleccionada -> toma el nuevo monto
+  assert.equal(actualizados[3].monto_centavos, 1000000);
+  assert.equal(actualizados[3].monto_pesos, 10000);
+  // cs-4 es PRESENTADA y NO está seleccionada -> conserva su monto original
+  assert.equal(actualizados[4].monto_centavos, 550000);
 });

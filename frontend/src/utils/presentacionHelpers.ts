@@ -41,3 +41,41 @@ export function partirIdsSeleccionados<T extends ItemPresentableBase>(
   }
   return { cuota_ids, cuota_social_ids };
 }
+
+export function incluyeCuotaSocial(tipoCuota: TipoCuotaPresentacion): boolean {
+  return tipoCuota === 'CUOTA_SOCIAL' || tipoCuota === 'PRESTAMO_Y_CUOTA_SOCIAL';
+}
+
+export function aCuotaSocialCentavos(
+  valorPesos: number | '',
+  defaultPesos: number
+): number | null {
+  const efectivo = valorPesos === '' ? defaultPesos : Number(valorPesos);
+  if (!Number.isFinite(efectivo) || efectivo <= 0) return null;
+  return Math.round(efectivo * 100);
+}
+
+const ESTADOS_CS_MODIFICABLES = new Set(['PENDIENTE', 'RECHAZADA', 'EN_MORA']);
+
+export function aplicarValorCuotaSocialEnItems<
+  T extends ItemPresentableBase & { estado: string; monto_centavos: number; monto_pesos: number }
+>(items: T[], valorCentavos: number, seleccionadas?: Set<string>): T[] {
+  if (!Number.isFinite(valorCentavos) || valorCentavos <= 0) return items;
+  const pesos = Math.round(valorCentavos) / 100;
+  return items.map((item) => {
+    if (!esItemCuotaSocial(item)) {
+      return item;
+    }
+    const esModificable = ESTADOS_CS_MODIFICABLES.has(item.estado);
+    const esRepresentadaSeleccionada =
+      item.estado === 'PRESENTADA' && Boolean(seleccionadas?.has(claveItemPresentable(item)));
+    if (!esModificable && !esRepresentadaSeleccionada) {
+      return item;
+    }
+    return {
+      ...item,
+      monto_centavos: valorCentavos,
+      monto_pesos: pesos,
+    };
+  });
+}

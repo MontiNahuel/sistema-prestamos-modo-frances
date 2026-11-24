@@ -50,6 +50,7 @@ export interface BuscarCuotasBaproParams {
   incluir_presentadas?: boolean;
   base_filtrada?: boolean;
   tipo_cuota?: TipoCuotaPresentacion;
+  cuota_social_centavos?: number;
 }
 
 export interface BuscarCuotasBaproResponse {
@@ -70,6 +71,7 @@ export interface GenerarPresentacionBaproRequest {
   numero_operacion_inicial?: number;
   nombre_archivo?: string | null;
   id_corrida?: string | null;
+  cuota_social_centavos?: number;
 }
 
 export interface GenerarPresentacionBaproResponse {

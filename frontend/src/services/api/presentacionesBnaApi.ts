@@ -26,6 +26,9 @@ export async function buscarCuotasBna(params: BuscarCuotasBnaParams): Promise<Bu
   if (params.fecha_corte) query.append('fecha_corte', params.fecha_corte);
   if (params.incluir_presentadas !== undefined) query.append('incluir_presentadas', String(params.incluir_presentadas));
   if (params.tipo_cuota) query.append('tipo_cuota', params.tipo_cuota);
+  if (params.cuota_social_centavos !== undefined) {
+    query.append('cuota_social_centavos', String(params.cuota_social_centavos));
+  }
 
   return apiClient<BuscarCuotasBnaResponse>(`${BNA_BASE}/cuotas-pendientes?${query.toString()}`);
 }

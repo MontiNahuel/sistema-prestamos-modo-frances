@@ -8,6 +8,7 @@ from app.features.prestamos.schemas import PrestamoCreate
 from app.features.prestamos.repository import PrestamoRepository
 from app.features.lineas.repository import LineaPrestamoRepository
 from app.features.motores.repository import MotorCalculoRepository
+from app.features.socios.model import Socio
 from app.features.socios.service import SocioService
 from app.features.auditoria.service import HistorialCambiosService
 from app.features.cuotas_sociales.service import CuotaSocialService
@@ -135,20 +136,22 @@ class PrestamoService:
         creado = self.repository.create(nuevo_prestamo, cuotas, snapshot=snapshot)
 
         if req.incluir_cuota_social:
-            cs_service = CuotaSocialService(self.repository.db)
-            valor_cs = (
-                req.cuota_social_centavos
-                if req.cuota_social_centavos is not None
-                else cs_service.obtener_valor_default_centavos()
-            )
-            if valor_cs > 0:
-                cs_service.activar_socio(
-                    socio_id=req.persona_id,
-                    valor_centavos=valor_cs,
-                    prestamo_id=creado.id,
-                    fecha_primer_vencimiento=fecha_venc,
-                    commit=True,
+            socio_actual = self.repository.db.get(Socio, req.persona_id)
+            if not socio_actual or not socio_actual.cuota_social_activa:
+                cs_service = CuotaSocialService(self.repository.db)
+                valor_cs = (
+                    req.cuota_social_centavos
+                    if req.cuota_social_centavos is not None
+                    else cs_service.obtener_valor_default_centavos()
                 )
+                if valor_cs > 0:
+                    cs_service.activar_socio(
+                        socio_id=req.persona_id,
+                        valor_centavos=valor_cs,
+                        prestamo_id=creado.id,
+                        fecha_primer_vencimiento=fecha_venc,
+                        commit=True,
+                    )
 
         self._auditar(prestamo_id, "CREATE", {"monto_centavos": creado.monto_solicitado_centavos, "plazo": creado.plazo_meses, "socio_id": creado.persona_id, "cft_tea": str(creado.cft_tea)}, usuario_operador, "Otorgamiento de préstamo formal")
         return creado

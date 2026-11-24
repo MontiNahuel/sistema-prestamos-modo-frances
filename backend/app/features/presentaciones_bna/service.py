@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.domain.enums import TipoCuotaPresentacion
 from app.features.cuotas_sociales.model import CuotaSocial
+from app.features.cuotas_sociales.presentables import aplicar_valor_cuota_social_vigente
 from app.features.prestamos.model import Cuota, Prestamo
 from app.features.socios.model import Socio
 from app.features.presentaciones_bna.model import PresentacionBnaArchivo, PresentacionBnaAuditoria
@@ -62,6 +63,8 @@ class PresentacionBnaService:
         fecha_corte: Optional[str] = None,
         incluir_presentadas: bool = True,
         tipo_cuota: TipoCuotaPresentacion = TipoCuotaPresentacion.CUOTA_PRESTAMO,
+        cuota_social_centavos: Optional[int] = None,
+        usuario_operador: Optional[str] = None,
     ) -> BuscarCuotasBnaResponse:
         matcher = CuotaBnaMatcher(self.db, self.mapa_sucursales)
         return matcher.buscar(
@@ -70,10 +73,15 @@ class PresentacionBnaService:
             fecha_corte=fecha_corte,
             incluir_presentadas=incluir_presentadas,
             tipo_cuota=tipo_cuota,
+            cuota_social_centavos=cuota_social_centavos,
+            usuario_operador=usuario_operador,
         )
 
     def generar_presentacion_bna(
-        self, req: GenerarPresentacionBnaRequest, usuario_id: Optional[int] = None
+        self,
+        req: GenerarPresentacionBnaRequest,
+        usuario_id: Optional[int] = None,
+        usuario_operador: Optional[str] = None,
     ) -> Tuple[GenerarPresentacionBnaResponse, bytes]:
         if not req.cuota_ids and not req.cuota_social_ids:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debe seleccionar al menos una cuota")
@@ -101,6 +109,14 @@ class PresentacionBnaService:
             if req.cuota_ids
             else []
         )
+        if req.cuota_social_ids and req.cuota_social_centavos is not None:
+            aplicar_valor_cuota_social_vigente(
+                db=self.db,
+                valor_centavos=req.cuota_social_centavos,
+                cuota_social_ids=req.cuota_social_ids,
+                usuario_operador=usuario_operador,
+            )
+
         cuotas_sociales = (
             self.db.query(CuotaSocial, Socio)
             .join(Socio, CuotaSocial.socio_id == Socio.id)

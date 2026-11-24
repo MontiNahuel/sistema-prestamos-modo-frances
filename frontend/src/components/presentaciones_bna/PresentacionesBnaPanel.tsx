@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiltrosBna } from './FiltrosBna';
 import { TablaCuotasBna } from './TablaCuotasBna';
 import { TablaHistorialBna } from './TablaHistorialBna';
@@ -11,13 +11,21 @@ import {
   getArchivosBna, getDetallesArchivoBna, descargarArchivoBna, cargarRespuestaBna,
 } from '../../services/api/presentacionesBnaApi';
 import {
+  aCuotaSocialCentavos,
+  aplicarValorCuotaSocialEnItems,
   claveItemPresentable,
+  incluyeCuotaSocial,
   partirIdsSeleccionados,
 } from '../../utils/presentacionHelpers';
 
-export const PresentacionesBnaPanel: React.FC = () => {
+export const PresentacionesBnaPanel: React.FC<{
+  cuotaSocialDefaultPesos?: number;
+  onCuotaSocialDefaultActualizada?: (nuevoValorPesos: number) => void;
+}> = ({ cuotaSocialDefaultPesos = 5500, onCuotaSocialDefaultActualizada }) => {
   const [tab, setTab] = useState<'generar' | 'historial'>('generar');
   const [tipoCuota, setTipoCuota] = useState<TipoCuotaPresentacion>('CUOTA_PRESTAMO');
+  const [cuotaSocialPesos, setCuotaSocialPesos] = useState<number | ''>(cuotaSocialDefaultPesos);
+  const [cuotaSocialEditada, setCuotaSocialEditada] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
@@ -60,6 +68,33 @@ export const PresentacionesBnaPanel: React.FC = () => {
     getArchivosBna().then((res) => setArchivos(res.archivos)).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (!cuotaSocialEditada) {
+      setCuotaSocialPesos(cuotaSocialDefaultPesos);
+    }
+  }, [cuotaSocialDefaultPesos, cuotaSocialEditada]);
+
+  const handleCuotaSocialPesosChange = (val: number | '') => {
+    setCuotaSocialEditada(true);
+    setCuotaSocialPesos(val);
+  };
+
+  const csCentavosVigente = useMemo(
+    () =>
+      incluyeCuotaSocial(tipoCuota)
+        ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+        : null,
+    [tipoCuota, cuotaSocialPesos, cuotaSocialDefaultPesos]
+  );
+
+  const cuotasMostradas = useMemo(
+    () =>
+      csCentavosVigente
+        ? aplicarValorCuotaSocialEnItems(cuotas, csCentavosVigente, seleccionadas)
+        : cuotas,
+    [cuotas, csCentavosVigente, seleccionadas]
+  );
+
   const handleValidarNro = async () => {
     if (!nroLista) return;
     try {
@@ -74,6 +109,14 @@ export const PresentacionesBnaPanel: React.FC = () => {
   };
 
   const handleBuscar = async () => {
+    const csCentavos = incluyeCuotaSocial(tipoCuota)
+      ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+      : undefined;
+    if (incluyeCuotaSocial(tipoCuota) && csCentavos === null) {
+      setMensaje({ tipo: 'error', texto: 'El Valor Cuota Social ($) debe ser mayor a cero.' });
+      return;
+    }
+
     setLoading(true);
     setMensaje(null);
     try {
@@ -82,6 +125,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
         fecha_hasta: fechaHasta || undefined,
         incluir_presentadas: true,
         tipo_cuota: tipoCuota,
+        cuota_social_centavos: csCentavos ?? undefined,
       });
       const filtrarPresentadas = (items: CuotaPresentableBnaItem[]) =>
         incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
@@ -99,6 +143,9 @@ export const PresentacionesBnaPanel: React.FC = () => {
             .map((c) => claveItemPresentable(c))
         )
       );
+      if (csCentavos) {
+        onCuotaSocialDefaultActualizada?.(csCentavos / 100);
+      }
     } catch (err: any) {
       setMensaje({ tipo: 'error', texto: err.message || 'Error al buscar cuotas BNA' });
     } finally {
@@ -112,7 +159,16 @@ export const PresentacionesBnaPanel: React.FC = () => {
       setMensaje({ tipo: 'error', texto: `El número de lista ${nroLista} ya fue utilizado. Por favor use el botón "Validar" o elija otro número.` });
       return;
     }
-    const totalSeleccionado = cuotas
+    const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotasMostradas, seleccionadas);
+    const csCentavos =
+      cuota_social_ids.length > 0
+        ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+        : undefined;
+    if (cuota_social_ids.length > 0 && csCentavos === null) {
+      setMensaje({ tipo: 'error', texto: 'El Valor Cuota Social ($) debe ser mayor a cero.' });
+      return;
+    }
+    const totalSeleccionado = cuotasMostradas
       .filter((c) => seleccionadas.has(claveItemPresentable(c)))
       .reduce((acc, c) => acc + c.monto_centavos, 0);
     const fechaFormateada = fechaImpacto
@@ -130,7 +186,6 @@ export const PresentacionesBnaPanel: React.FC = () => {
     setLoading(true);
     setMensaje(null);
     try {
-      const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotas, seleccionadas);
       const res = await generarPresentacionBna({
         cuota_ids,
         cuota_social_ids,
@@ -138,11 +193,15 @@ export const PresentacionesBnaPanel: React.FC = () => {
         nombre_archivo: nombreArchivo,
         fecha_impacto: fechaImpacto,
         casa, producto, cuenta, indicador_lote: indicadorLote,
+        cuota_social_centavos: csCentavos ?? undefined,
       });
       setMensaje({
         tipo: 'ok',
         texto: `¡Lote BNA generado! Archivo: ${res.nombre_archivo} (${res.total_registros} registros por $${res.total_monto_pesos.toLocaleString('es-AR', { minimumFractionDigits: 2 })}).`,
       });
+      if (csCentavos) {
+        onCuotaSocialDefaultActualizada?.(csCentavos / 100);
+      }
       await descargarArchivoBna(res.archivo_id, res.nombre_archivo);
       await cargarProximoNro();
       getArchivosBna().then((r) => setArchivos(r.archivos));
@@ -177,7 +236,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
     }
   };
 
-  const totalCentavos = cuotas
+  const totalCentavos = cuotasMostradas
     .filter((c) => seleccionadas.has(claveItemPresentable(c)))
     .reduce((acc, c) => acc + c.monto_centavos, 0);
 
@@ -231,6 +290,9 @@ export const PresentacionesBnaPanel: React.FC = () => {
               setPresentadasExcluidas(0);
               setSeleccionadas(new Set());
             }}
+            cuotaSocialPesos={cuotaSocialPesos}
+            onCuotaSocialPesosChange={handleCuotaSocialPesosChange}
+            cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
             fechaImpacto={fechaImpacto} setFechaImpacto={setFechaImpacto}
             fechaDesde={fechaDesde} setFechaDesde={setFechaDesde}
             fechaHasta={fechaHasta} setFechaHasta={setFechaHasta}
@@ -266,7 +328,7 @@ export const PresentacionesBnaPanel: React.FC = () => {
           />
 
           <TablaCuotasBna
-            cuotas={cuotas}
+            cuotas={cuotasMostradas}
             seleccionadas={seleccionadas}
             onToggleSeleccion={(id) => {
               const next = new Set(seleccionadas);

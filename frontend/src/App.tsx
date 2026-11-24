@@ -117,9 +117,7 @@ export default function App() {
   const [revisionLineas, setRevisionLineas] = useState(0);
   const [nuevaLinea, setNuevaLinea] = useState(false);
   const [formVersion, setFormVersion] = useState(0);
-  const [incluirCuotaSocial, setIncluirCuotaSocial] = useState<boolean>(true);
   const [cuotaSocialDefaultPesos, setCuotaSocialDefaultPesos] = useState<number>(5500);
-  const [cuotaSocialPesos, setCuotaSocialPesos] = useState<number | ''>(5500);
 
   useEffect(() => {
     if (!token) return;
@@ -129,7 +127,6 @@ export default function App() {
         if (cancelado) return;
         const pesos = cfg.valor_default_centavos / 100;
         setCuotaSocialDefaultPesos(pesos);
-        setCuotaSocialPesos((actual) => (actual === 5500 ? pesos : actual));
       })
       .catch(() => {
         // Conserva valor por defecto local si el endpoint no responde
@@ -434,11 +431,6 @@ export default function App() {
                 simulando={simulando}
                 personaSeleccionada={personaSeleccionada}
                 onSeleccionarPersona={handleSeleccionarPersonaDesdeSimulador}
-                incluirCuotaSocial={incluirCuotaSocial}
-                onIncluirCuotaSocialChange={setIncluirCuotaSocial}
-                cuotaSocialPesos={cuotaSocialPesos}
-                onCuotaSocialPesosChange={setCuotaSocialPesos}
-                cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
               />
 
               <div>
@@ -537,11 +529,6 @@ export default function App() {
               onSeleccionarPersona={handleSeleccionarPersona}
               payload={ultimoPayload}
               plan={planResultado}
-              incluirCuotaSocial={incluirCuotaSocial}
-              onIncluirCuotaSocialChange={setIncluirCuotaSocial}
-              cuotaSocialPesos={cuotaSocialPesos}
-              onCuotaSocialPesosChange={setCuotaSocialPesos}
-              cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
               onOtorgado={handlePrestamoOtorgado}
             />
             <LineaModal
@@ -559,8 +546,19 @@ export default function App() {
         )}
 
         {/* Pestaña: Préstamos Otorgados */}
-{currentTab === 'bapro' && <PresentacionesBaproPanel onCargarRespuesta={() => setCurrentTab('respuestas')} />}
-        {currentTab === 'bna' && <PresentacionesBnaPanel />}
+        {currentTab === 'bapro' && (
+          <PresentacionesBaproPanel
+            onCargarRespuesta={() => setCurrentTab('respuestas')}
+            cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
+            onCuotaSocialDefaultActualizada={setCuotaSocialDefaultPesos}
+          />
+        )}
+        {currentTab === 'bna' && (
+          <PresentacionesBnaPanel
+            cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
+            onCuotaSocialDefaultActualizada={setCuotaSocialDefaultPesos}
+          />
+        )}
         {currentTab === 'respuestas' && <RespuestasPanel onAplicada={() => {
           if (personaSeleccionada) void handleSeleccionarPersona(personaSeleccionada);
         }} />}
@@ -586,7 +584,6 @@ export default function App() {
           <CuotasSocialesAdminPanel
             onConfigActualizada={(nuevoValorPesos) => {
               setCuotaSocialDefaultPesos(nuevoValorPesos);
-              setCuotaSocialPesos(nuevoValorPesos);
             }}
           />
         )}

@@ -596,3 +596,182 @@ def test_coopya_sync_solo_en_presentacion_o_cobro_y_no_al_otorgar(db: Session, m
     )
     srv.cancelar(p2.id)
     assert len(fake_db.cancelaciones) == 1
+
+
+def test_otorgar_prestamo_asigna_cuota_social_solo_si_socio_no_tiene_activa(db: Session):
+    # Primer préstamo sin cuota_social_centavos explícito toma el default global (550000)
+    srv = PrestamoService(
+        repository=PrestamoRepository(db),
+        linea_repository=None,
+        motor_repository=None,
+        socio_service=SocioService(SocioRepository(db)),
+        coopya_db=None,
+    )
+    srv.otorgar_prestamo(
+        PrestamoCreate(
+            persona_id=970,
+            persona_nombre="UNIFICADO, SOCIO",
+            persona_doc="30970970",
+            cbu="0140055703713750696968",
+            monto_solicitado_centavos=500_000,
+            plazo_meses=2,
+            tna_pactada=Decimal("0.60"),
+            alicuota_iva=Decimal("0.21"),
+            fecha_primer_vencimiento=date(2026, 11, 10),
+        )
+    )
+    cs_srv = CuotaSocialService(db)
+    estado = cs_srv.obtener_estado_socio(970, generar_actual=False)
+    assert estado.activa is True
+    assert estado.valor_centavos == 550000
+
+    # Si luego un socio ya tiene cuota social activa por otro valor (ej. $8.000),
+    # sacar un segundo préstamo no debe sobrescribirle ni duplicarle su cuota social
+    socio = db.get(Socio, 970)
+    socio.cuota_social_valor_centavos = 800000
+    db.commit()
+
+    srv.otorgar_prestamo(
+        PrestamoCreate(
+            persona_id=970,
+            persona_nombre="UNIFICADO, SOCIO",
+            persona_doc="30970970",
+            cbu="0140055703713750696968",
+            monto_solicitado_centavos=600_000,
+            plazo_meses=2,
+            tna_pactada=Decimal("0.60"),
+            alicuota_iva=Decimal("0.21"),
+            fecha_primer_vencimiento=date(2026, 12, 10),
+        )
+    )
+    estado2 = cs_srv.obtener_estado_socio(970, generar_actual=False)
+    assert estado2.valor_centavos == 800000
+    assert db.query(CuotaSocial).filter_by(socio_id=970, periodo="2026-11").count() == 1
+
+
+def test_presentaciones_bapro_y_bna_unifican_valor_cuota_social_en_pendientes_y_al_generar(db: Session):
+    from fastapi.testclient import TestClient
+    from main import app
+    from app.core.database import get_db
+
+    # Dos socios BAPRO y uno BNA con importes distintos originalmente
+    _crear_prestamo(db, persona_id=981, cbu="0140055703713750696968", valor_cs=550000, primer_venc=date(2026, 12, 10))
+    _crear_prestamo(db, persona_id=982, cbu="0140055703713750696968", valor_cs=700000, primer_venc=date(2026, 12, 10))
+    _crear_prestamo(db, persona_id=983, cbu="0110599920000012345671", valor_cs=600000, primer_venc=date(2026, 12, 10))
+
+    # Una cuota ya PAGADA de otro socio NO debe alterarse
+    _crear_prestamo(db, persona_id=984, cbu="0140055703713750696968", valor_cs=550000, primer_venc=date(2026, 11, 10))
+    cs_pagada = db.query(CuotaSocial).filter_by(socio_id=984, periodo="2026-11").one()
+    cs_pagada.estado = "PAGADA"
+    cs_pagada.monto_pagado_centavos = 550000
+    db.commit()
+
+    def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    try:
+        client = TestClient(app)
+
+        # 1. Al buscar en BAPRO enviando $10.000 (1_000_000 centavos), unifica todas las pendientes
+        bus_bapro = client.post(
+            "/api/v1/presentaciones-bapro/buscar-cuotas",
+            json={
+                "fecha_desde": "2026-12-01",
+                "fecha_hasta": "2026-12-31",
+                "tipo_cuota": "CUOTA_SOCIAL",
+                "cuota_social_centavos": 1000000,
+            },
+        )
+        assert bus_bapro.status_code == 200, bus_bapro.text
+        pres_bapro = bus_bapro.json()["presentables"]
+        assert {item["socio_id"] for item in pres_bapro} == {981, 982, 984}
+        assert all(item["monto_centavos"] == 1000000 for item in pres_bapro)
+
+        # La ya pagada de 2026-11 conservó su importe original
+        db.expire_all()
+        assert db.get(CuotaSocial, cs_pagada.id).valor_centavos == 550000
+
+        # 2. Al generar BAPRO modificando directamente a $12.000 (1_200_000 centavos)
+        cs_ids_bapro = [item["cuota_social_id"] for item in pres_bapro]
+        gen_bapro = client.post(
+            "/api/v1/presentaciones-bapro/generar",
+            json={
+                "cuota_ids": [],
+                "cuota_social_ids": cs_ids_bapro,
+                "nro_lista": 9801,
+                "fecha_impacto": "2026-12-10",
+                "cuota_social_centavos": 1200000,
+            },
+        )
+        assert gen_bapro.status_code == 200, gen_bapro.text
+        assert gen_bapro.json()["total_registros"] == 3
+        assert gen_bapro.json()["total_monto"] == 36000.0
+
+        # El valor global de Admin -> Cuotas Sociales también quedó actualizado a $12.000
+        cfg_bapro = client.get("/api/v1/cuotas-sociales/configuracion")
+        assert cfg_bapro.status_code == 200
+        assert cfg_bapro.json()["valor_default_centavos"] == 1200000
+
+        # 3. En BNA buscar + generar con $9.500 (950_000 centavos):
+        # no debe tocar las cuotas BAPRO ya PRESENTADAS en $12.000 ni la PAGADA en $5.500
+        bus_bna = client.get(
+            "/api/v1/presentaciones-bna/cuotas-pendientes",
+            params={
+                "fecha_desde": "2026-12-01",
+                "fecha_hasta": "2026-12-31",
+                "tipo_cuota": "CUOTA_SOCIAL",
+                "cuota_social_centavos": 950000,
+            },
+        )
+        assert bus_bna.status_code == 200, bus_bna.text
+        pres_bna = [i for i in bus_bna.json()["presentables"] if i["socio_id"] == 983]
+        assert len(pres_bna) == 1
+        assert pres_bna[0]["monto_centavos"] == 950000
+
+        db.expire_all()
+        for cs_id in cs_ids_bapro:
+            cs_pres = db.get(CuotaSocial, cs_id)
+            assert cs_pres.estado == "PRESENTADA"
+            assert cs_pres.valor_centavos == 1200000
+
+        gen_bna = client.post(
+            "/api/v1/presentaciones-bna/generar-archivo",
+            json={
+                "cuota_ids": [],
+                "cuota_social_ids": [pres_bna[0]["cuota_social_id"]],
+                "nro_lista": 9802,
+                "fecha_impacto": "2026-12-10",
+                "cuota_social_centavos": 950000,
+            },
+        )
+        assert gen_bna.status_code == 200, gen_bna.text
+        assert gen_bna.json()["total_monto_pesos"] == 9500.0
+
+        # Admin refleja el último monto usado en BNA ($9.500) y las PRESENTADAS siguen intactas
+        cfg_bna = client.get("/api/v1/cuotas-sociales/configuracion")
+        assert cfg_bna.status_code == 200
+        assert cfg_bna.json()["valor_default_centavos"] == 950000
+
+        # 4. Re-presentación explícita: si incluimos una cuota PRESENTADA (socio 981 en $12.000)
+        # y la generamos con un nuevo valor ($15.000), esa sí cambia; las otras PRESENTADAS no seleccionadas no cambian.
+        cs_981 = db.query(CuotaSocial).filter_by(socio_id=981, periodo="2026-12").one()
+        cs_982 = db.query(CuotaSocial).filter_by(socio_id=982, periodo="2026-12").one()
+        repres = client.post(
+            "/api/v1/presentaciones-bapro/generar",
+            json={
+                "cuota_ids": [],
+                "cuota_social_ids": [cs_981.id],
+                "nro_lista": 9803,
+                "fecha_impacto": "2026-12-15",
+                "cuota_social_centavos": 1500000,
+            },
+        )
+        assert repres.status_code == 200, repres.text
+        assert repres.json()["total_monto"] == 15000.0
+        db.expire_all()
+        assert db.get(CuotaSocial, cs_981.id).valor_centavos == 1500000
+        assert db.get(CuotaSocial, cs_982.id).valor_centavos == 1200000
+        assert db.get(CuotaSocial, cs_pagada.id).valor_centavos == 550000
+    finally:
+        app.dependency_overrides.clear()

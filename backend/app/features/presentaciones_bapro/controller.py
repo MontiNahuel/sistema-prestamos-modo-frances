@@ -29,6 +29,7 @@ def get_service(db: Session = Depends(get_db)) -> PresentacionBaproService:
 @router.post("/buscar-cuotas", response_model=BuscarCuotasBaproResponse)
 def buscar_cuotas(
     req: BuscarCuotasBaproRequest,
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PresentacionBaproService = Depends(get_service),
 ):
     return service.buscar_cuotas_presentables(
@@ -39,7 +40,10 @@ def buscar_cuotas(
         dni_hasta=req.dni_hasta,
         incluir_presentadas=req.incluir_presentadas,
         base_filtrada=req.base_filtrada,
+        usuario_id=operador.id,
         tipo_cuota=req.tipo_cuota,
+        cuota_social_centavos=req.cuota_social_centavos,
+        usuario_operador=operador.usuario,
     )
 
 

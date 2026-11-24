@@ -145,6 +145,11 @@ class BuscarCuotasBaproRequest(BaseModel):
         default=TipoCuotaPresentacion.CUOTA_PRESTAMO,
         description="Tipo de cuota a buscar: préstamo, cuota social o ambas",
     )
+    cuota_social_centavos: Optional[int] = Field(
+        None,
+        gt=0,
+        description="Importe vigente en centavos para unificar las cuotas sociales pendientes al buscar",
+    )
 
 
 class CuotaPresentableItem(BaseModel):
@@ -184,6 +189,11 @@ class GenerarPresentacionBaproRequest(BaseModel):
     numero_operacion_inicial: int = 1
     nombre_archivo: Optional[str] = None
     id_corrida: Optional[str] = None
+    cuota_social_centavos: Optional[int] = Field(
+        None,
+        gt=0,
+        description="Importe vigente en centavos para aplicar a las cuotas sociales incluidas en la presentación",
+    )
 
     @model_validator(mode="after")
     def _validar_al_menos_una_cuota(self):

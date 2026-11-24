@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CuotaPresentableItem, EmpresaOriginante, TipoCuotaPresentacion } from '../../types/presentacionesBapro';
 import {
   buscarCuotasBapro,
@@ -12,13 +12,22 @@ import { FiltrosBapro } from './FiltrosBapro';
 import { EmpresasModal } from './EmpresasModal';
 import { Badge } from '../common/Badge';
 import {
+  aCuotaSocialCentavos,
+  aplicarValorCuotaSocialEnItems,
   claveItemPresentable,
   esItemCuotaSocial,
+  incluyeCuotaSocial,
   partirIdsSeleccionados,
 } from '../../utils/presentacionHelpers';
 
-export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void }> = ({ onCargarRespuesta }) => {
+export const PresentacionesBaproPanel: React.FC<{
+  onCargarRespuesta: () => void;
+  cuotaSocialDefaultPesos?: number;
+  onCuotaSocialDefaultActualizada?: (nuevoValorPesos: number) => void;
+}> = ({ onCargarRespuesta, cuotaSocialDefaultPesos = 5500, onCuotaSocialDefaultActualizada }) => {
   const [tipoCuota, setTipoCuota] = useState<TipoCuotaPresentacion>('CUOTA_PRESTAMO');
+  const [cuotaSocialPesos, setCuotaSocialPesos] = useState<number | ''>(cuotaSocialDefaultPesos);
+  const [cuotaSocialEditada, setCuotaSocialEditada] = useState(false);
   const [empresas, setEmpresas] = useState<EmpresaOriginante[]>([]);
   const [empresaId, setEmpresaId] = useState<number | undefined>();
   const [dniDesde, setDniDesde] = useState<number | ''>('');
@@ -64,6 +73,33 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
 
   useEffect(() => { cargarDatosIniciales(); }, []);
 
+  useEffect(() => {
+    if (!cuotaSocialEditada) {
+      setCuotaSocialPesos(cuotaSocialDefaultPesos);
+    }
+  }, [cuotaSocialDefaultPesos, cuotaSocialEditada]);
+
+  const handleCuotaSocialPesosChange = (val: number | '') => {
+    setCuotaSocialEditada(true);
+    setCuotaSocialPesos(val);
+  };
+
+  const csCentavosVigente = useMemo(
+    () =>
+      incluyeCuotaSocial(tipoCuota)
+        ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+        : null,
+    [tipoCuota, cuotaSocialPesos, cuotaSocialDefaultPesos]
+  );
+
+  const cuotasMostradas = useMemo(
+    () =>
+      csCentavosVigente
+        ? aplicarValorCuotaSocialEnItems(cuotas, csCentavosVigente, seleccionadas)
+        : cuotas,
+    [cuotas, csCentavosVigente, seleccionadas]
+  );
+
   const handleEmpresaChange = (id: number) => {
     setEmpresaId(id);
     setNombreArchivo(armarNombreArchivo(id, nroLista));
@@ -86,6 +122,14 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
   };
 
   const handleBuscar = async () => {
+    const csCentavos = incluyeCuotaSocial(tipoCuota)
+      ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+      : undefined;
+    if (incluyeCuotaSocial(tipoCuota) && csCentavos === null) {
+      setError('El Valor Cuota Social ($) debe ser mayor a cero.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setExito(null);
@@ -97,6 +141,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
         dni_hasta: dniHasta === '' ? null : dniHasta,
         incluir_presentadas: true,
         tipo_cuota: tipoCuota,
+        cuota_social_centavos: csCentavos ?? undefined,
       });
       const filtrarPresentadas = (items: CuotaPresentableItem[]) =>
         incluirPresentadas ? items : items.filter((c) => c.estado !== 'PRESENTADA');
@@ -113,6 +158,9 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
             .map((c) => claveItemPresentable(c))
         )
       );
+      if (csCentavos) {
+        onCuotaSocialDefaultActualizada?.(csCentavos / 100);
+      }
     } catch (err: any) {
       setError(err.message || 'Error al buscar cuotas');
     } finally {
@@ -138,7 +186,16 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
 
   const handleGenerar = async () => {
     if (seleccionadas.size === 0) return;
-    const totalSeleccionado = cuotas
+    const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotasMostradas, seleccionadas);
+    const csCentavos =
+      cuota_social_ids.length > 0
+        ? aCuotaSocialCentavos(cuotaSocialPesos, cuotaSocialDefaultPesos)
+        : undefined;
+    if (cuota_social_ids.length > 0 && csCentavos === null) {
+      setError('El Valor Cuota Social ($) debe ser mayor a cero.');
+      return;
+    }
+    const totalSeleccionado = cuotasMostradas
       .filter((c) => seleccionadas.has(claveItemPresentable(c)))
       .reduce((acc, c) => acc + Number(c.monto_pesos || 0), 0);
     const fechaFormateada = fechaImpacto
@@ -156,7 +213,6 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
     setGenerando(true);
     setError(null);
     try {
-      const { cuota_ids, cuota_social_ids } = partirIdsSeleccionados(cuotas, seleccionadas);
       const res = await generarPresentacionBapro({
         cuota_ids,
         cuota_social_ids,
@@ -166,9 +222,13 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
         empresa_originante_id: empresaId,
         aplicar_desglose: aplicarDesglose,
         monto_minimo_desglose_pesos: montoMinimoDesglose,
+        cuota_social_centavos: csCentavos ?? undefined,
       });
       const montoFormateado = Number(res.total_monto || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       setExito(`Lote #${res.nro_archivo} generado con éxito (${res.total_registros} débitos por $${montoFormateado}). Descargando...`);
+      if (csCentavos) {
+        onCuotaSocialDefaultActualizada?.(csCentavos / 100);
+      }
       await descargarArchivoBapro(res.nro_archivo, res.nombre_archivo);
       await cargarDatosIniciales();
       await handleBuscar();
@@ -179,7 +239,7 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
     }
   };
 
-  const cuotasSeleccionadas = cuotas.filter((c) => seleccionadas.has(claveItemPresentable(c)));
+  const cuotasSeleccionadas = cuotasMostradas.filter((c) => seleccionadas.has(claveItemPresentable(c)));
   const totalMontoSeleccionado = cuotasSeleccionadas.reduce((acc, c) => acc + Number(c.monto_pesos || 0), 0);
 
   return (
@@ -203,6 +263,9 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
           setSeleccionadas(new Set());
           setPresentadasExcluidas(0);
         }}
+        cuotaSocialPesos={cuotaSocialPesos}
+        onCuotaSocialPesosChange={handleCuotaSocialPesosChange}
+        cuotaSocialDefaultPesos={cuotaSocialDefaultPesos}
         empresas={empresas} empresaId={empresaId} onEmpresaChange={handleEmpresaChange}
         dniDesde={dniDesde} setDniDesde={setDniDesde} dniHasta={dniHasta} setDniHasta={setDniHasta}
         fechaImpacto={fechaImpacto} setFechaImpacto={setFechaImpacto}
@@ -249,10 +312,10 @@ export const PresentacionesBaproPanel: React.FC<{ onCargarRespuesta: () => void 
             </tr>
           </thead>
           <tbody>
-            {cuotas.length === 0 ? (
+            {cuotasMostradas.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>Hacé click en "Buscar" para visualizar las cuotas a presentar con los filtros seleccionados.</td></tr>
             ) : (
-              cuotas.map((c) => {
+              cuotasMostradas.map((c) => {
                 const clave = claveItemPresentable(c);
                 const esSocial = esItemCuotaSocial(c);
                 return (

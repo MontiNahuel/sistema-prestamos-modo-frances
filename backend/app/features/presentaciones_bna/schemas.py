@@ -41,6 +41,11 @@ class GenerarPresentacionBnaRequest(BaseModel):
     producto: str = Field(default="10", max_length=2)
     cuenta: str = Field(default="0005502347", max_length=10)
     indicador_lote: str = Field(default="REE", max_length=3)
+    cuota_social_centavos: Optional[int] = Field(
+        None,
+        gt=0,
+        description="Importe vigente en centavos para aplicar a las cuotas sociales incluidas en la presentación",
+    )
 
 
 class GenerarPresentacionBnaResponse(BaseModel):

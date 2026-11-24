@@ -33,6 +33,8 @@ def buscar_cuotas_pendientes(
     fecha_corte: Optional[str] = Query(None),
     incluir_presentadas: bool = Query(True),
     tipo_cuota: TipoCuotaPresentacion = Query(TipoCuotaPresentacion.CUOTA_PRESTAMO),
+    cuota_social_centavos: Optional[int] = Query(None, gt=0),
+    operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PresentacionBnaService = Depends(get_service),
 ):
     return service.buscar_cuotas_presentables(
@@ -41,6 +43,8 @@ def buscar_cuotas_pendientes(
         fecha_corte=fecha_corte,
         incluir_presentadas=incluir_presentadas,
         tipo_cuota=tipo_cuota,
+        cuota_social_centavos=cuota_social_centavos,
+        usuario_operador=operador.usuario,
     )
 
 
@@ -65,7 +69,11 @@ def generar_archivo_bna(
     operador: OperadorResuelto = Depends(obtener_operador_opcional),
     service: PresentacionBnaService = Depends(get_service),
 ):
-    resp, _ = service.generar_presentacion_bna(req, usuario_id=operador.id)
+    resp, _ = service.generar_presentacion_bna(
+        req,
+        usuario_id=operador.id,
+        usuario_operador=operador.usuario,
+    )
     return resp
 
 

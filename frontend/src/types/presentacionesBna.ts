@@ -27,6 +27,7 @@ export interface BuscarCuotasBnaParams {
   fecha_corte?: string;
   incluir_presentadas?: boolean;
   tipo_cuota?: TipoCuotaPresentacion;
+  cuota_social_centavos?: number;
 }
 
 export interface BuscarCuotasBnaResponse {
@@ -47,6 +48,7 @@ export interface GenerarPresentacionBnaRequest {
   producto?: string;
   cuenta?: string;
   indicador_lote?: string;
+  cuota_social_centavos?: number;
 }
 
 export interface GenerarPresentacionBnaResponse {

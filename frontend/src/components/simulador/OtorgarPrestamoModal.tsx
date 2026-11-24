@@ -17,11 +17,6 @@ interface OtorgarPrestamoModalProps {
   onSeleccionarPersona: (persona: Persona) => void;
   payload: SimulacionPayload | null;
   plan: PlanAmortizacion | null;
-  incluirCuotaSocial: boolean;
-  onIncluirCuotaSocialChange: (val: boolean) => void;
-  cuotaSocialPesos: number | '';
-  onCuotaSocialPesosChange: (val: number | '') => void;
-  cuotaSocialDefaultPesos?: number;
   onOtorgado: (p: Prestamo) => void;
 }
 
@@ -32,11 +27,6 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
   onSeleccionarPersona,
   payload,
   plan,
-  incluirCuotaSocial,
-  onIncluirCuotaSocialChange,
-  cuotaSocialPesos,
-  onCuotaSocialPesosChange,
-  cuotaSocialDefaultPesos = 5500,
   onOtorgado
 }) => {
   const [observaciones, setObservaciones] = useState('');
@@ -117,10 +107,6 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
 
     try {
       const nombreSocio = `${persona.apellido} ${persona.nombre}`.trim();
-      const valorCuotaSocialPesos =
-        cuotaSocialPesos === ''
-          ? cuotaSocialDefaultPesos
-          : Math.max(0, Number(cuotaSocialPesos));
       const nuevo = await otorgarPrestamo({
         persona_id: persona.idPersona,
         persona_nombre: nombreSocio,
@@ -136,9 +122,7 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
         observaciones: observaciones.trim() || undefined,
         costo_operativo_tipo: payload.costo_operativo_tipo ?? 'FIJO',
         costo_operativo_centavos: payload.costo_operativo_centavos ?? 0,
-        costo_operativo_porcentaje: payload.costo_operativo_porcentaje ?? 0,
-        incluir_cuota_social: incluirCuotaSocial,
-        cuota_social_centavos: Math.round(valorCuotaSocialPesos * 100)
+        costo_operativo_porcentaje: payload.costo_operativo_porcentaje ?? 0
       });
 
       onOtorgado(nuevo);
@@ -320,37 +304,6 @@ export const OtorgarPrestamoModal: React.FC<OtorgarPrestamoModalProps> = ({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Cuota Social del Socio */}
-        <div className="bg-[#eff6ff] [border:1px_solid_#bfdbfe] rounded-[10px] p-4 mb-5">
-          <label className="flex items-center gap-2 text-[0.85rem] font-semibold text-[#1e3a8a] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={incluirCuotaSocial}
-              onChange={(e) => onIncluirCuotaSocialChange(e.target.checked)}
-            />
-            <span>Activar Cuota Social mensual al otorgar (aparte del préstamo)</span>
-          </label>
-          {incluirCuotaSocial && (
-            <div className="mt-2.5 flex items-center gap-3 flex-wrap">
-              <label className="text-[0.8rem] font-semibold text-[#1e40af]">
-                Importe mensual ($):
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="any"
-                placeholder={String(cuotaSocialDefaultPesos)}
-                value={cuotaSocialPesos}
-                onChange={(e) => onCuotaSocialPesosChange(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-[150px] p-[0.4rem_0.65rem] rounded-md [border:1px_solid_#93c5fd] text-[0.85rem] bg-white text-[#0f172a]"
-              />
-              <span className="text-[0.75rem] text-[#3b82f6]">
-                Se debitará mes a mes hasta que el socio solicite su baja.
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Observaciones */}

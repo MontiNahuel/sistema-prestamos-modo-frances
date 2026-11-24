@@ -42,6 +42,8 @@ class CuotaBaproMatcher:
         dni_hasta: Optional[int] = None,
         incluir_presentadas: bool = True,
         tipo_cuota: TipoCuotaPresentacion = TipoCuotaPresentacion.CUOTA_PRESTAMO,
+        cuota_social_centavos: Optional[int] = None,
+        usuario_operador: Optional[str] = None,
     ) -> BuscarCuotasBaproResponse:
         estados = ["PENDIENTE", "VENCIDA", "PARCIAL", "RECHAZADA"]
         if incluir_presentadas:
@@ -106,6 +108,8 @@ class CuotaBaproMatcher:
                 fecha_hasta=fecha_hasta,
                 fecha_corte=fecha_corte,
                 ids_filtrados=self.ids_filtrados,
+                cuota_social_centavos=cuota_social_centavos,
+                usuario_operador=usuario_operador,
             )
             for cs, socio in filas_cs:
                 if not coincide_ultimo_digito_dni(socio.documento, dni_desde, dni_hasta):

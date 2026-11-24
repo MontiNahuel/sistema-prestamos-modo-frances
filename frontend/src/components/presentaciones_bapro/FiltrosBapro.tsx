@@ -1,10 +1,14 @@
 import React from 'react';
 import { EmpresaOriginante, TipoCuotaPresentacion } from '../../types/presentacionesBapro';
-import { OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
+import { incluyeCuotaSocial, OPCIONES_TIPO_CUOTA } from '../../utils/presentacionHelpers';
+import { ValorCuotaSocialInput } from '../common/ValorCuotaSocialInput';
 
 interface FiltrosBaproProps {
   tipoCuota: TipoCuotaPresentacion;
   onTipoCuotaChange: (val: TipoCuotaPresentacion) => void;
+  cuotaSocialPesos: number | '';
+  onCuotaSocialPesosChange: (val: number | '') => void;
+  cuotaSocialDefaultPesos: number;
   empresas: EmpresaOriginante[];
   empresaId: number | undefined;
   onEmpresaChange: (id: number) => void;
@@ -39,6 +43,7 @@ interface FiltrosBaproProps {
 
 export const FiltrosBapro: React.FC<FiltrosBaproProps> = ({
   tipoCuota, onTipoCuotaChange,
+  cuotaSocialPesos, onCuotaSocialPesosChange, cuotaSocialDefaultPesos,
   empresas, empresaId, onEmpresaChange,
   dniDesde, setDniDesde, dniHasta, setDniHasta,
   fechaImpacto, setFechaImpacto,
@@ -157,6 +162,14 @@ export const FiltrosBapro: React.FC<FiltrosBaproProps> = ({
             ))}
           </select>
         </div>
+
+        {incluyeCuotaSocial(tipoCuota) && (
+          <ValorCuotaSocialInput
+            value={cuotaSocialPesos}
+            onChange={onCuotaSocialPesosChange}
+            defaultPesos={cuotaSocialDefaultPesos}
+          />
+        )}
 
         <div>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Fecha Desde</label>

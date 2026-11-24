@@ -45,6 +45,8 @@ class CuotaBnaMatcher:
         fecha_corte: Optional[str] = None,
         incluir_presentadas: bool = True,
         tipo_cuota: TipoCuotaPresentacion = TipoCuotaPresentacion.CUOTA_PRESTAMO,
+        cuota_social_centavos: Optional[int] = None,
+        usuario_operador: Optional[str] = None,
     ) -> BuscarCuotasBnaResponse:
         estados_prestamo = ["PENDIENTE", "PRESENTADA"] if incluir_presentadas else ["PENDIENTE"]
         estados_social = ["PENDIENTE", "RECHAZADA", "PARCIAL"] + (["PRESENTADA"] if incluir_presentadas else [])
@@ -105,6 +107,8 @@ class CuotaBnaMatcher:
                 fecha_desde=fecha_desde,
                 fecha_hasta=fecha_hasta,
                 fecha_corte=fecha_corte,
+                cuota_social_centavos=cuota_social_centavos,
+                usuario_operador=usuario_operador,
             )
             for cs, socio in filas_cs:
                 saldo = max(0, cs.valor_centavos - cs.monto_pagado_centavos)
