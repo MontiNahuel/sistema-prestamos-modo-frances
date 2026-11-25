@@ -1,4 +1,5 @@
 import React from 'react';
+import { apiClient } from '../../services/api/client';
 import {
   UsersIcon,
   CalculatorIcon,
@@ -38,6 +39,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   esAccesoCompleto,
   sistemaCentralUrl
 }) => {
+  const [ssoError, setSsoError] = React.useState('');
+  const [ssoCargando, setSsoCargando] = React.useState(false);
+
+  /** Solicita el acceso y envía el token al sistema de WhatsApp en una pestaña nueva. */
+  async function abrirMasivos() {
+    const ventana = window.open('about:blank', '_blank');
+    if (!ventana) { setSsoError('Permití las ventanas emergentes para abrir WhatsApp Masivo.'); return; }
+    ventana.opener = null;
+    setSsoError(''); setSsoCargando(true);
+    try {
+      const respuesta = await apiClient<{ action: string; token: string }>('/api/v1/auth/sso/masivos', { method: 'POST' });
+      const form = ventana.document.createElement('form');
+      form.method = 'POST'; form.action = respuesta.action;
+      const input = ventana.document.createElement('input');
+      input.type = 'hidden'; input.name = 'token'; input.value = respuesta.token;
+      form.appendChild(input); ventana.document.body.appendChild(form); form.submit();
+    } catch (error) {
+      ventana.close(); setSsoError(error instanceof Error ? error.message : 'No se pudo abrir WhatsApp Masivo.');
+    } finally { setSsoCargando(false); }
+  }
   const adminItems: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'lineas', label: 'Líneas de Préstamo', icon: <SlidersIcon size={15} /> },
     { key: 'motores', label: 'Motores de Fórmulas', icon: <CpuIcon size={15} /> },
@@ -174,6 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <ExternalLinkIcon size={14} color="#1d4ed8" />
           <span>Ir al Sistema Central</span>
         </a>
+        {esAccesoCompleto && <div><button type="button" disabled={ssoCargando} onClick={abrirMasivos} className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{ssoCargando ? 'Abriendo…' : 'WhatsApp Masivo'}</button>{ssoError && <p role="alert" className="max-w-60 text-xs text-red-700">{ssoError}</p>}</div>}
 
         <button
           type="button"

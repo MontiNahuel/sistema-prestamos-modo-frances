@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     HOST: str = "0.0.0.0"
     PORT: int = 8001
+    SSO_SECRET: str = ""
+    MASIVOS_BASE_URL: str = ""
+    SSO_ISSUER: str = ""
     
     # Integración con Monolito (CoopYa)
     COOPYA_BASE_URL: str = "https://test.coopya.com.ar"

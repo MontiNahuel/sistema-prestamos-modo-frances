@@ -23,6 +23,9 @@ services:
     # El puerto 8001 NO se publica al host. Queda 100% privado en la red de Docker.
     environment:
       PORT: 8001
+      SSO_SECRET: ${SSO_SECRET:-}
+      MASIVOS_BASE_URL: ${MASIVOS_BASE_URL:-}
+      SSO_ISSUER: ${SSO_ISSUER:-}
       DATABASE_URL: mssql+pyodbc://sa:${MSSQL_SA_PASSWORD:-TuClaveSegura2026!}@sqlserver:1433/PrestamosDB?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
       COOPYA_BASE_URL: ${COOPYA_BASE_URL:-https://test.coopya.com.ar}
       COOPYA_DEFAULT_TOKEN: ${COOPYA_DEFAULT_TOKEN:-}
