@@ -42,9 +42,9 @@ export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: stri
   { id: 'ultimo-pago', titulo: 'Fecha del último pago', descripcion: 'Última cobranza de cada préstamo y pendientes actuales.' },
   { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Historial, saldos, legajos y gestión de cuotas.' },
   { id: 'cobranzas', titulo: 'Cobranzas aplicadas', descripcion: 'Pagos registrados y su imputación a las cuotas.' },
+  { id: 'revisar-cobrados', titulo: 'Revisar cobrados · Oracle histórico', descripcion: 'Cobros confirmados por período, fechas, tipo de préstamo y lista, con agregaciones.' },
   { id: 'condiciones', titulo: 'Condiciones del préstamo', descripcion: 'Capital, tasas, cuotas, intereses, IVA y costo financiero.' },
   { id: 'personas-inactivas', titulo: 'Personas no activas', descripcion: 'Personas inactivas en SQL, con las altas más recientes primero.' },
-  { id: 'revisar-cobrados', titulo: 'Revisar cobrados', descripcion: 'Cobros confirmados de la base vieja Oracle, por lista bancaria.' },
 ];
 
 const identificacion: Columna[] = [

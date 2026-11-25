@@ -82,8 +82,8 @@ export function RevisarCobradosPanel() {
   }
 
   return <>
-    <h3>Revisar cobrados</h3>
-    <p className="reportes-ayuda">Consulta la base vieja Oracle. Filtrá por generación de la presentación y revisá los cobros confirmados por lista.</p>
+    <h3>Revisar cobrados · base histórica Oracle</h3>
+    <p className="reportes-ayuda">Este reporte es independiente de «Cobranzas aplicadas» (base nueva). Incluye período haber, fechas de generación, tipo de préstamo y agregación de importes confirmados por lista recuperada.</p>
     <form className="reportes-filtros" onSubmit={e => { e.preventDefault(); void consultar(); }}>
       <label>Período haber (AAAAMM)<input inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Todos" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} /></label>
       <label>Fecha de principio (generación)<input type="date" required max={filtros.fecha_hasta} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} /></label>
@@ -95,6 +95,9 @@ export function RevisarCobradosPanel() {
     {error && <div className="reportes-error" role="alert">{error}</div>}
     {cargando && <p role="status">Consultando respuestas exitosas de la base vieja…</p>}
     {resultado && <>
+      <div className="reportes-resumen" aria-label="Agregaciones del reporte de cobrados">
+        {reporte.resumen.map(item => <div key={item.titulo}><span>{item.titulo}</span><strong>{item.dinero ? formatMoney(item.valor) : item.valor.toLocaleString('es-AR')}</strong></div>)}
+      </div>
       <div className="reportes-barra">
         <label>Lista recuperada<select aria-label="Lista recuperada" value={lista} onChange={e => { setLista(e.target.value); setPagina(1); }}><option value="">Todas las listas recuperadas</option>{listas.map(l => <option key={l}>{l}</option>)}</select></label>
         <button type="button" className="reportes-excel" disabled={exportando || !reporte.filas.length} onClick={() => void exportar()}>{exportando ? 'Preparando Excel…' : 'Descargar Excel (.xlsx)'}</button>
