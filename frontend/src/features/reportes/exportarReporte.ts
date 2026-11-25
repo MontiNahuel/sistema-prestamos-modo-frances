@@ -10,7 +10,8 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   resumen.columns = [{ width: 42 }, { width: 110 }];
   resumen.addRow([reporte.titulo]);
   const todoPeriodo = filtros.tipo === 'otorgados' && filtros.todoPeriodo === true;
-  if (filtros.tipo !== 'padron') {
+  const esPersonas = filtros.tipo === 'padron' || filtros.tipo === 'personas-inactivas';
+  if (!esPersonas) {
   resumen.addRow(['Desde', todoPeriodo ? 'Todo el historial' : filtros.desde]);
   resumen.addRow(['Hasta', todoPeriodo ? 'Sin límite de fecha' : filtros.hasta]);
   resumen.addRow(['Búsqueda', filtros.buscar || 'Toda la cartera']);
@@ -41,8 +42,8 @@ export async function crearLibroReporte(reporte: Reporte, filtros: FiltrosReport
   if (filtros.tipo === 'condiciones') resumen.addRow(['Plazo (meses)', filtros.plazo ? Number(filtros.plazo) : 'Todos']);
   resumen.addRow(['Generado (Buenos Aires)', new Date(generado).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })]);
   const fuente =
-    filtros.tipo === 'padron'
-      ? 'CoopYa: dbo.Personas.'
+    esPersonas
+      ? 'CoopYa SQL: dbo.Personas y dbo.TipoEstados.'
       : filtros.tipo === 'caida' && filtros.conceptoCaida === 'CUOTA_SOCIAL'
       ? 'API /api/v1/cuotas-sociales/periodos (períodos reales sin proyección futura).'
       : filtros.tipo === 'caida' && filtros.conceptoCaida === 'PRESTAMO_Y_CUOTA_SOCIAL'
@@ -94,12 +95,14 @@ export function agregarTablaExcel(libro: Workbook, nombre: string, tabla: TablaR
       const valor = datos[c.key];
       if (valor === null || valor === undefined) return c.key === 'ultimoPago' ? 'Sin pagos registrados' : 'No disponible';
       if (c.tipo === 'dinero') return Number(valor) / 100;
+      if (c.tipo === 'fecha-hora') return new Date(`${valor}Z`);
       if (c.tipo === 'fecha') return new Date(`${valor}T12:00:00Z`);
       return valor;
     }));
     tabla.columnas.forEach((c, i) => {
       const celda = fila.getCell(i + 1);
-      if (typeof celda.value === 'number') celda.numFmt = c.tipo === 'dinero' ? '"$" #,##0.00' : c.tipo === 'porcentaje' ? '0.00%' : '#,##0';
+      if (typeof celda.value === 'number') celda.numFmt = c.tipo === 'dinero' || c.tipo === 'pesos' ? '"$" #,##0.00' : c.tipo === 'porcentaje' ? '0.00%' : '#,##0';
+      if (c.tipo === 'fecha-hora' && celda.value instanceof Date) celda.numFmt = 'dd/mm/yyyy hh:mm:ss';
       if (c.tipo === 'fecha' && celda.value instanceof Date) celda.numFmt = 'dd/mm/yyyy';
       // Los textos se escriben como strings, nunca como fórmulas de Excel.
       celda.alignment = { vertical: 'middle' };

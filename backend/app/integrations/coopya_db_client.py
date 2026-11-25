@@ -31,7 +31,12 @@ class CoopYaDbClient:
             return
 
         drivers = pyodbc.drivers()
-        driver = "ODBC Driver 18 for SQL Server" if "ODBC Driver 18 for SQL Server" in drivers and "ODBC Driver 17 for SQL Server" not in drivers else "ODBC Driver 17 for SQL Server"
+        driver = next((d for d in (
+            'ODBC Driver 17 for SQL Server', 'ODBC Driver 18 for SQL Server',
+            'SQL Server', 'SQL Native Client',
+        ) if d in drivers), None)
+        if driver is None:
+            raise RuntimeError('No hay un controlador ODBC de SQL Server instalado.')
 
         if self.domain and hasattr(ctypes, "windll"):
             from ctypes import wintypes

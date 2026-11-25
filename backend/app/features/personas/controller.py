@@ -24,6 +24,16 @@ import re
 router = APIRouter(prefix="/personas", tags=["Personas"])
 
 
+@router.get('/no-activas', summary='Personas no activas, altas más recientes primero')
+def consultar_no_activas(usuario: str = Depends(operador)):
+    """Consulta todas las personas inactivas en SQL, sin modificar sus datos."""
+    from app.features.personas.reportes import consultar_personas_inactivas
+    try:
+        return consultar_personas_inactivas()
+    except Exception:
+        raise HTTPException(503, 'No se pudieron consultar las personas no activas en CoopYa. Reintentá la consulta.') from None
+
+
 class CambioPadron(BaseModel):
     ids: List[int] = Field(min_length=1, max_length=5000)
     accion: Literal['agregar', 'quitar']

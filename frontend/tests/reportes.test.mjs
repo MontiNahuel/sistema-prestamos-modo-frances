@@ -347,3 +347,38 @@ test('caída: soporta concepto Cuota Social y Préstamo y Cuota Social sin proye
   const cargadas = await cargarCuotasSocialesPeriodo('2026-10-01', '2026-10-31', new AbortController().signal);
   assert.equal(cargadas.length, 1);
 });
+
+// Personas inactivas: el Excel conserva todos los resultados de SQL.
+test('personas inactivas: búsqueda, orden SQL y Excel completo con fechas y pesos', async () => {
+  const { construirReportePersonasInactivas } = await import('../src/features/reportes/personasInactivas.ts');
+  const personas = Array.from({length: 125}, (_, i) => ({
+    Id: 125-i, NroSocio: 500+i, Apellido: 'Prueba', Nombre: `Persona ${i}`,
+    NumeroDoc: '00123456', Cuil: '20001234569', Estado: 2, EstadoNombre: 'Inactivo',
+    FechaAlta: '2026-11-25T14:35:12', FechaBaja: null, Mail: 'persona@example.com',
+    CapitalSocial: 125.37, Remuneracion: 12345.67, Observaciones: '=1+1', CampoNuevo: 'Dato SQL',
+  }));
+  const reporte = construirReportePersonasInactivas(personas, '');
+  assert.equal(reporte.filas.length, 125);
+  assert.equal(reporte.filas[0].Id, 125);
+  assert.equal(reporte.filas[124].Id, 1);
+  assert.equal(construirReportePersonasInactivas(personas, '00123456').filas.length, 125);
+  assert.equal(construirReportePersonasInactivas(personas, ' NO EXISTE ').filas.length, 0);
+  const libro = await crearLibroReporte(reporte, filtros('personas-inactivas'), '2026-11-25T18:00:00Z');
+  const reabierto = new ExcelJS.Workbook();
+  await reabierto.xlsx.load(await libro.xlsx.writeBuffer());
+  const detalle = reabierto.getWorksheet('Detalle');
+  const indice = key => reporte.columnas.findIndex(c => c.key === key) + 1;
+  assert.equal(detalle.rowCount, 126);
+  assert.equal(detalle.getCell(2, indice('NumeroDoc')).value, '00123456');
+  assert.equal(detalle.getCell(2, indice('CapitalSocial')).value, 125.37);
+  assert.equal(detalle.getCell(2, indice('Remuneracion')).value, 12345.67);
+  assert.equal(detalle.getCell(2, indice('FechaAlta')).value.toISOString(), '2026-11-25T14:35:12.000Z');
+  assert.equal(detalle.getCell(2, indice('FechaAlta')).numFmt, 'dd/mm/yyyy hh:mm:ss');
+  assert.equal(detalle.getCell(2, indice('FechaBaja')).value, 'No disponible');
+  assert.equal(detalle.getCell(2, indice('Observaciones')).value, '=1+1');
+  assert.equal(detalle.getCell(2, indice('CampoNuevo')).value, 'Dato SQL');
+  const etiquetas = [];
+  reabierto.getWorksheet('Resumen').eachRow(row => etiquetas.push(row.getCell(1).value));
+  assert.ok(!etiquetas.includes('Estado préstamo'));
+  assert.ok(!etiquetas.includes('Desde'));
+});

@@ -1,7 +1,7 @@
 import type { CuotaSocialReporteItem } from '../../types/cuotaSocial';
 import type { CuotaPrestamo, Prestamo } from '../../types/prestamo';
 
-export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones' | 'padron';
+export type TipoReporte = 'caida' | 'ultimo-pago' | 'otorgados' | 'cobranzas' | 'condiciones' | 'padron' | 'personas-inactivas' | 'revisar-cobrados';
 export type FiltroCuotaCaida = 'todas' | 'primera' | 'ultima' | 'especifica';
 export type ConceptoCaida = 'PRESTAMO' | 'CUOTA_SOCIAL' | 'PRESTAMO_Y_CUOTA_SOCIAL';
 export const CONCEPTOS_CAIDA: { value: ConceptoCaida; label: string }[] = [
@@ -10,7 +10,7 @@ export const CONCEPTOS_CAIDA: { value: ConceptoCaida; label: string }[] = [
   { value: 'PRESTAMO_Y_CUOTA_SOCIAL', label: 'Préstamo y Cuota Social' },
 ];
 export type Valor = string | number | null;
-export interface Columna { key: string; titulo: string; tipo?: 'dinero' | 'fecha' | 'porcentaje' | 'numero' }
+export interface Columna { key: string; titulo: string; tipo?: 'dinero' | 'pesos' | 'fecha' | 'fecha-hora' | 'porcentaje' | 'numero' }
 export interface FiltrosReporte {
   tipo: TipoReporte;
   desde: string;
@@ -43,6 +43,8 @@ export const TIPOS_REPORTE: { id: TipoReporte; titulo: string; descripcion: stri
   { id: 'otorgados', titulo: 'Préstamos otorgados', descripcion: 'Historial, saldos, legajos y gestión de cuotas.' },
   { id: 'cobranzas', titulo: 'Cobranzas aplicadas', descripcion: 'Pagos registrados y su imputación a las cuotas.' },
   { id: 'condiciones', titulo: 'Condiciones del préstamo', descripcion: 'Capital, tasas, cuotas, intereses, IVA y costo financiero.' },
+  { id: 'personas-inactivas', titulo: 'Personas no activas', descripcion: 'Personas inactivas en SQL, con las altas más recientes primero.' },
+  { id: 'revisar-cobrados', titulo: 'Revisar cobrados', descripcion: 'Cobros confirmados de la base vieja Oracle, por lista bancaria.' },
 ];
 
 const identificacion: Columna[] = [

@@ -12,6 +12,8 @@ import type {
 } from './reportes';
 import { cargarCartera, cargarCuotasSocialesPeriodo } from './reportesApi';
 import { descargarReporte } from './exportarReporte';
+import { construirReportePersonasInactivas } from './personasInactivas';
+import type { PersonaInactivaSQL } from './personasInactivas';
 import { formatMoney, formatPct } from '../../utils/formatters';
 import { apiClient } from '../../services/api/client';
 import type { CuotaSocialReporteItem } from '../../types/cuotaSocial';
@@ -19,14 +21,20 @@ import type { Prestamo } from '../../types/prestamo';
 import { PrestamoDetalleModal } from '../../components/prestamos/PrestamoDetalleModal';
 import { PadronGestion } from './PadronGestion';
 import './reportes.css';
+import { RevisarCobradosPanel } from './RevisarCobradosPanel';
 
 function mostrar(valor: Valor | undefined, columna: Columna): string {
   if (valor === null || valor === undefined)
     return columna.key === 'ultimoPago'
       ? 'Sin pagos registrados'
       : 'No disponible';
+  if (columna.tipo === 'pesos') return formatMoney(Number(valor) * 100);
   if (columna.tipo === 'dinero') return formatMoney(Number(valor));
   if (columna.tipo === 'porcentaje') return formatPct(valor);
+  if (columna.tipo === 'fecha-hora') {
+    const [fecha, hora] = String(valor).split('T');
+    return `${fecha.split('-').reverse().join('/')} ${hora ?? ''}`.trim();
+  }
   if (columna.tipo === 'fecha')
     return String(valor).split('-').reverse().join('/');
   return String(valor);
@@ -167,7 +175,7 @@ export function ReportesPanel({
 
   const consultar = useCallback(async (consulta: FiltrosReporte) => {
     if (
-      consulta.tipo !== 'padron' && !(consulta.tipo === 'otorgados' && consulta.todoPeriodo) &&
+      consulta.tipo !== 'padron' && consulta.tipo !== 'personas-inactivas' && !(consulta.tipo === 'otorgados' && consulta.todoPeriodo) &&
       (!consulta.desde || !consulta.hasta || consulta.desde > consulta.hasta)
     ) {
       setError('Seleccioná un período válido.');
@@ -191,6 +199,12 @@ export function ReportesPanel({
     setProgreso(0);
     setPagina(1);
     try {
+      if (consulta.tipo === 'personas-inactivas') {
+        const personas = await apiClient<PersonaInactivaSQL[]>('/api/v1/personas/no-activas', { signal: control.signal });
+        if (control.signal.aborted) return;
+        setResultado({ reporte: construirReportePersonasInactivas(personas, consulta.buscar), filtros: { ...consulta }, generado: new Date().toISOString(), cartera: [], cuotasSociales: [] });
+        return;
+      }
       if (consulta.tipo === 'padron') {
         const personas = await apiClient<{ id: number; socio: number | null; apellido: string | null; nombre: string; documento: string | null; cuil: string | null; observacion: string }[]>('/api/v1/personas/padron-cooperativa', { signal: control.signal });
         if (control.signal.aborted) return;
@@ -308,11 +322,23 @@ export function ReportesPanel({
   }
 
   const reporte = resultado?.reporte;
+  const esPersonas = filtros.tipo === 'padron' || filtros.tipo === 'personas-inactivas';
   const otorgados = filtros.tipo === 'otorgados';
   const todoPeriodo = otorgados && filtros.todoPeriodo === true;
   const conceptoCaida = filtros.conceptoCaida ?? 'PRESTAMO';
   const esSoloCuotaSocialCaida = filtros.tipo === 'caida' && conceptoCaida === 'CUOTA_SOCIAL';
   const paginas = Math.max(1, Math.ceil((reporte?.filas.length ?? 0) / 50));
+  if (filtros.tipo === 'revisar-cobrados') return (
+    <section className="reportes" aria-labelledby="revisar-cobrados-titulo">
+      <h2 id="revisar-cobrados-titulo">Reportes de seguimiento y control</h2>
+      <label className="reportes-selector">Tipo de reporte
+        <select aria-label="Tipo de reporte" value={filtros.tipo} onChange={e => cambiar({ tipo: e.target.value as TipoReporte })}>
+          {TIPOS_REPORTE.map((t, i) => <option key={t.id} value={t.id}>{`0${i + 1} · ${t.titulo}`}</option>)}
+        </select>
+      </label>
+      <RevisarCobradosPanel />
+    </section>
+  );
   return (
     <section className="reportes" aria-labelledby="reportes-titulo">
       <div className="reportes-encabezado">
@@ -394,7 +420,7 @@ export function ReportesPanel({
             Todo el historial
           </label>
         )}
-        {filtros.tipo !== 'padron' && !todoPeriodo && <><label>
+        {!esPersonas && !todoPeriodo && <><label>
           Mes de referencia
           <input
             type="month"
@@ -431,7 +457,7 @@ export function ReportesPanel({
         </label>
         </>}
         <label className="reportes-busqueda">
-          Asociado o préstamo
+          {esPersonas ? 'Persona, documento o N° socio' : 'Asociado o préstamo'}
           <input
             type="search"
             placeholder="Nombre, documento o ID…"
@@ -439,7 +465,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ buscar: e.target.value })}
           />
         </label>
-        {filtros.tipo !== 'padron' && !esSoloCuotaSocialCaida && <label>
+        {!esPersonas && !esSoloCuotaSocialCaida && <label>
           N° préstamo
           <input
             type="number"
@@ -450,7 +476,7 @@ export function ReportesPanel({
             onChange={(e) => cambiar({ numeroPrestamo: e.target.value })}
           />
         </label>}
-        {filtros.tipo !== 'padron' && !esSoloCuotaSocialCaida && <label>
+        {!esPersonas && !esSoloCuotaSocialCaida && <label>
           Estado del préstamo
           <select
             value={filtros.estadoPrestamo}
@@ -538,6 +564,12 @@ export function ReportesPanel({
         </button>
       </form>
       {filtros.tipo === 'padron' && <PadronGestion onActualizado={() => void consultar(filtros)} />}
+      {filtros.tipo === 'personas-inactivas' && (
+        <p className="reportes-ayuda">
+          Todas las personas no activas en SQL, con las altas más recientes primero.
+          El Excel incluye todos los registros y campos del resultado.
+        </p>
+      )}
       {otorgados && (
         <p className="reportes-ayuda">
           Consultá todo el historial o desmarcá la opción para filtrar por fecha
@@ -560,7 +592,9 @@ export function ReportesPanel({
       )}
       {cargando && (
         <div className="reportes-vacio" role="status">
-          {filtros.tipo === 'padron'
+          {filtros.tipo === 'personas-inactivas'
+            ? 'Consultando personas no activas en SQL…'
+            : filtros.tipo === 'padron'
             ? 'Consultando el padrón…'
             : esSoloCuotaSocialCaida
             ? 'Consultando períodos reales de Cuota Social…'
@@ -569,7 +603,7 @@ export function ReportesPanel({
       )}
       {!cargando && !resultado && (
         <div className="reportes-vacio">
-          Elegí el reporte y el período, y presioná “Consultar reporte”.
+          {esPersonas ? 'Presioná “Consultar reporte” para recuperar las personas de SQL.' : 'Elegí el reporte y el período, y presioná “Consultar reporte”.'}
         </div>
       )}
       {!cargando && reporte && resultado && (
