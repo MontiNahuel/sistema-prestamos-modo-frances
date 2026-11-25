@@ -88,10 +88,10 @@ export function RevisarCobradosPanel() {
       <label>Período haber (AAAAMM)<input inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Todos" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} /></label>
       <label>Fecha de principio (generación)<input type="date" required max={filtros.fecha_hasta} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} /></label>
       <label>Fecha tope de generación<input type="date" required min={filtros.fecha_desde} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} /></label>
-      <label>Tipo de préstamo<select value={filtros.tipo_prestamo} onChange={e => cambiar({ tipo_prestamo: e.target.value })}><option value="">Todos los tipos</option>{tipos.map(t => <option key={t}>{t}</option>)}</select></label>
+      <label>Tipo de préstamo<input list="revisar-cobrados-tipos" value={filtros.tipo_prestamo} placeholder="Todos los tipos" onChange={e => cambiar({ tipo_prestamo: e.target.value })} /><datalist id="revisar-cobrados-tipos">{tipos.map(t => <option key={t} value={t} />)}</datalist></label>
       <button className="reportes-primario" type="submit" disabled={cargando}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
-    {errorTipos && <div className="reportes-error" role="alert">{errorTipos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar tipos</button></div>}
+    {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos desde Oracle. Podés escribir el tipo manualmente; para consultar los cobros, el backend también necesita conexión con Oracle. <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
     {error && <div className="reportes-error" role="alert">{error}</div>}
     {cargando && <p role="status">Consultando respuestas exitosas de la base vieja…</p>}
     {resultado && <>

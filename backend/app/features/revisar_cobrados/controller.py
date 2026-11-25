@@ -1,6 +1,7 @@
 """Reporte web sobre cobros confirmados de la base histórica Oracle."""
 from datetime import date, datetime
 from decimal import Decimal
+import logging
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,6 +10,7 @@ from app.features.respuestas_bancarias.controller import operador
 from app.integrations.oracle_client import oracle_client
 
 router = APIRouter(prefix='/reportes/revisar-cobrados', tags=['Reportes'])
+logger = logging.getLogger(__name__)
 SQL = Path(__file__).with_name('consulta.sql').read_text(encoding='utf-8')
 
 
@@ -42,8 +44,17 @@ def ejecutar(sql, params=None):
     """Consulta Oracle con binds, sin incluir detalles de conexión en errores HTTP."""
     try:
         return oracle_client.ejecutar_consulta(sql, params)
-    except Exception:
-        raise HTTPException(503, 'No se pudo consultar la base histórica Oracle. Verificá la conexión e intentá nuevamente.') from None
+    except Exception as exc:
+        logger.exception('No se pudo ejecutar el reporte Revisar cobrados en Oracle')
+        if not oracle_client.enabled:
+            detalle = 'Oracle está deshabilitado en el backend (ORACLE_ENABLED=false).'
+        elif not getattr(oracle_client, '_thick_initialized', False):
+            detalle = 'El backend no inicializó Oracle Instant Client. Revisá el log de inicio del servicio.'
+        elif 'no está instalado' in str(exc).lower():
+            detalle = 'Falta instalar python-oracledb en el backend.'
+        else:
+            detalle = 'No se pudo conectar o consultar Oracle. Revisá conectividad, credenciales y el log del backend.'
+        raise HTTPException(503, detalle) from None
 
 
 @router.get('/tipos')
