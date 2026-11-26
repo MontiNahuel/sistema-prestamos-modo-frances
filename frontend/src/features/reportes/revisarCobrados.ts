@@ -12,7 +12,20 @@ export interface Cobrado {
   idcuota: number;
   periodohaber: string;
   fechageneracion: string;
+  fecha_aplicacion: string | null;
+  numero_cuenta: string | null;
+  tipo_producto: string | null;
+  plan_producto: string | null;
+  importe_aplicado_centavos: number | null;
   tipo_prestamo: string;
+}
+
+export function formatearFechaCobrado(valor: string): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2})?))?/.exec(valor);
+  if (!iso) return valor;
+  const [, anio, mes, dia, hora] = iso;
+  const fecha = `${dia}/${mes}/${anio}`;
+  return hora && !/^00:00(?::00)?$/.test(hora) ? `${fecha} ${hora}` : fecha;
 }
 
 /** Filtra y agrega exactamente el snapshot de respuestas exitosas consultado. */
@@ -29,14 +42,19 @@ export function reporteCobrados(filas: Cobrado[], lista = ''): Reporte {
   return {
     titulo: 'Revisar cobrados',
     columnas: [
+      { key: 'fecha_aplicacion', titulo: 'Fecha de aplicación', tipo: 'fecha-hora' },
+      { key: 'importe_cobrado_centavos', titulo: 'Monto cobrado', tipo: 'dinero' },
+      { key: 'numero_cuenta', titulo: 'N.º de cuenta' },
+      { key: 'idprestamo', titulo: 'ID préstamo', tipo: 'numero' },
+      { key: 'tipo_producto', titulo: 'Tipo de producto' },
+      { key: 'plan_producto', titulo: 'Plan del producto' },
+      { key: 'importe_aplicado_centavos', titulo: 'Monto aplicado', tipo: 'dinero' },
       { key: 'lista_cobro', titulo: 'Lista recuperada' },
       { key: 'banco', titulo: 'Banco / canal' },
-      { key: 'idprestamo', titulo: 'Préstamo', tipo: 'numero' },
       { key: 'idcuota', titulo: 'Cuota', tipo: 'numero' },
       { key: 'periodohaber', titulo: 'Período haber' },
       { key: 'fechageneracion', titulo: 'Generación', tipo: 'fecha-hora' },
       { key: 'tipo_prestamo', titulo: 'Tipo de préstamo' },
-      { key: 'importe_cobrado_centavos', titulo: 'Importe cobrado', tipo: 'dinero' },
       { key: 'fuente_cobro', titulo: 'Origen' },
       { key: 'id_lista', titulo: 'ID lista', tipo: 'numero' },
       { key: 'id_cobro', titulo: 'ID cobro', tipo: 'numero' },
@@ -56,7 +74,8 @@ export function reporteCobrados(filas: Cobrado[], lista = ''): Reporte {
     notas: [
       'Fuente: base histórica Oracle. MV_PRESTAMOS_MORA_COMPLETA y respuestas bancarias BNA/MP. BNA: código 0; MP (BAPRO y otros canales): OK.',
       'Se suman importes de respuestas exitosas, sin multiplicarlos por las filas de mora. No se descuentan reversiones posteriores.',
-      'Las fechas corresponden a generación de la presentación; la fecha tope incluye todo el día. No son fechas efectivas de cobro.',
+      'Desde y Hasta filtran la generación de la presentación. La fecha de aplicación se muestra por separado cuando está disponible.',
+      'La fecha y el monto aplicado se informan si se identifica una única imputación compatible. El monto cobrado puede incluir cuota social.',
       'Detalle y resumen corresponden a la misma consulta y lista seleccionada. Excel incluye todo el resultado, no sólo la página visible.',
     ],
     advertencias: [],

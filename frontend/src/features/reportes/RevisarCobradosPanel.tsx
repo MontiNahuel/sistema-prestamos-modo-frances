@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, apiClient, apiFetchRaw } from '../../services/api/client';
 import { formatMoney } from '../../utils/formatters';
-import { reporteCobrados } from './revisarCobrados';
+import { formatearFechaCobrado, reporteCobrados } from './revisarCobrados';
 import type { Cobrado } from './revisarCobrados';
 
 const URL_REPORTE = '/api/v1/reportes/revisar-cobrados';
@@ -232,7 +232,12 @@ export function RevisarCobradosPanel() {
               <tbody>
                 {resultado.filas.map((f, i) => <tr key={`${pagina}-${i}`}>{columnas.map(c => {
                   const valor = f[c.key as keyof Cobrado];
-                  return <td key={c.key}>{c.tipo === 'dinero' ? formatMoney(Number(valor)) : c.tipo === 'fecha-hora' ? String(valor).replace('T', ' ') : String(valor ?? 'No disponible')}</td>;
+                  let contenido = valor == null || valor === '' ? 'No disponible' : String(valor);
+                  if (valor != null && valor !== '') {
+                    if (c.tipo === 'dinero') contenido = formatMoney(Number(valor));
+                    if (c.tipo === 'fecha-hora') contenido = formatearFechaCobrado(String(valor));
+                  }
+                  return <td key={c.key}>{contenido}</td>;
                 })}</tr>)}
                 {!resultado.filas.length && <tr><td colSpan={columnas.length} className="reportes-sin-datos">No se encontraron cobros con estos filtros.</td></tr>}
               </tbody>

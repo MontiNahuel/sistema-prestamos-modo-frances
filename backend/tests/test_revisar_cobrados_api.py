@@ -45,7 +45,10 @@ def esperar(http, url):
 
 
 def fila(importe, lista='BNA / BNA - 1'):
-    return ('BNA', 'BNA', lista, 1, importe, 2, 3, 4, 5, '202610', datetime(2026, 11, 3), 'BAPRO')
+    return (
+        'BNA', 'BNA', lista, 1, importe, 2, 3, 4, 5, '202610', datetime(2026, 11, 3), 'BAPRO',
+        datetime(2026, 11, 4, 12, 30), '0000000100000000000002', 'CONSUMO', 'Plan Gold', Decimal('75.27'),
+    )
 
 
 def test_consulta_parametrizada_y_centavos_exactos(monkeypatch):
@@ -69,6 +72,11 @@ def test_consulta_parametrizada_y_centavos_exactos(monkeypatch):
     resultado = esperar(http, ruta + '?incluir_listas=true').json()
     assert len(resultado['filas']) == 50
     assert resultado['filas'][0]['importe_cobrado_centavos'] == 10027
+    assert resultado['filas'][0]['fecha_aplicacion'] == '2026-11-04T12:30:00'
+    assert resultado['filas'][0]['numero_cuenta'] == '0000000100000000000002'
+    assert resultado['filas'][0]['tipo_producto'] == 'CONSUMO'
+    assert resultado['filas'][0]['plan_producto'] == 'Plan Gold'
+    assert resultado['filas'][0]['importe_aplicado_centavos'] == 7527
     assert resultado['registros'] == 51
     assert resultado['cobrado'] == 502601
     assert len(resultado['listas']) == 2
@@ -83,6 +91,9 @@ def test_consulta_parametrizada_y_centavos_exactos(monkeypatch):
     archivo = http.get(excel, params={'descargar': True})
     with ZipFile(BytesIO(archivo.content)) as libro:
         assert b'Detalle 2' in libro.read('xl/workbook.xml')
+        detalle_excel = libro.read('xl/worksheets/sheet3.xml')
+        assert b'0000000100000000000002' in detalle_excel
+        assert b'r="C2" t="inlineStr"' in detalle_excel
 
 
 def test_validaciones_y_autenticacion():

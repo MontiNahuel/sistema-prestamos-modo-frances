@@ -24,14 +24,6 @@ _lock = Lock()
 _consultas = {}
 TAMANIO_PAGINA = 50
 FILAS_EXCEL = 1_048_575
-_COLUMNAS = (
-    ('fuente_cobro', 'Origen'), ('banco', 'Banco / canal'),
-    ('lista_cobro', 'Lista recuperada'), ('id_lista', 'ID lista'),
-    ('importe_cobrado_centavos', 'Importe cobrado'), ('id_cobro', 'ID cobro'),
-    ('id_registro', 'ID registro'), ('idprestamo', 'Préstamo'),
-    ('idcuota', 'Cuota'), ('periodohaber', 'Período haber'),
-    ('fechageneracion', 'Generación'), ('tipo_prestamo', 'Tipo de préstamo'),
-)
 
 
 @dataclass
@@ -100,11 +92,19 @@ def obtener(id_consulta: str, operador_id: int) -> Consulta:
 
 
 def _convertir(fila):
-    origen, banco, lista, id_lista, importe, id_cobro, id_registro, prestamo, cuota, periodo, generacion, tipo = fila
+    (origen, banco, lista, id_lista, importe, id_cobro, id_registro, prestamo, cuota,
+     periodo, generacion, tipo, aplicacion, cuenta, producto, plan, importe_aplicado) = fila
     if importe is None:
         raise ValueError('Oracle devolvió un cobro sin importe')
-    centavos = int((Decimal(str(importe)) * 100).quantize(Decimal('1')))
-    return origen, banco, lista, id_lista, centavos, id_cobro, id_registro, prestamo, cuota, periodo, generacion.isoformat(), tipo
+    return (
+        origen, banco, lista, id_lista, _centavos(importe), id_cobro, id_registro, prestamo, cuota,
+        periodo, generacion.isoformat(), tipo, aplicacion.isoformat() if aplicacion else None, cuenta, producto,
+        plan, _centavos(importe_aplicado) if importe_aplicado is not None else None,
+    )
+
+
+def _centavos(importe) -> int:
+    return int((Decimal(str(importe)) * 100).quantize(Decimal('1')))
 
 
 def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
@@ -115,12 +115,17 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                     fuente_cobro TEXT, banco TEXT, lista_cobro TEXT, id_lista INTEGER,
                     importe_cobrado_centavos INTEGER NOT NULL, id_cobro INTEGER,
                     id_registro INTEGER, idprestamo INTEGER, idcuota INTEGER,
-                    periodohaber TEXT, fechageneracion TEXT, tipo_prestamo TEXT
+                    periodohaber TEXT, fechageneracion TEXT, tipo_prestamo TEXT,
+                    fecha_aplicacion TEXT, numero_cuenta TEXT, tipo_producto TEXT,
+                    plan_producto TEXT, importe_aplicado_centavos INTEGER
                 )
             ''')
             with oracle_client.cursor_consulta(sql, parametros, lote=5000) as cursor:
                 while lote := cursor.fetchmany(5000):
-                    db.executemany('INSERT INTO detalle VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', map(_convertir, lote))
+                    db.executemany(
+                        'INSERT INTO detalle VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        map(_convertir, lote),
+                    )
             db.executescript('''
                 CREATE INDEX ix_detalle_lista ON detalle(lista_cobro);
                 CREATE TABLE listas AS
@@ -187,11 +192,31 @@ def iniciar_excel(consulta: Consulta, lista: str | None) -> str:
 
 def _crear_excel(consulta: Consulta, lista: str | None) -> None:
     where, params = _por_lista(lista)
+    columnas = (
+        ('fecha_aplicacion', 'Fecha de aplicación'),
+        ('importe_cobrado_centavos', 'Importe cobrado'),
+        ('numero_cuenta', 'Nro. de cuenta'),
+        ('idprestamo', 'ID préstamo'),
+        ('tipo_producto', 'Tipo de producto'),
+        ('plan_producto', 'Plan del producto'),
+        ('importe_aplicado_centavos', 'Importe aplicado'),
+        ('fechageneracion', 'Fecha de generación'),
+        ('tipo_prestamo', 'Tipo de préstamo'),
+        ('fuente_cobro', 'Origen'),
+        ('banco', 'Banco / canal'),
+        ('lista_cobro', 'Lista recuperada'),
+        ('id_lista', 'ID lista'),
+        ('id_cobro', 'ID cobro'),
+        ('id_registro', 'ID registro'),
+        ('idcuota', 'Cuota'),
+        ('periodohaber', 'Período haber'),
+    )
     try:
         with closing(sqlite3.connect(consulta.db)) as db, xlsxwriter.Workbook(str(consulta.excel), {
             'constant_memory': True, 'strings_to_formulas': False, 'strings_to_urls': False,
             'tmpdir': _directorio.name, 'use_zip64': True,
         }) as libro:
+            db.row_factory = sqlite3.Row
             cabecera = libro.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#1E3A8A'})
             dinero = libro.add_format({'num_format': '"$" #,##0.00'})
             fecha = libro.add_format({'num_format': 'dd/mm/yyyy hh:mm:ss'})
@@ -202,11 +227,13 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
             condiciones_rows = [
                 ('Fuente', 'Oracle histórico'),
                 ('Período haber', consulta.filtros.get('periodo_haber') or 'Todos'),
-                ('Desde', consulta.filtros.get('fecha_desde') or 'Sin límite'),
-                ('Hasta', consulta.filtros.get('fecha_hasta') or 'Sin límite'),
+                ('Generación desde', consulta.filtros.get('fecha_desde') or 'Sin límite'),
+                ('Generación hasta (inclusive)', consulta.filtros.get('fecha_hasta') or 'Sin límite'),
                 ('Tipo de préstamo', consulta.filtros.get('tipo_prestamo') or 'Todos'),
                 ('Lista', lista or 'Todas'),
                 ('Consulta', consulta.generado),
+                ('Fecha e importe aplicados', 'Se informan si se identifica una única imputación compatible en Oracle.'),
+                ('Importe cobrado', 'Corresponde al importe de la respuesta bancaria y puede incluir cuota social.'),
             ]
             for i, fila in enumerate(condiciones_rows, 1):
                 condiciones.write_row(i, 0, fila)
@@ -227,14 +254,21 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                 if fila == 0:
                     hoja = libro.add_worksheet('Detalle' if parte == 0 else f'Detalle {parte + 1}')
                     hoja.freeze_panes(1, 0)
-                    hoja.set_column(0, len(_COLUMNAS) - 1, 21)
-                    hoja.set_column(2, 2, 34)
-                    hoja.write_row(0, 0, [titulo for _, titulo in _COLUMNAS], cabecera)
-                for columna, valor in enumerate(valores):
-                    if columna == 4:
+                    hoja.set_column(0, len(columnas) - 1, 21)
+                    hoja.set_column(2, 2, 26)
+                    hoja.set_column(4, 5, 34)
+                    hoja.set_column(11, 11, 34)
+                    hoja.write_row(0, 0, [titulo for _, titulo in columnas], cabecera)
+                for columna, (campo, _) in enumerate(columnas):
+                    valor = valores[campo]
+                    if valor is None:
+                        continue
+                    if campo in ('importe_cobrado_centavos', 'importe_aplicado_centavos'):
                         hoja.write_number(fila + 1, columna, valor / 100, dinero)
-                    elif columna == 10:
+                    elif campo in ('fecha_aplicacion', 'fechageneracion'):
                         hoja.write_datetime(fila + 1, columna, datetime.fromisoformat(valor), fecha)
+                    elif campo == 'numero_cuenta':
+                        hoja.write_string(fila + 1, columna, valor)
                     else:
                         hoja.write(fila + 1, columna, valor)
         estado = 'lista'
