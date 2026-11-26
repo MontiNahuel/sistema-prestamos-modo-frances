@@ -20,8 +20,8 @@ SQL = Path(__file__).with_name('consulta.sql').read_text(encoding='utf-8')
 
 class FiltrosCobrados(BaseModel):
     periodo_haber: Optional[str] = Field(default=None, max_length=6)
-    fecha_desde: date
-    fecha_hasta: date
+    fecha_desde: Optional[date] = None
+    fecha_hasta: Optional[date] = None
     tipo_prestamo: Optional[str] = Field(default=None, max_length=200)
 
     @field_validator('periodo_haber')
@@ -39,7 +39,9 @@ class FiltrosCobrados(BaseModel):
     @model_validator(mode='after')
     def rango_valido(self):
         """Rechaza rangos invertidos de generación."""
-        if self.fecha_desde > self.fecha_hasta:
+        if not self.periodo_haber and not (self.fecha_desde and self.fecha_hasta):
+            raise ValueError('Ingresá un período haber o completá ambas fechas de generación.')
+        if self.fecha_desde and self.fecha_hasta and self.fecha_desde > self.fecha_hasta:
             raise ValueError('La fecha de principio no puede superar la fecha tope.')
         return self
 
@@ -73,8 +75,8 @@ def consultar(req: FiltrosCobrados):
     """Devuelve el snapshot completo; los filtros por lista se aplican sobre éste."""
     columnas, datos = ejecutar(SQL, {
         'periodo_haber': req.periodo_haber,
-        'fecha_desde': datetime.combine(req.fecha_desde, datetime.min.time()),
-        'fecha_hasta': datetime.combine(req.fecha_hasta, datetime.min.time()),
+        'fecha_desde': datetime.combine(req.fecha_desde, datetime.min.time()) if req.fecha_desde else None,
+        'fecha_hasta': datetime.combine(req.fecha_hasta, datetime.min.time()) if req.fecha_hasta else None,
         'tipo_prestamo': req.tipo_prestamo or None,
         'lista': None,
     })

@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { apiClient } from '../../services/api/client';
+import { ApiError, apiClient } from '../../services/api/client';
 import { formatMoney } from '../../utils/formatters';
 import { agregarTablaExcel, descargarLibroExcel } from './exportarReporte';
 import { hoyArgentina } from './reportes';
 import { reporteCobrados } from './revisarCobrados';
 import type { Cobrado } from './revisarCobrados';
 
+function mensajeConsulta(error: unknown, alternativo: string) {
+  if (error instanceof ApiError && error.status === 401) {
+    return `CoopYa rechazó la sesión. ${error.message} Si ya ingresaste, volvé a abrir Préstamos desde CoopYa.`;
+  }
+  return error instanceof Error ? error.message : alternativo;
+}
+
 /** Reporte del sistema nuevo que consulta exclusivamente la base vieja Oracle. */
 export function RevisarCobradosPanel() {
   const hoy = hoyArgentina();
-  const [filtros, setFiltros] = useState({ periodo_haber: hoy.slice(0, 7).replace('-', ''), fecha_desde: `${hoy.slice(0, 7)}-01`, fecha_hasta: hoy, tipo_prestamo: '' });
+  const [filtros, setFiltros] = useState({ periodo_haber: hoy.slice(0, 7).replace('-', ''), fecha_desde: '', fecha_hasta: '', tipo_prestamo: '' });
   const [tipos, setTipos] = useState<string[]>([]);
   const [errorTipos, setErrorTipos] = useState('');
   const [resultado, setResultado] = useState<{ filas: Cobrado[]; generado: string; filtros: typeof filtros } | null>(null);
@@ -25,7 +32,7 @@ export function RevisarCobradosPanel() {
     const control = new AbortController();
     setErrorTipos('');
     apiClient<string[]>('/api/v1/reportes/revisar-cobrados/tipos', { signal: control.signal })
-      .then(setTipos).catch(err => { if (!control.signal.aborted) setErrorTipos(err instanceof Error ? err.message : 'No se pudieron cargar los tipos.'); });
+      .then(setTipos).catch(err => { if (!control.signal.aborted) setErrorTipos(mensajeConsulta(err, 'No se pudieron cargar los tipos.')); });
     return () => control.abort();
   }, [intentoTipos]);
   useEffect(() => () => peticion.current?.abort(), []);
@@ -50,11 +57,16 @@ export function RevisarCobradosPanel() {
     try {
       const datos = await apiClient<{ filas: Cobrado[]; generado: string }>('/api/v1/reportes/revisar-cobrados', {
         method: 'POST', signal: control.signal,
-        body: JSON.stringify({ ...filtros, periodo_haber: filtros.periodo_haber || null, tipo_prestamo: filtros.tipo_prestamo || null }),
+        body: JSON.stringify({
+          periodo_haber: filtros.periodo_haber || null,
+          fecha_desde: filtros.fecha_desde || null,
+          fecha_hasta: filtros.fecha_hasta || null,
+          tipo_prestamo: filtros.tipo_prestamo.trim() || null,
+        }),
       });
       if (!control.signal.aborted) setResultado({ ...datos, filtros: { ...filtros } });
     } catch (err) {
-      if (!control.signal.aborted) setError(err instanceof Error ? err.message : 'No se pudo consultar Oracle.');
+      if (!control.signal.aborted) setError(mensajeConsulta(err, 'No se pudo consultar Oracle.'));
     } finally { if (peticion.current === control) setCargando(false); }
   }
 
@@ -70,25 +82,27 @@ export function RevisarCobradosPanel() {
       resumen.addRows([
         ['Reporte', 'Revisar cobrados'], ['Fuente', 'Oracle histórico'],
         ['Período haber', resultado.filtros.periodo_haber || 'Todos'],
-        ['Generación desde', resultado.filtros.fecha_desde], ['Generación hasta (inclusive)', resultado.filtros.fecha_hasta],
+        ['Generación desde', resultado.filtros.fecha_desde || 'Sin límite'], ['Generación hasta (inclusive)', resultado.filtros.fecha_hasta || 'Sin límite'],
         ['Tipo de préstamo', resultado.filtros.tipo_prestamo || 'Todos'], ['Lista', lista || 'Todas las listas recuperadas'],
         ['Consulta realizada', resultado.generado], ...reporte.notas.map(n => ['Criterio', n]),
       ]);
       agregarTablaExcel(libro, 'Detalle', reporte);
       agregarTablaExcel(libro, 'Cobrado por lista', reporte.anexos![0]);
-      await descargarLibroExcel(libro, `revisar-cobrados-${resultado.filtros.fecha_desde}-${resultado.filtros.fecha_hasta}.xlsx`);
+      const { periodo_haber, fecha_desde, fecha_hasta } = resultado.filtros;
+      const referencia = [periodo_haber, fecha_desde, fecha_hasta].filter(Boolean).join('_');
+      await descargarLibroExcel(libro, `revisar-cobrados-${referencia}.xlsx`);
     } catch { setError('No se pudo generar el Excel. Intentá nuevamente.'); }
     finally { setExportando(false); }
   }
 
   return <>
     <h3>Revisar cobrados · base histórica Oracle</h3>
-    <p className="reportes-ayuda">Este reporte es independiente de «Cobranzas aplicadas» (base nueva). Incluye período haber, fechas de generación, tipo de préstamo y agregación de importes confirmados por lista recuperada.</p>
+    <p className="reportes-ayuda">Ingresá un período haber o un rango de generación completo. Con período, podés dejar vacías las fechas. La fecha hasta incluye todo el día.</p>
     <form className="reportes-filtros" onSubmit={e => { e.preventDefault(); void consultar(); }}>
-      <label>Período haber (AAAAMM)<input inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Todos" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} /></label>
-      <label>Fecha de principio (generación)<input type="date" required max={filtros.fecha_hasta} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} /></label>
-      <label>Fecha tope de generación<input type="date" required min={filtros.fecha_desde} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} /></label>
-      <label>Tipo de préstamo<input list="revisar-cobrados-tipos" value={filtros.tipo_prestamo} placeholder="Todos los tipos" onChange={e => cambiar({ tipo_prestamo: e.target.value })} /><datalist id="revisar-cobrados-tipos">{tipos.map(t => <option key={t} value={t} />)}</datalist></label>
+      <label>Período haber (AAAAMM)<input inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Ej. 202611" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} /></label>
+      <label>Generación desde{filtros.periodo_haber ? ' (opcional)' : ' (obligatoria)'}<input type="date" required={!filtros.periodo_haber} max={filtros.fecha_hasta || undefined} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} /></label>
+      <label>Generación hasta{filtros.periodo_haber ? ' (opcional)' : ' (obligatoria)'}<input type="date" required={!filtros.periodo_haber} min={filtros.fecha_desde || undefined} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} /></label>
+      <label>Tipo de préstamo (opcional)<input list="revisar-cobrados-tipos" maxLength={200} value={filtros.tipo_prestamo} placeholder="Todos los tipos" onChange={e => cambiar({ tipo_prestamo: e.target.value })} /><datalist id="revisar-cobrados-tipos">{tipos.map(t => <option key={t} value={t} />)}</datalist></label>
       <button className="reportes-primario" type="submit" disabled={cargando}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
     {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos. {errorTipos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
@@ -99,7 +113,7 @@ export function RevisarCobradosPanel() {
         {reporte.resumen.map(item => <div key={item.titulo}><span>{item.titulo}</span><strong>{item.dinero ? formatMoney(item.valor) : item.valor.toLocaleString('es-AR')}</strong></div>)}
       </div>
       <div className="reportes-barra">
-        <label>Lista recuperada<select aria-label="Lista recuperada" value={lista} onChange={e => { setLista(e.target.value); setPagina(1); }}><option value="">Todas las listas recuperadas</option>{listas.map(l => <option key={l}>{l}</option>)}</select></label>
+        <label>Lista recuperada (opcional)<select value={lista} onChange={e => { setLista(e.target.value); setPagina(1); }}><option value="">Todas las listas recuperadas</option>{listas.map(l => <option key={l}>{l}</option>)}</select></label>
         <button type="button" className="reportes-excel" disabled={exportando || !reporte.filas.length} onClick={() => void exportar()}>{exportando ? 'Preparando Excel…' : 'Descargar Excel (.xlsx)'}</button>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">

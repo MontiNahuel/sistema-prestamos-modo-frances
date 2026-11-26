@@ -43,6 +43,21 @@ def test_validaciones_y_autenticacion():
     assert client(False).get('/api/v1/reportes/revisar-cobrados/tipos').status_code == 401
 
 
+def test_periodo_haber_permite_omitir_fechas(monkeypatch):
+    def ejecutar(sql, params):
+        assert params['periodo_haber'] == '202611'
+        assert params['fecha_desde'] is None
+        assert params['fecha_hasta'] is None
+        return ['importe_cobrado'], []
+
+    monkeypatch.setattr(oracle_client, 'ejecutar_consulta', ejecutar)
+    endpoint = '/api/v1/reportes/revisar-cobrados'
+    http = client()
+    assert http.post(endpoint, json={'periodo_haber': '202611'}).status_code == 200
+    assert http.post(endpoint, json={}).status_code == 422
+    assert http.post(endpoint, json={'fecha_hasta': '2026-11-26'}).status_code == 422
+
+
 def test_catalogo_usa_sesion_coopya_verificada(monkeypatch):
     token = '7cc6fb89-1d5f-4284-bcfb-3e7190c5dc61'
     monkeypatch.setattr(settings, 'COOPYA_DB_ENABLED', True)
