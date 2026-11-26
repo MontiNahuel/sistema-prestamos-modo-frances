@@ -57,6 +57,7 @@ export function RevisarCobradosPanel() {
     periodo_haber: '', fecha_desde: '', fecha_hasta: '', tipo_prestamo: '',
   });
   const [tipos, setTipos] = useState<string[]>([]);
+  const [cargandoTipos, setCargandoTipos] = useState(true);
   const [errorTipos, setErrorTipos] = useState('');
   const [intentoTipos, setIntentoTipos] = useState(0);
   const [resultado, setResultado] = useState<DatosCobrados | null>(null);
@@ -75,9 +76,11 @@ export function RevisarCobradosPanel() {
   useEffect(() => {
     const control = new AbortController();
     setErrorTipos('');
+    setCargandoTipos(true);
     apiClient<string[]>(`${URL_REPORTE}/tipos`, { signal: control.signal, cache: 'no-store' })
       .then(datos => { if (!control.signal.aborted) setTipos(datos); })
-      .catch(err => { if (!control.signal.aborted) setErrorTipos(mensajeConsulta(err, 'No se pudieron cargar los tipos.')); });
+      .catch(err => { if (!control.signal.aborted) setErrorTipos(mensajeConsulta(err, 'No se pudieron cargar los tipos.')); })
+      .finally(() => { if (!control.signal.aborted) setCargandoTipos(false); });
     return () => control.abort();
   }, [intentoTipos]);
   useEffect(() => () => {
@@ -119,7 +122,7 @@ export function RevisarCobradosPanel() {
           periodo_haber: filtros.periodo_haber || null,
           fecha_desde: filtros.fecha_desde || null,
           fecha_hasta: filtros.fecha_hasta || null,
-          tipo_prestamo: filtros.tipo_prestamo.trim() || null,
+          tipo_prestamo: filtros.tipo_prestamo || null,
         }),
       });
       const datos = await esperarResultado<DatosCobrados>(`${URL_REPORTE}/consultas/${id}?incluir_listas=true`, control.signal);
@@ -201,8 +204,11 @@ export function RevisarCobradosPanel() {
         <input disabled={ocupado} type="date" min={filtros.fecha_desde || undefined} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} />
       </label>
       <label>Tipo de préstamo
-        <input disabled={ocupado} list="revisar-cobrados-tipos" maxLength={200} value={filtros.tipo_prestamo} placeholder="Todos los tipos" onChange={e => cambiar({ tipo_prestamo: e.target.value })} />
-        <datalist id="revisar-cobrados-tipos">{tipos.map(t => <option key={t} value={t} />)}</datalist>
+        <select disabled={ocupado} aria-busy={cargandoTipos} value={filtros.tipo_prestamo} onChange={e => cambiar({ tipo_prestamo: e.target.value })}>
+          <option value="">Todos los tipos</option>
+          {tipos.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+          {cargandoTipos && <option disabled>Cargando tipos…</option>}
+        </select>
       </label>
       <button className="reportes-primario" type="submit" disabled={ocupado}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
