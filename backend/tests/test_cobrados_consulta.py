@@ -24,45 +24,51 @@ class RevisarCobradosTests(unittest.TestCase):
           CREATE TABLE dual(dummy);
           INSERT INTO dual VALUES('X');
           CREATE TABLE bna_presentacionmensualenvio(idpresentacionmensualenv, fechageneracion);
-          CREATE TABLE mp_presentacionmensualenvio(idpresentacionmensualenv, fechageneracion, idcanalcobrosalida, idtipoprestamo);
+          CREATE TABLE mp_presentacionmensualenvio(idpresentacionmensualenv, fechageneracion, idcanalcobrosalida, idtipoprestamo,periodohaber);
           CREATE TABLE cobrobnadetalle(idpresentacionmensualenv,idcobrobna,idcobrobnareg,idprestador,idprestamo,idcuota,importe,coderror,nrocuenta,idtipoprestamo,vinculacion);
-          CREATE TABLE cobrompdetalle(idpresentacionmensualenv,idcobromp,idcobrompreg,idprestador,idprestamo,idcuota,importe,coderror,bloque1cbu,bloque2cbu,idcanal,referencia);
+          CREATE TABLE cobrompdetalle(idpresentacionmensualenv,idcobromp,idcobrompreg,idprestador,idprestamo,idcuota,importe,coderror,bloque1cbu,bloque2cbu,idcanal,referencia,periodohaber,prestacion,fechavtoorig,fechacompensacion,fecharendicion,codigotransaccion,idpersona,notificaciones,fecharechazo);
           CREATE TABLE cobrobna(idcobrobna,actuafec,idestadocobrobna,idcanal);
           CREATE TABLE cobromp(idcobromp,actuafec,idestadocobromp);
           CREATE TABLE cobro(idcobro,idtipocobro,idcanal,idtipoprestamo,fecharecepcion);
-          CREATE TABLE cobrodetalle(idcobro,idcobroreg,periodohaber,importe,idprestador,idprestamo,idestadocobro);
+          CREATE TABLE cobrodetalle(idcobro,idcobroreg,periodohaber,importe,idprestador,idprestamo,idestadocobro,fechaultact);
           CREATE TABLE prestamocuentacorriente(idprestamoctacte,idcobro,idcobroreg,idprestador,idprestamo,idcuota,idtipomovimiento,fechamovimiento,importe,idestadoctacte,ajuste);
           CREATE TABLE bna_presentacionmensual(idpresentacionmensualenv,idprestador,idprestamo,idcuota,periodohaber,estado,importe_cs);
-          CREATE TABLE mp_presentacionmensual(idpresentacionmensualenv,idprestador,idprestamo,idcuota,periodohaber,descripcion,importecs,idpresentacionmensualenvreg,idnumerodescuento);
+          CREATE TABLE mp_presentacionmensual(idpresentacionmensualenv,idprestador,idprestamo,idcuota,periodohaber,descripcion,importecs,idpresentacionmensualenvreg,idnumerodescuento,importe_ajust,idpersona);
           CREATE TABLE mp_canalcobro(idcanalcobro,descripcion);
-          CREATE TABLE prestamo(idprestador,idprestamo,idtipoprestamo,idcanal);
+          CREATE TABLE prestamo(idprestador,idprestamo,idtipoprestamo,idcanal,idtablaprestamo,idpersona);
+          CREATE TABLE tablaprestamo(idtablaprestamo,idtipotabla,descripcion);
+          CREATE TABLE tipotablaprestamo(idtipotablaprestamo,descripcion);
+          CREATE TABLE persona(idpersona,documento_nro,iddocumento_tipo);
           CREATE TABLE prestamocuotas(idprestador,idprestamo,idcuota,periodohaber);
           CREATE TABLE tipoprestamo(idtipoprestamo,descripcion);
           CREATE TABLE prestador(idprestador,descripcion);
-          CREATE TABLE mv_prestamos_mora_completa(idprestamo,idcuota,fechageneracion,periodohaber,tipo_prestamo,prestador,estado_presentacion,motivo_mora,tipotabla,nomtabla);
+          CREATE TABLE mv_prestamos_mora_completa(idprestamo,idcuota,fechageneracion,periodohaber,tipo_prestamo,prestador,estado_presentacion,motivo_mora,tipotabla,nomtabla,documento_nro);
           INSERT INTO prestador VALUES(66,'Cooperativa');
           INSERT INTO tipoprestamo VALUES(1,'Producto A');
-          INSERT INTO prestamo VALUES(66,101,1,2);
+          INSERT INTO prestamo VALUES(66,101,1,2,3,4);
+          INSERT INTO tablaprestamo VALUES(3,5,'Plan Gold');
+          INSERT INTO tipotablaprestamo VALUES(5,'Consumo');
+          INSERT INTO persona VALUES(4,'11223344',1);
           INSERT INTO prestamocuotas VALUES(66,101,1,'202611');
           INSERT INTO mp_canalcobro VALUES(1,'BAPRO');
           INSERT INTO bna_presentacionmensualenvio VALUES(7,10.5),(8,11.9999),(9,12);
-          INSERT INTO mp_presentacionmensualenvio VALUES(7,10.5,1,1);
+          INSERT INTO mp_presentacionmensualenvio VALUES(7,10.5,1,1,'202611');
           INSERT INTO cobrobnadetalle VALUES(7,1,1,66,101,1,75.25,'0',' 000321 ',1,'7-1');
           INSERT INTO cobrobnadetalle VALUES(7,1,2,66,101,1,900,'R10',NULL,1,'7-2');
           INSERT INTO cobrobnadetalle VALUES(8,2,1,66,101,1,10.50,'0',NULL,1,'8-1');
           INSERT INTO cobrobnadetalle VALUES(9,3,1,66,101,1,800,'0',NULL,1,'9-1');
-          INSERT INTO cobrompdetalle VALUES(7,4,1,66,101,1,20.15,' ok ',' 00000001 ','00000000000002',9,'7-1');
+          INSERT INTO cobrompdetalle VALUES(7,4,1,66,101,1,20.15,' ok ',' 00000001 ','00000000000002',9,'7-1','202510','P',10,10,10,'72',4,NULL,NULL);
           INSERT INTO cobrobna VALUES(1,10.7,2,1);
           INSERT INTO cobromp VALUES(4,10.7,2);
           INSERT INTO cobro VALUES(100,1,1,1,10),(101,1,2,1,11);
-          INSERT INTO cobrodetalle VALUES(100,1,'202611',70.25,66,101,2),(101,1,'202611',20.15,66,101,2);
+          INSERT INTO cobrodetalle VALUES(100,1,'202611',70.25,66,101,2,10.98),(101,1,'202510',20.15,66,101,2,11.7);
           INSERT INTO prestamocuentacorriente VALUES(11,100,1,66,101,1,2,10.9,69.25,1,1),(12,101,1,66,101,1,2,11.3,20.15,1,0);
           INSERT INTO bna_presentacionmensual VALUES(7,66,101,1,'202611',0,5.00);
-          INSERT INTO mp_presentacionmensual VALUES(7,66,101,1,'202611','OK',0,1,'0000000100000000000003');
-          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,10.5,'202611','Producto A','Cooperativa','COBRADO','OK','Consumo','Plan Gold');
+          INSERT INTO mp_presentacionmensual VALUES(7,66,101,1,'202510','OK',0,1,'0000000100000000000003',20.15,4);
+          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,10.5,'202611','Producto A','Cooperativa','COBRADO','OK','Consumo','Plan Gold',11223344);
           INSERT INTO mv_prestamos_mora_completa SELECT * FROM mv_prestamos_mora_completa;
-          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,11.9999,'202611','Producto A','Cooperativa','COBRADO',NULL,'Consumo','Plan Gold');
-          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,12,'202611','Producto A','Cooperativa','COBRADO',NULL,'Consumo','Plan Gold');
+          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,11.9999,'202611','Producto A','Cooperativa','COBRADO',NULL,'Consumo','Plan Gold',11223344);
+          INSERT INTO mv_prestamos_mora_completa VALUES(101,1,12,'202611','Producto A','Cooperativa','COBRADO',NULL,'Consumo','Plan Gold',11223344);
         ''')
 
     def tearDown(self):
@@ -114,8 +120,11 @@ class RevisarCobradosTests(unittest.TestCase):
         self.assertEqual(bna['plan_producto'], 'Plan Gold')
         self.assertEqual(bna['importe_cobrado'], 75.25)
         self.assertEqual(bna['importe_aplicado'], 69.25)
-        self.assertEqual(bna['fecha_aplicacion'], 10.9)
-        self.assertEqual(mp['fecha_aplicacion'], 11.3)
+        self.assertEqual(bna['fecha_aplicacion'], 10.98)
+        self.assertEqual(bna['fecha_movimiento'], 10.9)
+        self.assertEqual(mp['fecha_aplicacion'], 11.7)
+        self.assertEqual(mp['fecha_movimiento'], 11.3)
+        self.assertEqual(str(mp['dni']), '11223344')
         self.assertIsNone(self.query(lista='BNA / BNA - 8')[0]['fecha_aplicacion'])
         self.db.execute('INSERT INTO prestamocuentacorriente VALUES(13,100,1,66,101,1,2,10.95,69.25,1,1)')
         self.assertIsNone(self.query(lista='BNA / BNA - 7')[0]['fecha_aplicacion'])
@@ -126,7 +135,39 @@ class RevisarCobradosTests(unittest.TestCase):
         row = self.query(lista='MP / BAPRO - 7')[0]
         self.assertEqual(row['numero_cuenta'], '0000000100000000000003')
         self.db.execute("UPDATE cobrompdetalle SET referencia = 'sin referencia'")
-        self.assertIsNone(self.query(lista='MP / BAPRO - 7')[0]['numero_cuenta'])
+        self.assertEqual(self.query(lista='MP / BAPRO - 7')[0]['numero_cuenta'], '0000000100000000000003')
+
+    def test_mora_del_periodo_anterior_e_importacion_repetida_no_alteran_total_mp(self):
+        self.db.execute('INSERT INTO cobromp VALUES(5,11,2)')
+        self.db.execute('''
+            INSERT INTO cobrompdetalle
+            SELECT idpresentacionmensualenv,5,idcobrompreg,idprestador,idprestamo,idcuota,importe,coderror,
+                   bloque1cbu,bloque2cbu,idcanal,referencia,periodohaber,prestacion,fechavtoorig,
+                   fechacompensacion,fecharendicion,codigotransaccion,idpersona,notificaciones,fecharechazo
+            FROM cobrompdetalle WHERE idcobromp = 4
+        ''')
+        self.db.execute('DELETE FROM mv_prestamos_mora_completa')
+        filas = self.query(lista='MP / BAPRO - 7')
+        self.assertEqual(len(filas), 1)
+        self.assertEqual(filas[0]['periodohaber'], '202611')
+        self.assertEqual(filas[0]['importe_cobrado'], 20.15)
+
+    def test_aplicacion_agrupada_misma_fecha_sin_repetir_monto(self):
+        self.db.execute("""
+            INSERT INTO mp_presentacionmensual VALUES(7,66,101,1,'202510','OK',0,2,'0000000100000000000003',4.85,4)
+        """)
+        self.db.execute("""
+            INSERT INTO cobrompdetalle
+            SELECT idpresentacionmensualenv,idcobromp,2,idprestador,idprestamo,idcuota,4.85,coderror,
+                   bloque1cbu,bloque2cbu,idcanal,'7-2',periodohaber,prestacion,fechavtoorig,
+                   fechacompensacion,fecharendicion,codigotransaccion,idpersona,notificaciones,fecharechazo
+            FROM cobrompdetalle WHERE idcobromp = 4
+        """)
+        self.db.execute('UPDATE cobrodetalle SET importe = 25 WHERE idcobro = 101')
+        self.db.execute('UPDATE prestamocuentacorriente SET importe = 25 WHERE idprestamoctacte = 12')
+        filas = self.query(lista='MP / BAPRO - 7')
+        self.assertEqual([f['fecha_movimiento'] for f in filas], [11.3, 11.3])
+        self.assertEqual([f['importe_aplicado'] for f in filas], [20.15, 4.85])
 
 
 if __name__ == '__main__':

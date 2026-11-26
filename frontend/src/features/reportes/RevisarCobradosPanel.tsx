@@ -211,7 +211,7 @@ export function RevisarCobradosPanel() {
     {cargando && <p role="status">Preparando los resultados de Oracle. El histórico completo puede tardar unos minutos.</p>}
     {resultado && <>
       <div className="reportes-resumen" aria-label="Agregaciones del reporte de cobrados">
-        <div><span>Respuestas cobradas</span><strong>{resultado.registros.toLocaleString('es-AR')}</strong></div>
+        <div><span>Registros cobrados</span><strong>{resultado.registros.toLocaleString('es-AR')}</strong></div>
         <div><span>Listas</span><strong>{resultado.cantidad_listas.toLocaleString('es-AR')}</strong></div>
         <div><span>Total cobrado</span><strong>{formatMoney(resultado.cobrado)}</strong></div>
       </div>
@@ -225,7 +225,7 @@ export function RevisarCobradosPanel() {
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
         <div className="reportes-resultado min-w-0">
-          <div className="reportes-barra"><h3>Detalle · {resultado.registros.toLocaleString('es-AR')} respuestas</h3></div>
+          <div className="reportes-barra"><h3>Detalle · {resultado.registros.toLocaleString('es-AR')} registros</h3></div>
           <div className="reportes-tabla" tabIndex={0} aria-label="Detalle de cobrados" aria-busy={cargandoPagina}>
             <table>
               <thead><tr>{columnas.map(c => <th key={c.key} scope="col">{c.titulo}</th>)}</tr></thead>

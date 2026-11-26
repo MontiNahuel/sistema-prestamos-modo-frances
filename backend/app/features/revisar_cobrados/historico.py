@@ -93,13 +93,14 @@ def obtener(id_consulta: str, operador_id: int) -> Consulta:
 
 def _convertir(fila):
     (origen, banco, lista, id_lista, importe, id_cobro, id_registro, prestamo, cuota,
-     periodo, generacion, tipo, aplicacion, cuenta, producto, plan, importe_aplicado) = fila
+     periodo, generacion, tipo, aplicacion, cuenta, producto, plan, importe_aplicado, dni, movimiento) = fila
     if importe is None:
         raise ValueError('Oracle devolvió un cobro sin importe')
     return (
         origen, banco, lista, id_lista, _centavos(importe), id_cobro, id_registro, prestamo, cuota,
         periodo, generacion.isoformat(), tipo, aplicacion.isoformat() if aplicacion else None, cuenta, producto,
         plan, _centavos(importe_aplicado) if importe_aplicado is not None else None,
+        dni, movimiento.isoformat() if movimiento else None,
     )
 
 
@@ -117,13 +118,14 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                     id_registro INTEGER, idprestamo INTEGER, idcuota INTEGER,
                     periodohaber TEXT, fechageneracion TEXT, tipo_prestamo TEXT,
                     fecha_aplicacion TEXT, numero_cuenta TEXT, tipo_producto TEXT,
-                    plan_producto TEXT, importe_aplicado_centavos INTEGER
+                    plan_producto TEXT, importe_aplicado_centavos INTEGER,
+                    dni TEXT, fecha_movimiento TEXT
                 )
             ''')
             with oracle_client.cursor_consulta(sql, parametros, lote=5000) as cursor:
                 while lote := cursor.fetchmany(5000):
                     db.executemany(
-                        'INSERT INTO detalle VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        'INSERT INTO detalle VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         map(_convertir, lote),
                     )
             db.executescript('''
@@ -193,9 +195,11 @@ def iniciar_excel(consulta: Consulta, lista: str | None) -> str:
 def _crear_excel(consulta: Consulta, lista: str | None) -> None:
     where, params = _por_lista(lista)
     columnas = (
-        ('fecha_aplicacion', 'Fecha de aplicación'),
-        ('importe_cobrado_centavos', 'Importe cobrado'),
+        ('dni', 'DNI'),
         ('numero_cuenta', 'Nro. de cuenta'),
+        ('fecha_aplicacion', 'Fecha de aplicación'),
+        ('fecha_movimiento', 'Fecha de movimiento'),
+        ('importe_cobrado_centavos', 'Importe cobrado'),
         ('idprestamo', 'ID préstamo'),
         ('tipo_producto', 'Tipo de producto'),
         ('plan_producto', 'Plan del producto'),
@@ -232,8 +236,8 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                 ('Tipo de préstamo', consulta.filtros.get('tipo_prestamo') or 'Todos'),
                 ('Lista', lista or 'Todas'),
                 ('Consulta', consulta.generado),
-                ('Fecha e importe aplicados', 'Se informan si se identifica una única imputación compatible en Oracle.'),
-                ('Importe cobrado', 'Corresponde al importe de la respuesta bancaria y puede incluir cuota social.'),
+                ('Fechas contables', 'Aplicación: actualización del cobro del mismo día. Movimiento: fecha del asiento en cuenta corriente.'),
+                ('Importe cobrado', 'Para MP es el importe ajustado de cada registro OK de la presentación. Puede incluir cuota social.'),
             ]
             for i, fila in enumerate(condiciones_rows, 1):
                 condiciones.write_row(i, 0, fila)
@@ -242,7 +246,7 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
             resumen.set_column(0, 0, 34)
             resumen.set_column(1, 2, 18)
             resumen.freeze_panes(1, 0)
-            resumen.write_row(0, 0, ['Lista', 'Respuestas', 'Cobrado'], cabecera)
+            resumen.write_row(0, 0, ['Lista', 'Registros', 'Cobrado'], cabecera)
             grupos = db.execute('SELECT * FROM listas' + (' WHERE lista = ?' if lista else '') + ' ORDER BY lista', params)
             for i, (nombre, cantidad, total) in enumerate(grupos, 1):
                 resumen.write_row(i, 0, [nombre, cantidad])
@@ -255,9 +259,9 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                     hoja = libro.add_worksheet('Detalle' if parte == 0 else f'Detalle {parte + 1}')
                     hoja.freeze_panes(1, 0)
                     hoja.set_column(0, len(columnas) - 1, 21)
-                    hoja.set_column(2, 2, 26)
-                    hoja.set_column(4, 5, 34)
-                    hoja.set_column(11, 11, 34)
+                    hoja.set_column(1, 1, 26)
+                    hoja.set_column(6, 7, 34)
+                    hoja.set_column(13, 13, 34)
                     hoja.write_row(0, 0, [titulo for _, titulo in columnas], cabecera)
                 for columna, (campo, _) in enumerate(columnas):
                     valor = valores[campo]
@@ -265,9 +269,9 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                         continue
                     if campo in ('importe_cobrado_centavos', 'importe_aplicado_centavos'):
                         hoja.write_number(fila + 1, columna, valor / 100, dinero)
-                    elif campo in ('fecha_aplicacion', 'fechageneracion'):
+                    elif campo in ('fecha_aplicacion', 'fecha_movimiento', 'fechageneracion'):
                         hoja.write_datetime(fila + 1, columna, datetime.fromisoformat(valor), fecha)
-                    elif campo == 'numero_cuenta':
+                    elif campo in ('dni', 'numero_cuenta'):
                         hoja.write_string(fila + 1, columna, valor)
                     else:
                         hoja.write(fila + 1, columna, valor)

@@ -13,6 +13,8 @@ export interface Cobrado {
   periodohaber: string;
   fechageneracion: string;
   fecha_aplicacion: string | null;
+  fecha_movimiento: string | null;
+  dni: string | null;
   numero_cuenta: string | null;
   tipo_producto: string | null;
   plan_producto: string | null;
@@ -42,9 +44,11 @@ export function reporteCobrados(filas: Cobrado[], lista = ''): Reporte {
   return {
     titulo: 'Revisar cobrados',
     columnas: [
-      { key: 'fecha_aplicacion', titulo: 'Fecha de aplicación', tipo: 'fecha-hora' },
-      { key: 'importe_cobrado_centavos', titulo: 'Monto cobrado', tipo: 'dinero' },
+      { key: 'dni', titulo: 'DNI' },
       { key: 'numero_cuenta', titulo: 'N.º de cuenta' },
+      { key: 'fecha_aplicacion', titulo: 'Fecha de aplicación', tipo: 'fecha-hora' },
+      { key: 'fecha_movimiento', titulo: 'Fecha de movimiento', tipo: 'fecha-hora' },
+      { key: 'importe_cobrado_centavos', titulo: 'Monto cobrado', tipo: 'dinero' },
       { key: 'idprestamo', titulo: 'ID préstamo', tipo: 'numero' },
       { key: 'tipo_producto', titulo: 'Tipo de producto' },
       { key: 'plan_producto', titulo: 'Plan del producto' },
@@ -72,10 +76,10 @@ export function reporteCobrados(filas: Cobrado[], lista = ''): Reporte {
       { key: 'cobrado', titulo: 'Cobrado', tipo: 'dinero' },
     ], filas: resumen }],
     notas: [
-      'Fuente: base histórica Oracle. MV_PRESTAMOS_MORA_COMPLETA y respuestas bancarias BNA/MP. BNA: código 0; MP (BAPRO y otros canales): OK.',
-      'Se suman importes de respuestas exitosas, sin multiplicarlos por las filas de mora. No se descuentan reversiones posteriores.',
-      'Desde y Hasta filtran la generación de la presentación. La fecha de aplicación se muestra por separado cuando está disponible.',
-      'La fecha y el monto aplicado se informan si se identifica una única imputación compatible. El monto cobrado puede incluir cuota social.',
+      'Para Débito Directo (MP), se suma el importe ajustado de cada registro OK de la presentación, una sola vez. Período haber corresponde a la lista e incluye cuotas de períodos anteriores.',
+      'En BNA se suman los importes de respuestas con código 0 verificadas en la vista de mora. El reporte no descuenta reversiones posteriores.',
+      'Desde y Hasta filtran la generación de la presentación. Las fechas de aplicación y de movimiento se muestran en columnas separadas cuando están disponibles.',
+      'El monto cobrado puede incluir cuota social.',
       'Detalle y resumen corresponden a la misma consulta y lista seleccionada. Excel incluye todo el resultado, no sólo la página visible.',
     ],
     advertencias: [],
