@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import logging
+import re
 from typing import Dict, Any, Optional
 from fastapi import HTTPException, status
 from app.core.config import settings
@@ -49,6 +50,10 @@ class AuthService:
                 detail=f"No se pudo conectar con el servicio de autenticación: {str(e)}",
             )
 
+    @staticmethod
+    def limpiar_token(token: Optional[str]) -> str:
+        return re.sub(r"^Bearer(?:\s+|$)", "", (token or "").strip(), count=1, flags=re.IGNORECASE).strip()
+
     def obtener_perfil_por_token(
         self, token: Optional[str]
     ) -> UserProfileResponse:
@@ -64,7 +69,9 @@ class AuthService:
                 sistema_central_url=settings.COOPYA_BASE_URL,
             )
 
-        token_limpio = token.replace("Bearer ", "").strip()
+        token_limpio = self.limpiar_token(token)
+        if len(token_limpio) != 36:
+            raise HTTPException(401, "Sesión expirada o token inválido en CoopYa.")
 
         try:
             with self.db_client._connection() as conn:
@@ -88,12 +95,11 @@ class AuthService:
                         r.Nombre AS RolNombre
                     FROM dbo.UsuarioSesion s
                     JOIN dbo.Usuarios u ON s.IdUsuario = u.Id
-                    JOIN dbo.UsuarioRoles ur ON u.Id = ur.IdUsuario
-                    JOIN dbo.Roles r ON ur.IdRol = r.IdRol
-                    WHERE s.Token = ?
+                    LEFT JOIN dbo.UsuarioRoles ur ON u.Id = ur.IdUsuario
+                    LEFT JOIN dbo.Roles r ON ur.IdRol = r.IdRol AND r.Activo = 1
+                    WHERE s.Token = TRY_CONVERT(UNIQUEIDENTIFIER, ?)
                       AND s.FechaExpiracion > GETDATE()
                       AND u.Activo = 1
-                      AND r.Activo = 1
                 """,
                     (token_limpio,),
                 )
@@ -104,9 +110,10 @@ class AuthService:
                         detail="Sesión expirada o token inválido en CoopYa.",
                     )
 
-                roles = [r[4] for r in rows]
+                roles = [r[4] for r in rows if r[4] is not None]
                 es_admin = any(
-                    r[3] == 1 or "acceso completo" in r[4].lower() for r in rows
+                    r[3] == 1 or "acceso completo" in r[4].lower()
+                    for r in rows if r[4] is not None
                 )
                 return UserProfileResponse(
                     id=rows[0][0],
@@ -144,7 +151,7 @@ class AuthService:
             if fallback_usuario and fallback_usuario.strip()
             else None
         )
-        token_limpio = token.replace("Bearer ", "").strip() if token else ""
+        token_limpio = self.limpiar_token(token)
         if not token_limpio:
             return OperadorResuelto(id=None, usuario=fallback)
 

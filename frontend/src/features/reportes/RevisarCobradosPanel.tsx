@@ -91,7 +91,7 @@ export function RevisarCobradosPanel() {
       <label>Tipo de préstamo<input list="revisar-cobrados-tipos" value={filtros.tipo_prestamo} placeholder="Todos los tipos" onChange={e => cambiar({ tipo_prestamo: e.target.value })} /><datalist id="revisar-cobrados-tipos">{tipos.map(t => <option key={t} value={t} />)}</datalist></label>
       <button className="reportes-primario" type="submit" disabled={cargando}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
-    {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos desde Oracle. Podés escribir el tipo manualmente; para consultar los cobros, el backend también necesita conexión con Oracle. <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
+    {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos. {errorTipos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
     {error && <div className="reportes-error" role="alert">{error}</div>}
     {cargando && <p role="status">Consultando respuestas exitosas de la base vieja…</p>}
     {resultado && <>

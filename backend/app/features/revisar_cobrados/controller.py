@@ -6,10 +6,14 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
-from app.features.respuestas_bancarias.controller import operador
+from app.features.auth.controller import obtener_perfil_verificado
 from app.integrations.oracle_client import oracle_client
 
-router = APIRouter(prefix='/reportes/revisar-cobrados', tags=['Reportes'])
+router = APIRouter(
+    prefix='/reportes/revisar-cobrados',
+    tags=['Reportes'],
+    dependencies=[Depends(obtener_perfil_verificado)],
+)
 logger = logging.getLogger(__name__)
 SQL = Path(__file__).with_name('consulta.sql').read_text(encoding='utf-8')
 
@@ -58,14 +62,14 @@ def ejecutar(sql, params=None):
 
 
 @router.get('/tipos')
-def tipos(usuario: str = Depends(operador)):
+def tipos():
     """Carga el catálogo de tipos desde la misma vista histórica."""
     _, filas = ejecutar('SELECT DISTINCT tipo_prestamo FROM prestaprod.MV_PRESTAMOS_MORA_COMPLETA WHERE tipo_prestamo IS NOT NULL ORDER BY tipo_prestamo')
     return [fila[0] for fila in filas]
 
 
 @router.post('')
-def consultar(req: FiltrosCobrados, usuario: str = Depends(operador)):
+def consultar(req: FiltrosCobrados):
     """Devuelve el snapshot completo; los filtros por lista se aplican sobre éste."""
     columnas, datos = ejecutar(SQL, {
         'periodo_haber': req.periodo_haber,

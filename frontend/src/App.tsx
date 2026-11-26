@@ -173,21 +173,15 @@ export default function App() {
   const [prestamoOtorgadoExito, setPrestamoOtorgadoExito] =
     useState<Prestamo | null>(null);
 
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('coopya_token', token);
-    } else {
-      localStorage.removeItem('coopya_token');
-    }
-  }, [token]);
-
   const handleLoginSuccess = (newToken: string) => {
+    localStorage.setItem('coopya_token', newToken);
     setAuthError(null);
     setToken(newToken);
   };
 
   const handleLogout = () => {
     invalidarSimulacion();
+    localStorage.removeItem('coopya_token');
     setAuthError(null);
     setPerfil(null);
     setToken('');

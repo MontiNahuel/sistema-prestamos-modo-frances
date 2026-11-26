@@ -45,7 +45,7 @@ def test_auth_service_valida_token_sso_y_rechaza_invalido():
             yield FakeConn(self._rows)
 
     srv_ok = AuthService(db_client=FakeDbClient([(7, "nacho", "nacho@coopya.com.ar", 1, "Acceso Completo")]))
-    perfil = srv_ok.obtener_perfil_por_token("Bearer sso-token-valido")
+    perfil = srv_ok.obtener_perfil_por_token("bearer 7cc6fb89-1d5f-4284-bcfb-3e7190c5dc61")
     assert perfil.id == 7
     assert perfil.usuario == "nacho"
     assert perfil.es_acceso_completo is True
@@ -53,5 +53,5 @@ def test_auth_service_valida_token_sso_y_rechaza_invalido():
 
     srv_expirado = AuthService(db_client=FakeDbClient([]))
     with pytest.raises(HTTPException) as exc:
-        srv_expirado.obtener_perfil_por_token("Bearer token-vencido")
+        srv_expirado.obtener_perfil_por_token("Bearer 6655a427-6366-42aa-aad0-87315313fc4b")
     assert exc.value.status_code == 401

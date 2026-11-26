@@ -3,7 +3,10 @@ from decimal import Decimal
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from app.features.revisar_cobrados.controller import router
-from app.features.respuestas_bancarias.controller import operador
+from app.features.auth.controller import get_auth_service, obtener_perfil_verificado
+from app.features.auth.schemas import UserProfileResponse
+from app.features.auth.service import AuthService
+from app.core.config import settings
 from app.integrations.oracle_client import oracle_client
 
 
@@ -11,7 +14,7 @@ def client(autenticado=True):
     app = FastAPI()
     app.include_router(router, prefix='/api/v1')
     if autenticado:
-        app.dependency_overrides[operador] = lambda: 'operador_verificado'
+        app.dependency_overrides[obtener_perfil_verificado] = lambda: UserProfileResponse(id=7, usuario='operador_verificado')
     return TestClient(app)
 
 
@@ -38,6 +41,32 @@ def test_validaciones_y_autenticacion():
     payload.update(fecha_hasta='2026-11-05', periodo_haber='202613')
     assert client().post('/api/v1/reportes/revisar-cobrados', json=payload).status_code == 422
     assert client(False).get('/api/v1/reportes/revisar-cobrados/tipos').status_code == 401
+
+
+def test_catalogo_usa_sesion_coopya_verificada(monkeypatch):
+    token = '7cc6fb89-1d5f-4284-bcfb-3e7190c5dc61'
+    monkeypatch.setattr(settings, 'COOPYA_DB_ENABLED', True)
+    monkeypatch.setattr(oracle_client, 'ejecutar_consulta', lambda *args: (['tipo_prestamo'], [('BAPRO',)]))
+    service = AuthService()
+
+    def obtener_perfil(valor):
+        assert AuthService.limpiar_token(valor) == token
+        return UserProfileResponse(id=7, usuario='operador_verificado')
+
+    monkeypatch.setattr(service, 'obtener_perfil_por_token', obtener_perfil)
+    http = client(False)
+    http.app.dependency_overrides[get_auth_service] = lambda: service
+    endpoint = '/api/v1/reportes/revisar-cobrados/tipos'
+    for headers in ({'Authorization': f'bearer {token}'}, {'X-Auth-Token': token}):
+        response = http.get(endpoint, headers=headers)
+        assert response.status_code == 200
+        assert response.json() == ['BAPRO']
+
+    monkeypatch.setattr(
+        service, 'obtener_perfil_por_token',
+        lambda valor: UserProfileResponse(id=1, usuario='test_operator'),
+    )
+    assert http.get(endpoint, headers={'Authorization': f'Bearer {token}'}).status_code == 401
 
 
 def test_error_oracle_no_expone_conexion(monkeypatch):

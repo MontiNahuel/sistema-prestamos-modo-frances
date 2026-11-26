@@ -14,6 +14,23 @@ def get_auth_service() -> AuthService:
     return AuthService()
 
 
+def obtener_perfil_verificado(
+    authorization: Optional[str] = Header(None),
+    x_token: Optional[str] = Header(None, alias="X-Auth-Token"),
+    service: AuthService = Depends(get_auth_service),
+) -> UserProfileResponse:
+    """Exige la misma sesión CoopYa que usa el perfil de la aplicación."""
+    token = authorization if authorization is not None else x_token
+    if not AuthService.limpiar_token(token):
+        raise HTTPException(401, "Iniciá sesión en CoopYa para consultar este reporte.")
+    if not settings.COOPYA_DB_ENABLED:
+        raise HTTPException(503, "La verificación de sesiones CoopYa no está configurada.")
+    perfil = service.obtener_perfil_por_token(token)
+    if perfil.usuario in ("operador_dev", "operador_local", "test_operator"):
+        raise HTTPException(401, "Se requiere una sesión verificada de CoopYa.")
+    return perfil
+
+
 def obtener_operador_opcional(
     authorization: Optional[str] = Header(None),
     x_token: Optional[str] = Header(None, alias="X-Auth-Token"),
