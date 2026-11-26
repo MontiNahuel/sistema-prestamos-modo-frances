@@ -20,11 +20,13 @@ export const TIPOS_REPORTE_EXTRA: DefinicionReporteExtra[] = [
 ];
 
 export type VerSinLote = 'S' | 'N';
+export type UsarTolerancia = 'S' | 'N';
 
 export interface FiltrosCatalinasForm {
   periodoDesde: string;
   periodoHasta: string;
   dnis: string;
+  usarTolerancia: UsarTolerancia;
   toleranciaPctPorcentaje: string;
   verSinLote: VerSinLote;
 }
@@ -72,6 +74,7 @@ export const FILTROS_CATALINAS_INICIALES: FiltrosCatalinasForm = {
   periodoDesde: '2026-05',
   periodoHasta: '',
   dnis: '',
+  usarTolerancia: 'N',
   toleranciaPctPorcentaje: '5',
   verSinLote: 'S',
 };
@@ -136,9 +139,13 @@ export function construirPayloadCatalinas(
     return { error: resultadoDnis.error };
   }
 
-  const toleranciaNum = Number(filtros.toleranciaPctPorcentaje.replace(',', '.'));
-  if (!Number.isFinite(toleranciaNum) || toleranciaNum < 0 || toleranciaNum > 100) {
-    return { error: 'La tolerancia debe ser un porcentaje entre 0 y 100 (por defecto 5%).' };
+  let toleranciaPct = 0;
+  if (filtros.usarTolerancia === 'S') {
+    const toleranciaNum = Number(filtros.toleranciaPctPorcentaje.replace(',', '.'));
+    if (!Number.isFinite(toleranciaNum) || toleranciaNum < 0 || toleranciaNum > 100) {
+      return { error: 'La tolerancia debe ser un porcentaje entre 0 y 100 (por defecto 5%).' };
+    }
+    toleranciaPct = Number((toleranciaNum / 100).toFixed(4));
   }
 
   return {
@@ -146,10 +153,16 @@ export function construirPayloadCatalinas(
       periodo_desde: periodoDesde,
       periodo_hasta: periodoHasta,
       dnis: resultadoDnis.dnis,
-      tolerancia_pct: Number((toleranciaNum / 100).toFixed(4)),
+      tolerancia_pct: toleranciaPct,
       ver_sin_lote: filtros.verSinLote,
     },
   };
+}
+
+export interface EstadoCatalinasDescompuesto {
+  estadoBase: string;
+  detalleError: string | null;
+  suposicion: string | null;
 }
 
 /** Clasifica el texto de estado devuelto por Oracle para mostrar estilos semanticos. */
@@ -157,6 +170,49 @@ export function clasificarEstadoCatalinas(estado: string): 'ok' | 'pendiente' | 
   if (estado.startsWith('YA SE COBRO')) return 'ok';
   if (estado.startsWith('SIN LOTE CARGADO')) return 'pendiente';
   return 'vencida';
+}
+
+/** Devuelve la clase CSS de badge pastel definida en reportes.css segun el estado. */
+export function claseBadgeEstadoCatalinas(estado: string): string {
+  const clase = clasificarEstadoCatalinas(estado);
+  if (clase === 'ok') return 'reportes-estado reportes-estado-pagada';
+  if (clase === 'pendiente') return 'reportes-estado reportes-estado-pendiente';
+  return 'reportes-estado reportes-estado-vencida';
+}
+
+/** Separa el estado principal, el error/detalle y la suposicion de posible prestamo Catalinas. */
+export function descomponerEstadoCatalinas(estado: string): EstadoCatalinasDescompuesto {
+  const texto = estado.trim();
+  const matchParentesis = /^([^(]+?)\s*\((.*)\)$/.exec(texto);
+  if (!matchParentesis) {
+    return {
+      estadoBase: texto || '-',
+      detalleError: null,
+      suposicion: null,
+    };
+  }
+
+  const estadoBase = matchParentesis[1].trim();
+  const contenido = matchParentesis[2].trim();
+  const matchErrorMenosUno = /^(Error\s*-1)\s*:\s*(.+)$/i.exec(contenido);
+  if (matchErrorMenosUno) {
+    const rawSuposicion = matchErrorMenosUno[2].trim().replace(/\s*->\s*/g, ' → ');
+    const suposicion =
+      rawSuposicion.length > 0
+        ? rawSuposicion.charAt(0).toUpperCase() + rawSuposicion.slice(1)
+        : null;
+    return {
+      estadoBase,
+      detalleError: matchErrorMenosUno[1].trim(),
+      suposicion,
+    };
+  }
+
+  return {
+    estadoBase,
+    detalleError: contenido || null,
+    suposicion: null,
+  };
 }
 
 /** Arma una TablaReporte compatible con agregarTablaExcel para exportar en ExcelJS. */
@@ -170,20 +226,27 @@ export function construirTablaExcelCatalinas(
       { key: 'dni', titulo: 'DNI' },
       { key: 'nombre_persona', titulo: 'Persona' },
       { key: 'estado', titulo: 'Estado' },
+      { key: 'detalle_error', titulo: 'Error / Detalle' },
+      { key: 'suposicion', titulo: 'Suposición' },
       { key: 'importe_cobro', titulo: 'Importe cobro', tipo: 'dinero' },
       { key: 'idcobro', titulo: 'ID cobro', tipo: 'numero' },
       { key: 'fecha_cobro', titulo: 'Fecha cobro', tipo: 'fecha' },
       { key: 'idprestamo', titulo: 'ID préstamo', tipo: 'numero' },
     ],
-    filas: respuesta.filas.map((fila) => ({
-      periodo_haber: fila.periodo_haber,
-      dni: fila.dni,
-      nombre_persona: fila.nombre_persona,
-      estado: fila.estado,
-      importe_cobro: Math.round(fila.importe_cobro * 100),
-      idcobro: fila.idcobro,
-      fecha_cobro: fila.fecha_cobro,
-      idprestamo: fila.idprestamo,
-    })),
+    filas: respuesta.filas.map((fila) => {
+      const partes = descomponerEstadoCatalinas(fila.estado);
+      return {
+        periodo_haber: fila.periodo_haber,
+        dni: fila.dni,
+        nombre_persona: fila.nombre_persona,
+        estado: partes.estadoBase,
+        detalle_error: partes.detalleError,
+        suposicion: partes.suposicion,
+        importe_cobro: Math.round(fila.importe_cobro * 100),
+        idcobro: fila.idcobro,
+        fecha_cobro: fila.fecha_cobro,
+        idprestamo: fila.idprestamo,
+      };
+    }),
   };
 }

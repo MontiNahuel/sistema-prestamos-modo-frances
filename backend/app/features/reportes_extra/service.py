@@ -147,7 +147,10 @@ FROM (
          ON p68.dni = m.dni_res
         AND (
               m.idprestador = 68
-           OR ABS(p68.importecuota - m.importe) <= GREATEST(p68.importecuota * par.tolerancia_pct, 100)
+           OR ABS(p68.importecuota - m.importe) <= CASE
+                WHEN par.tolerancia_pct = 0 THEN 0
+                ELSE GREATEST(p68.importecuota * par.tolerancia_pct, 100)
+              END
         )
   WHERE (par.dnis IS NULL OR INSTR(',' || REPLACE(par.dnis, ' ', '') || ',', ',' || m.dni_res || ',') > 0)
     AND (m.idprestador = 68 OR p68.idprestamo IS NOT NULL)

@@ -81,6 +81,7 @@ def test_catalinas_cobros_envia_parametros_y_resume_correctamente(monkeypatch):
     assert capturado["sql"] == SQL_CATALINAS_COBROS
     assert "prestaprod.cobro" in capturado["sql"]
     assert "prestaprod.prestamocuotas" in capturado["sql"]
+    assert "WHEN par.tolerancia_pct = 0 THEN 0" in capturado["sql"]
     assert capturado["params"] == {
         "periodo_desde": "202605",
         "periodo_hasta": "202706",
@@ -136,7 +137,7 @@ def test_catalinas_cobros_acepta_parametros_opcionales_nulos(monkeypatch):
             "periodo_desde": "202605",
             "periodo_hasta": "",
             "dnis": "   ",
-            "tolerancia_pct": 0.1,
+            "tolerancia_pct": 0.0,
             "ver_sin_lote": "N",
         },
     )
@@ -146,7 +147,7 @@ def test_catalinas_cobros_acepta_parametros_opcionales_nulos(monkeypatch):
         "periodo_desde": "202605",
         "periodo_hasta": None,
         "dnis": None,
-        "tolerancia_pct": 0.1,
+        "tolerancia_pct": 0.0,
         "ver_sin_lote": "N",
     }
     assert resp.json()["resumen"]["total_filas"] == 0

@@ -4,9 +4,11 @@ import { formatPesos } from '../../utils/formatters';
 import { agregarTablaExcel, descargarLibroExcel } from '../reportes/exportarReporte';
 import '../reportes/reportes.css';
 import {
+  claseBadgeEstadoCatalinas,
   clasificarEstadoCatalinas,
   construirPayloadCatalinas,
   construirTablaExcelCatalinas,
+  descomponerEstadoCatalinas,
   FILTROS_CATALINAS_INICIALES,
   TIPOS_REPORTE_EXTRA,
 } from './reportesExtra';
@@ -15,6 +17,7 @@ import type {
   FiltrosCatalinasForm,
   ReporteExtraCatalinasResponse,
   TipoReporteExtra,
+  UsarTolerancia,
   VerSinLote,
 } from './reportesExtra';
 import { consultarCatalinasCobros } from './reportesExtraApi';
@@ -195,18 +198,33 @@ export function ReportesExtraPanel() {
             </label>
 
             <label>
-              Tolerancia vs cuota (%)
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                value={filtros.toleranciaPctPorcentaje}
+              Usar tolerancia
+              <select
+                value={filtros.usarTolerancia}
                 onChange={(e) =>
-                  setFiltros({ ...filtros, toleranciaPctPorcentaje: e.target.value })
+                  setFiltros({ ...filtros, usarTolerancia: e.target.value as UsarTolerancia })
                 }
-              />
+              >
+                <option value="N">No (importe exacto)</option>
+                <option value="S">Sí (margen %)</option>
+              </select>
             </label>
+
+            {filtros.usarTolerancia === 'S' && (
+              <label>
+                Tolerancia vs cuota (%)
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={filtros.toleranciaPctPorcentaje}
+                  onChange={(e) =>
+                    setFiltros({ ...filtros, toleranciaPctPorcentaje: e.target.value })
+                  }
+                />
+              </label>
+            )}
 
             <label>
               Ver meses sin lote cargado
@@ -299,9 +317,11 @@ export function ReportesExtraPanel() {
                 <h3>{definicionActiva.titulo}</h3>
                 <p>
                   Parámetros: {respuesta.parametros.periodo_desde} a{' '}
-                  {respuesta.parametros.periodo_hasta ?? respuesta.parametros.periodo_desde} ·
-                  Tolerancia {(respuesta.parametros.tolerancia_pct * 100).toFixed(1)}% · Sin lote{' '}
-                  {respuesta.parametros.ver_sin_lote} · Mostrando{' '}
+                  {respuesta.parametros.periodo_hasta ?? respuesta.parametros.periodo_desde} ·{' '}
+                  {respuesta.parametros.tolerancia_pct === 0
+                    ? 'Tolerancia Exacto (0%)'
+                    : `Tolerancia ${(respuesta.parametros.tolerancia_pct * 100).toFixed(1)}%`}{' '}
+                  · Sin lote {respuesta.parametros.ver_sin_lote} · Mostrando{' '}
                   {filasFiltradas.length.toLocaleString('es-AR')} de{' '}
                   {respuesta.filas.length.toLocaleString('es-AR')} registros.
                 </p>
@@ -348,6 +368,8 @@ export function ReportesExtraPanel() {
                       <th>DNI</th>
                       <th>Persona</th>
                       <th>Estado</th>
+                      <th>Error / Detalle</th>
+                      <th>Suposición</th>
                       <th>Importe cobro</th>
                       <th>ID cobro</th>
                       <th>Fecha cobro</th>
@@ -356,7 +378,8 @@ export function ReportesExtraPanel() {
                   </thead>
                   <tbody>
                     {filasVisibles.map((fila, index) => {
-                      const clase = clasificarEstadoCatalinas(fila.estado);
+                      const partes = descomponerEstadoCatalinas(fila.estado);
+                      const badgeClass = claseBadgeEstadoCatalinas(fila.estado);
                       return (
                         <tr
                           key={`${fila.periodo_haber}-${fila.dni}-${fila.idcobro ?? 'nl'}-${
@@ -367,10 +390,12 @@ export function ReportesExtraPanel() {
                           <td>{fila.dni}</td>
                           <td>{fila.nombre_persona ?? '-'}</td>
                           <td>
-                            <span className={`reportes-estado reportes-estado--${clase}`}>
-                              {fila.estado}
+                            <span className={`${badgeClass} font-semibold`}>
+                              {partes.estadoBase}
                             </span>
                           </td>
+                          <td>{partes.detalleError ?? '-'}</td>
+                          <td className="text-slate-600">{partes.suposicion ?? '-'}</td>
                           <td>{formatPesos(fila.importe_cobro)}</td>
                           <td>{fila.idcobro ?? '-'}</td>
                           <td>{formatearFechaISO(fila.fecha_cobro)}</td>
