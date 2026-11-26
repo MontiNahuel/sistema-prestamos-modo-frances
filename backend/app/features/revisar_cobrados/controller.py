@@ -1,12 +1,14 @@
 """Reporte web sobre cobros confirmados de la base histórica Oracle."""
 from datetime import date, datetime
-from decimal import Decimal
 import logging
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 from app.features.auth.controller import obtener_perfil_verificado
+from app.features.auth.schemas import UserProfileResponse
+from app.features.revisar_cobrados import historico
 from app.integrations.oracle_client import oracle_client
 
 router = APIRouter(
@@ -39,10 +41,8 @@ class FiltrosCobrados(BaseModel):
     @model_validator(mode='after')
     def rango_valido(self):
         """Rechaza rangos invertidos de generación."""
-        if not self.periodo_haber and not (self.fecha_desde and self.fecha_hasta):
-            raise ValueError('Ingresá un período haber o completá ambas fechas de generación.')
         if self.fecha_desde and self.fecha_hasta and self.fecha_desde > self.fecha_hasta:
-            raise ValueError('La fecha de principio no puede superar la fecha tope.')
+            raise ValueError('La fecha desde no puede ser posterior a la fecha hasta.')
         return self
 
 
@@ -70,22 +70,53 @@ def tipos():
     return [fila[0] for fila in filas]
 
 
-@router.post('')
-def consultar(req: FiltrosCobrados):
-    """Devuelve el snapshot completo; los filtros por lista se aplican sobre éste."""
-    columnas, datos = ejecutar(SQL, {
+@router.post('', status_code=202)
+def consultar(req: FiltrosCobrados, perfil: UserProfileResponse = Depends(obtener_perfil_verificado)):
+    """Prepara el resultado completo sin bloquear la petición web."""
+    consulta = historico.iniciar(perfil.id, SQL, req.model_dump(mode='json'), {
         'periodo_haber': req.periodo_haber,
         'fecha_desde': datetime.combine(req.fecha_desde, datetime.min.time()) if req.fecha_desde else None,
         'fecha_hasta': datetime.combine(req.fecha_hasta, datetime.min.time()) if req.fecha_hasta else None,
         'tipo_prestamo': req.tipo_prestamo or None,
         'lista': None,
     })
-    filas = []
-    for valores in datos:
-        fila = dict(zip((c.lower() for c in columnas), valores))
-        importe = fila.pop('importe_cobrado')
-        if importe is None:
-            raise HTTPException(502, 'Oracle devolvió un cobro sin importe. No se generaron totales parciales.')
-        fila['importe_cobrado_centavos'] = int((Decimal(str(importe)) * 100).quantize(Decimal('1')))
-        filas.append(fila)
-    return {'filas': filas, 'generado': datetime.now().astimezone().isoformat()}
+    return {'id': consulta.id}
+
+
+@router.get('/consultas/{id_consulta}')
+def detalle(
+    id_consulta: str, pagina: int = 1, lista: Optional[str] = None, incluir_listas: bool = False,
+    perfil: UserProfileResponse = Depends(obtener_perfil_verificado),
+):
+    if pagina < 1 or pagina > 1_000_000:
+        raise HTTPException(422, 'Página inválida.')
+    consulta = historico.obtener(id_consulta, perfil.id)
+    if consulta.estado == 'error':
+        raise HTTPException(503, 'No se pudo preparar el reporte con Oracle. Intentá nuevamente.')
+    return historico.detalle(consulta, pagina, lista, incluir_listas)
+
+
+@router.post('/consultas/{id_consulta}/excel', status_code=202)
+def preparar_excel(
+    id_consulta: str, lista: Optional[str] = None,
+    perfil: UserProfileResponse = Depends(obtener_perfil_verificado),
+):
+    consulta = historico.obtener(id_consulta, perfil.id)
+    return {'estado': historico.iniciar_excel(consulta, lista)}
+
+
+@router.get('/consultas/{id_consulta}/excel')
+def excel(
+    id_consulta: str, lista: Optional[str] = None, descargar: bool = False,
+    perfil: UserProfileResponse = Depends(obtener_perfil_verificado),
+):
+    consulta = historico.obtener(id_consulta, perfil.id)
+    if consulta.lista_excel != lista or consulta.estado_excel in ('pendiente', 'error'):
+        raise HTTPException(409, 'El Excel no está disponible. Volvé a prepararlo.')
+    if not descargar or consulta.estado_excel != 'lista':
+        return {'estado': consulta.estado_excel}
+    return FileResponse(
+        consulta.excel, filename='revisar-cobrados.xlsx',
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Cache-Control': 'private, no-store'},
+    )

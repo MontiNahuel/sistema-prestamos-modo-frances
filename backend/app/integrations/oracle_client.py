@@ -1,5 +1,6 @@
 import os
 import logging
+from contextlib import contextmanager
 from datetime import date
 from typing import Dict, Any, Optional
 from app.core.config import settings
@@ -158,6 +159,13 @@ class OracleClient:
         params: Optional[Dict[str, Any]] = None,
     ) -> tuple[list[str], list[tuple[Any, ...]]]:
         """Ejecuta una consulta SELECT parametrizada en Oracle y retorna (columnas_lower, filas)."""
+        with self.cursor_consulta(sql, params) as cursor:
+            columnas = [str(col[0]).lower() for col in (cursor.description or ())]
+            return columnas, [tuple(row) for row in cursor.fetchall()]
+
+    @contextmanager
+    def cursor_consulta(self, sql: str, params: Optional[Dict[str, Any]] = None, *, lote: int = 100):
+        """Abre un SELECT con la conexión Oracle configurada y cierra el cursor al terminar."""
         if not self.enabled:
             raise RuntimeError(
                 "La integración con Oracle está deshabilitada en la configuración (ORACLE_ENABLED=false)."
@@ -179,10 +187,9 @@ class OracleClient:
                 dsn=self.dsn,
             ) as conn:
                 with conn.cursor() as cursor:
+                    cursor.arraysize = lote
                     cursor.execute(sql, bind_params)
-                    columnas = [str(col[0]).lower() for col in (cursor.description or ())]
-                    filas = [tuple(row) for row in cursor.fetchall()]
-                    return columnas, filas
+                    yield cursor
         except oracledb.DatabaseError as e:
             error_obj = e.args[0] if e.args else None
             code = getattr(error_obj, "code", None)

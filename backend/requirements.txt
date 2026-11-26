@@ -7,5 +7,6 @@ sqlalchemy>=2.0.36
 alembic>=1.14.0
 pyodbc>=5.2.0
 oracledb>=26.0.0
+XlsxWriter>=3.2,<4
 python-multipart>=0.0.12
 pytest>=8.3.3

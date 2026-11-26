@@ -14,7 +14,7 @@ class RevisarCobradosTests(unittest.TestCase):
     def setUp(self):
         self.db = sqlite3.connect(':memory:')
         self.db.row_factory = sqlite3.Row
-        self.db.create_function('TRUNC', 1, lambda n: int(n))
+        self.db.create_function('TRUNC', 1, lambda n: None if n is None else int(n))
         self.db.create_function('TO_CHAR', 1, str)
         self.db.create_function('NVL', 2, lambda a, b: b if a is None else a)
         self.db.executescript('''
@@ -78,6 +78,11 @@ class RevisarCobradosTests(unittest.TestCase):
         self.assertEqual(self.query(periodo_haber='202610'), [])
         self.assertEqual(len(self.query(periodo_haber=None)), 3)
         self.assertEqual(self.query(lista='No existe'), [])
+
+    def test_desde_y_hasta_se_aplican_por_separado(self):
+        self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=None, fecha_hasta=None)), 4)
+        self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=11, fecha_hasta=None)), 2)
+        self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=None, fecha_hasta=10)), 2)
 
     def test_rechazado_no_se_vuelve_exitoso_por_otra_respuesta(self):
         self.db.execute("UPDATE cobrobnadetalle SET coderror='NO COBRADO' WHERE idcobrobna=1 AND idcobrobnareg=1")
