@@ -5,6 +5,7 @@ from io import BytesIO
 from threading import Event
 from time import monotonic, sleep
 from types import SimpleNamespace
+from urllib.parse import urlencode
 from zipfile import ZipFile
 import pytest
 from fastapi import FastAPI
@@ -203,18 +204,23 @@ def test_sin_importe_no_inventa_cero(monkeypatch):
 
 
 def test_presentados_sin_estado_quedan_fuera_del_total_cobrado(monkeypatch):
-    @contextmanager
-    def ejecutar_cobrados(sql, params, *, lote, timeout_ms):
-        assert params['banco_id'] == 4
-        yield SimpleNamespace(fetchmany=lambda size: [])
+    lista = 'MP / COMERCIO - DEBITO CBU - 15303'
 
-    def ejecutar_pendientes(sql, params, *, timeout_ms):
+    @contextmanager
+    def ejecutar(sql, params, *, lote, timeout_ms):
         assert params['banco_id'] == 4
         assert params['periodo_haber'] == '202606'
-        return [], [('MP / COMERCIO - DEBITO CBU - 15303', '202606', datetime(2026, 7, 7), 6, Decimal('100.25'))]
+        filas = [
+            (lista, '202606', datetime(2026, 7, 7), 6, 41, 3, 'Comercio', '00112233',
+             '0000000100000000000002', 'CONSUMO', 'Plan Gold', Decimal('100.25')),
+            ('Otra lista', '202606', datetime(2026, 7, 8), 1, 42, 4, 'Comercio', '00445566',
+             None, 'CONSUMO', None, Decimal('89.95')),
+        ] if sql == historico.SQL_PENDIENTES else []
+        lotes = iter([filas, []])
+        yield SimpleNamespace(fetchmany=lambda size: next(lotes))
 
-    monkeypatch.setattr(oracle_client, 'cursor_consulta', ejecutar_cobrados)
-    monkeypatch.setattr(oracle_client, 'ejecutar_consulta', ejecutar_pendientes)
+    monkeypatch.setattr(oracle_client, 'cursor_consulta', ejecutar)
+    monkeypatch.setattr(historico, 'TAMANIO_PAGINA', 1)
     http = client()
     r = http.post(URL, json={'periodo_haber': '202606', 'banco_id': 4})
     assert r.status_code == 202
@@ -222,8 +228,18 @@ def test_presentados_sin_estado_quedan_fuera_del_total_cobrado(monkeypatch):
     datos = esperar(http, ruta + '?incluir_listas=true').json()
     assert datos['cobrado'] == datos['registros'] == 0
     assert datos['pendientes'][0]['presentado_centavos'] == 10025
+    assert datos['filas_pendientes'][0]['dni'] == '00112233'
+    assert datos['filas_pendientes'][0]['numero_cuenta'] == '0000000100000000000002'
+    assert http.get(ruta, params={'pagina_pendiente': 2}).json()['filas_pendientes'][0]['presentado_centavos'] == 8995
+    assert http.get(ruta, params={'lista': lista, 'pagina_pendiente': 2}).json()['filas_pendientes'] == []
     excel = ruta + '/excel'
-    assert http.post(excel).status_code == 202
-    assert esperar(http, excel).json()['estado'] == 'lista'
-    with ZipFile(BytesIO(http.get(excel, params={'descargar': True}).content)) as libro:
+    assert http.post(excel, params={'lista': lista}).status_code == 202
+    assert esperar(http, f'{excel}?{urlencode({"lista": lista})}').json()['estado'] == 'lista'
+    with ZipFile(BytesIO(http.get(excel, params={'lista': lista, 'descargar': True}).content)) as libro:
         assert b'Sin estado de cobro' in libro.read('xl/workbook.xml')
+        assert b'Detalle sin estado' in libro.read('xl/workbook.xml')
+        detalle_excel = libro.read('xl/worksheets/sheet4.xml')
+        assert b'0000000100000000000002' in detalle_excel
+        assert b'00112233' in detalle_excel
+        assert b'100.25' in detalle_excel
+        assert b'89.95' not in detalle_excel

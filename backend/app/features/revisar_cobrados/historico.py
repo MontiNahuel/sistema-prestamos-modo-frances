@@ -163,24 +163,37 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                        SUM(importe_cobrado_centavos) AS cobrado
                 FROM detalle GROUP BY lista_cobro;
                 CREATE UNIQUE INDEX ix_listas ON listas(lista);
-                CREATE TABLE pendientes (
+                CREATE TABLE detalle_pendiente (
                     lista TEXT NOT NULL, periodohaber TEXT, fechageneracion TEXT NOT NULL,
-                    registros INTEGER NOT NULL, presentado_centavos INTEGER NOT NULL
+                    id_registro INTEGER, idprestamo INTEGER, idcuota INTEGER, tipo_prestamo TEXT,
+                    dni TEXT, numero_cuenta TEXT, tipo_producto TEXT, plan_producto TEXT,
+                    presentado_centavos INTEGER NOT NULL
                 );
             ''')
             if parametros.get('banco_id'):
                 _verificar_vigencia(consulta)
-                _, pendientes = oracle_client.ejecutar_consulta(
+                with oracle_client.cursor_consulta(
                     SQL_PENDIENTES, {k: v for k, v in parametros.items() if k != 'lista'},
-                    timeout_ms=TIMEOUT_ORACLE_MS,
-                )
-                _verificar_vigencia(consulta)
-                db.executemany(
-                    'INSERT INTO pendientes VALUES (?, ?, ?, ?, ?)',
-                    ((lista, periodo, fecha.isoformat(), cantidad, _centavos(importe))
-                     for lista, periodo, fecha, cantidad, importe in pendientes),
-                )
-            db.commit()
+                    lote=5000, timeout_ms=TIMEOUT_ORACLE_MS,
+                ) as cursor:
+                    while not consulta.cancelada.is_set():
+                        lote = cursor.fetchmany(5000)
+                        if not lote or consulta.cancelada.is_set():
+                            break
+                        db.executemany(
+                            'INSERT INTO detalle_pendiente VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                            ((lista, periodo, fecha.isoformat(), *datos, _centavos(importe))
+                             for lista, periodo, fecha, *datos, importe in lote),
+                        )
+            _verificar_vigencia(consulta)
+            db.executescript('''
+                CREATE INDEX ix_detalle_pendiente_lista ON detalle_pendiente(lista);
+                CREATE TABLE pendientes AS
+                SELECT lista, periodohaber, fechageneracion, COUNT(*) AS registros,
+                       SUM(presentado_centavos) AS presentado_centavos
+                FROM detalle_pendiente GROUP BY lista, periodohaber, fechageneracion;
+                CREATE UNIQUE INDEX ix_pendientes_lista ON pendientes(lista);
+            ''')
         estado = 'lista'
     except Exception:
         estado = 'error'
@@ -199,10 +212,11 @@ def _por_lista(lista: str | None) -> tuple[str, tuple]:
     return (' WHERE lista_cobro = ?', (lista,)) if lista else ('', ())
 
 
-def detalle(consulta: Consulta, pagina: int, lista: str | None, incluir_listas: bool) -> dict:
+def detalle(consulta: Consulta, pagina: int, lista: str | None, incluir_listas: bool, pagina_pendiente: int = 1) -> dict:
     if consulta.estado != 'lista':
         return {'estado': consulta.estado}
     where, params = _por_lista(lista)
+    where_pendientes = ' WHERE lista = ?' if lista else ''
     with closing(sqlite3.connect(consulta.db)) as db:
         db.row_factory = sqlite3.Row
         filas = db.execute(
@@ -211,11 +225,16 @@ def detalle(consulta: Consulta, pagina: int, lista: str | None, incluir_listas: 
         ).fetchall()
         resumen = db.execute(
             'SELECT COUNT(*), COALESCE(SUM(registros), 0), COALESCE(SUM(cobrado), 0) FROM listas'
-            + (' WHERE lista = ?' if lista else ''), params,
+            + where_pendientes, params,
         ).fetchone()
+        filas_pendientes = db.execute(
+            f'SELECT * FROM detalle_pendiente{where_pendientes} ORDER BY rowid LIMIT ? OFFSET ?',
+            (*params, TAMANIO_PAGINA, (pagina_pendiente - 1) * TAMANIO_PAGINA),
+        )
         respuesta = {
             'estado': 'lista', 'filas': [dict(f) for f in filas], 'generado': consulta.generado,
             'cantidad_listas': resumen[0], 'registros': resumen[1], 'cobrado': resumen[2],
+            'filas_pendientes': [dict(f) for f in filas_pendientes],
         }
         if incluir_listas:
             respuesta['listas'] = [dict(f) for f in db.execute('SELECT * FROM listas ORDER BY lista')]
@@ -243,6 +262,7 @@ def iniciar_excel(consulta: Consulta, lista: str | None) -> str:
 
 def _crear_excel(consulta: Consulta, lista: str | None) -> None:
     where, params = _por_lista(lista)
+    where_pendientes = ' WHERE lista = ?' if lista else ''
     columnas = (
         ('dni', 'DNI'),
         ('numero_cuenta', 'Nro. de cuenta'),
@@ -331,7 +351,7 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                     else:
                         hoja.write(fila + 1, columna, valor)
             pendientes = db.execute(
-                'SELECT * FROM pendientes' + (' WHERE lista = ?' if lista else '') + ' ORDER BY fechageneracion, lista', params,
+                f'SELECT * FROM pendientes{where_pendientes} ORDER BY fechageneracion, lista', params,
             )
             hoja_pendientes = None
             for i, (nombre, periodo, generacion, cantidad, total) in enumerate(pendientes, 1):
@@ -345,6 +365,30 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                 hoja_pendientes.write_datetime(i, 2, datetime.fromisoformat(generacion), fecha)
                 hoja_pendientes.write_number(i, 3, cantidad)
                 hoja_pendientes.write_number(i, 4, total / 100, dinero)
+
+            detalle_pendiente = db.execute(f'SELECT * FROM detalle_pendiente{where_pendientes} ORDER BY rowid', params)
+            hoja_detalle_pendiente = None
+            for i, valores in enumerate(detalle_pendiente):
+                parte, fila = divmod(i, FILAS_EXCEL)
+                if fila == 0:
+                    nombre = 'Detalle sin estado' if parte == 0 else f'Detalle sin estado {parte + 1}'
+                    hoja_detalle_pendiente = libro.add_worksheet(nombre)
+                    hoja_detalle_pendiente.freeze_panes(1, 0)
+                    hoja_detalle_pendiente.set_column(0, 11, 20)
+                    hoja_detalle_pendiente.set_column(1, 1, 26)
+                    hoja_detalle_pendiente.set_column(3, 6, 34)
+                    hoja_detalle_pendiente.write_row(0, 0, [
+                        'DNI', 'Nro. de cuenta', 'ID préstamo', 'Tipo de producto', 'Plan del producto',
+                        'Tipo de préstamo', 'Lista', 'ID registro', 'Cuota', 'Período haber',
+                        'Fecha de generación', 'Importe presentado',
+                    ], cabecera)
+                hoja_detalle_pendiente.write_row(fila + 1, 0, [
+                    valores['dni'], valores['numero_cuenta'], valores['idprestamo'], valores['tipo_producto'],
+                    valores['plan_producto'], valores['tipo_prestamo'], valores['lista'], valores['id_registro'],
+                    valores['idcuota'], valores['periodohaber'],
+                ])
+                hoja_detalle_pendiente.write_datetime(fila + 1, 10, datetime.fromisoformat(valores['fechageneracion']), fecha)
+                hoja_detalle_pendiente.write_number(fila + 1, 11, valores['presentado_centavos'] / 100, dinero)
         estado = 'lista'
     except Exception:
         logger.exception('Falló la exportación de Revisar cobrados')

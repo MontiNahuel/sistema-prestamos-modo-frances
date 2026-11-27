@@ -20,6 +20,16 @@ interface ListaPendiente {
   registros: number;
   presentado_centavos: number;
 }
+interface RegistroPendiente extends Omit<ListaPendiente, 'registros'> {
+  id_registro: number;
+  idprestamo: number;
+  idcuota: number;
+  tipo_prestamo: string;
+  dni: string | null;
+  numero_cuenta: string | null;
+  tipo_producto: string | null;
+  plan_producto: string | null;
+}
 interface DatosCobrados {
   estado: 'lista';
   filas: Cobrado[];
@@ -28,6 +38,7 @@ interface DatosCobrados {
   cobrado: number;
   listas?: ResumenLista[];
   pendientes?: ListaPendiente[];
+  filas_pendientes?: RegistroPendiente[];
 }
 
 async function esperarResultado<T extends { estado: string }>(url: string, signal: AbortSignal): Promise<T> {
@@ -78,6 +89,7 @@ export function RevisarCobradosPanel() {
   const [pagina, setPagina] = useState(1);
   const [paginaListas, setPaginaListas] = useState(1);
   const [paginaPendientes, setPaginaPendientes] = useState(1);
+  const [paginaDetallePendiente, setPaginaDetallePendiente] = useState(1);
   const [cargando, setCargando] = useState(false);
   const [cargandoPagina, setCargandoPagina] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -113,6 +125,9 @@ export function RevisarCobradosPanel() {
   const paginas = Math.max(1, Math.ceil((resultado?.registros ?? 0) / POR_PAGINA));
   const paginasListas = Math.max(1, Math.ceil(listasVisibles.length / POR_PAGINA));
   const paginasPendientes = Math.max(1, Math.ceil(pendientesVisibles.length / POR_PAGINA));
+  const registrosSinConfirmacion = pendientesVisibles.reduce((total, fila) => total + fila.registros, 0);
+  const importeSinConfirmacion = pendientesVisibles.reduce((total, fila) => total + fila.presentado_centavos, 0);
+  const paginasDetallePendiente = Math.max(1, Math.ceil(registrosSinConfirmacion / POR_PAGINA));
   const filtrosBloqueados = cargandoPagina || exportando;
   const ocupado = cargando || filtrosBloqueados;
   const [anio, mes, dia] = filtros.fecha_desde.split('-').map(Number);
@@ -130,6 +145,7 @@ export function RevisarCobradosPanel() {
     setPagina(1);
     setPaginaListas(1);
     setPaginaPendientes(1);
+    setPaginaDetallePendiente(1);
     setError('');
   }
 
@@ -173,11 +189,12 @@ export function RevisarCobradosPanel() {
     }
   }
 
-  async function cargarPagina(nuevaPagina: number, nuevaLista = lista) {
+  async function cargarPagina(nuevaPagina: number, nuevaLista = lista, nuevaPaginaPendiente = paginaDetallePendiente) {
     if (!consultaId || ocupado) return;
     const control = new AbortController();
     peticion.current = control;
-    const params = new URLSearchParams({ pagina: String(nuevaPagina) });
+    const paginaPendiente = nuevaLista === lista ? nuevaPaginaPendiente : 1;
+    const params = new URLSearchParams({ pagina: String(nuevaPagina), pagina_pendiente: String(paginaPendiente) });
     if (nuevaLista) params.set('lista', nuevaLista);
     setCargandoPagina(true);
     setError('');
@@ -186,6 +203,7 @@ export function RevisarCobradosPanel() {
       if (control.signal.aborted) return;
       setResultado(datos);
       setPagina(nuevaPagina);
+      setPaginaDetallePendiente(paginaPendiente);
       setLista(nuevaLista);
       if (nuevaLista !== lista) {
         setPaginaListas(1);
@@ -272,8 +290,12 @@ export function RevisarCobradosPanel() {
     {resultado && <>
       <div className="reportes-resumen" aria-label="Agregaciones del reporte de cobrados">
         <div><span>Registros cobrados</span><strong>{resultado.registros.toLocaleString('es-AR')}</strong></div>
-        <div><span>Listas</span><strong>{resultado.cantidad_listas.toLocaleString('es-AR')}</strong></div>
-        <div><span>Total cobrado</span><strong>{formatMoney(resultado.cobrado)}</strong></div>
+        <div><span>Listas con cobros</span><strong>{resultado.cantidad_listas.toLocaleString('es-AR')}</strong></div>
+        <div><span>Total cobrado confirmado</span><strong>{formatMoney(resultado.cobrado)}</strong></div>
+        {registrosSinConfirmacion > 0 && <>
+          <div><span>Registros sin confirmación</span><strong>{registrosSinConfirmacion.toLocaleString('es-AR')}</strong></div>
+          <div><span>Importe presentado sin confirmación</span><strong>{formatMoney(importeSinConfirmacion)}</strong></div>
+        </>}
       </div>
       <div className="reportes-barra">
         <label>Lista recuperada (opcional)
@@ -287,7 +309,7 @@ export function RevisarCobradosPanel() {
         <div className="reportes-barra">
           <div>
             <h3>Presentaciones sin estado de cobro</h3>
-            <p>{pendientesVisibles.reduce((total, fila) => total + fila.registros, 0).toLocaleString('es-AR')} registros por {formatMoney(pendientesVisibles.reduce((total, fila) => total + fila.presentado_centavos, 0))}. El total cobrado incluye sólo los registros confirmados.</p>
+            <p>Oracle registra el importe presentado. La acreditación de estos registros sigue sin confirmar.</p>
           </div>
         </div>
         <div className="reportes-tabla" tabIndex={0}>
@@ -299,6 +321,26 @@ export function RevisarCobradosPanel() {
           </table>
         </div>
         {paginasPendientes > 1 && <Paginacion pagina={paginaPendientes} paginas={paginasPendientes} cambiar={setPaginaPendientes} />}
+        <details className="border-t border-slate-200" open={!resultado.registros}>
+          <summary className="cursor-pointer px-5 py-4 font-semibold">Detalle de registros sin confirmación</summary>
+          <div className="reportes-tabla" tabIndex={0} aria-label="Detalle de presentaciones sin estado de cobro" aria-busy={cargandoPagina}>
+            <table>
+              <thead><tr>
+                <th scope="col">DNI</th><th scope="col">N.º de cuenta</th><th scope="col">ID préstamo</th>
+                <th scope="col">Tipo de producto</th><th scope="col">Plan del producto</th><th scope="col">Tipo de préstamo</th>
+                <th scope="col">Lista</th><th scope="col">ID registro</th><th scope="col">Cuota</th>
+                <th scope="col">Período haber</th><th scope="col">Generación</th><th scope="col">Importe presentado</th>
+              </tr></thead>
+              <tbody>{resultado.filas_pendientes?.map(p => <tr key={`${p.lista}-${p.id_registro}`}>
+                <td>{p.dni ?? 'No disponible'}</td><td>{p.numero_cuenta ?? 'No disponible'}</td><td>{p.idprestamo}</td>
+                <td>{p.tipo_producto ?? 'No disponible'}</td><td>{p.plan_producto ?? 'No disponible'}</td><td>{p.tipo_prestamo}</td>
+                <td>{p.lista}</td><td>{p.id_registro}</td><td>{p.idcuota}</td><td>{p.periodohaber}</td>
+                <td>{formatearFechaCobrado(p.fechageneracion)}</td><td>{formatMoney(p.presentado_centavos)}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          {paginasDetallePendiente > 1 && <Paginacion pagina={paginaDetallePendiente} paginas={paginasDetallePendiente} ocupado={ocupado} cambiar={n => void cargarPagina(pagina, lista, n)} detalle />}
+        </details>
       </section>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
         <div className="reportes-resultado min-w-0">

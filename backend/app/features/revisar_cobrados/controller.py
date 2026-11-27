@@ -95,16 +95,17 @@ def consultar(req: FiltrosCobrados, perfil: UserProfileResponse = Depends(obtene
 @router.get('/consultas/{id_consulta}')
 def detalle(
     id_consulta: str, pagina: int = 1, lista: Optional[str] = None, incluir_listas: bool = False,
+    pagina_pendiente: int = 1,
     perfil: UserProfileResponse = Depends(obtener_perfil_verificado),
 ):
-    if pagina < 1 or pagina > 1_000_000:
+    if not 1 <= pagina <= 1_000_000 or not 1 <= pagina_pendiente <= 1_000_000:
         raise HTTPException(422, 'Página inválida.')
     consulta = historico.obtener(id_consulta, perfil.id)
     if consulta.estado == 'reemplazada':
         raise HTTPException(409, 'Esta consulta fue reemplazada por otra más reciente.')
     if consulta.estado == 'error':
         raise HTTPException(503, 'No se pudo preparar el reporte con Oracle. Intentá nuevamente.')
-    return historico.detalle(consulta, pagina, lista, incluir_listas)
+    return historico.detalle(consulta, pagina, lista, incluir_listas, pagina_pendiente)
 
 
 @router.post('/consultas/{id_consulta}/excel', status_code=202)
