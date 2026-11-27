@@ -75,7 +75,7 @@ class RevisarCobradosTests(unittest.TestCase):
         self.db.close()
 
     def query(self, **changes):
-        params = dict(periodo_haber='202611', fecha_desde=10, fecha_hasta=11, tipo_prestamo=None, lista=None)
+        params = dict(periodo_haber='202611', fecha_desde=10, fecha_hasta=11, tipo_prestamo=None, lista=None, banco_id=None)
         params.update(changes)
         sql = (ROOT / 'app/features/revisar_cobrados/consulta.sql').read_text(encoding='utf-8').replace('prestaprod.', '')
         return self.db.execute(sql, params).fetchall()
@@ -106,6 +106,10 @@ class RevisarCobradosTests(unittest.TestCase):
         self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=None, fecha_hasta=None)), 4)
         self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=11, fecha_hasta=None)), 2)
         self.assertEqual(len(self.query(periodo_haber=None, fecha_desde=None, fecha_hasta=10)), 2)
+
+    def test_filtro_banco_usa_canal_de_salida_y_separa_bna(self):
+        self.assertEqual([f['fuente_cobro'] for f in self.query(banco_id=0)], ['BNA', 'BNA'])
+        self.assertEqual([f['fuente_cobro'] for f in self.query(banco_id=1)], ['MP'])
 
     def test_rechazado_no_se_vuelve_exitoso_por_otra_respuesta(self):
         self.db.execute("UPDATE cobrobnadetalle SET coderror='NO COBRADO' WHERE idcobrobna=1 AND idcobrobnareg=1")

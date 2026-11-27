@@ -25,6 +25,7 @@ class FiltrosCobrados(BaseModel):
     fecha_desde: Optional[date] = None
     fecha_hasta: Optional[date] = None
     tipo_prestamo: Optional[str] = Field(default=None, max_length=200)
+    banco_id: Optional[int] = Field(default=None, ge=0)
 
     @field_validator('periodo_haber')
     @classmethod
@@ -70,6 +71,13 @@ def tipos():
     return [fila[0] for fila in filas]
 
 
+@router.get('/bancos')
+def bancos():
+    """Usa el identificador de canal de salida de las presentaciones MP."""
+    _, filas = ejecutar('SELECT idcanalcobro, descripcion FROM prestaprod.mp_canalcobro WHERE descripcion IS NOT NULL ORDER BY descripcion')
+    return [{'id': 0, 'nombre': 'BNA'}] + [{'id': id_canal, 'nombre': nombre} for id_canal, nombre in filas]
+
+
 @router.post('', status_code=202)
 def consultar(req: FiltrosCobrados, perfil: UserProfileResponse = Depends(obtener_perfil_verificado)):
     """Prepara el resultado completo sin bloquear la petición web."""
@@ -78,6 +86,7 @@ def consultar(req: FiltrosCobrados, perfil: UserProfileResponse = Depends(obtene
         'fecha_desde': datetime.combine(req.fecha_desde, datetime.min.time()) if req.fecha_desde else None,
         'fecha_hasta': datetime.combine(req.fecha_hasta, datetime.min.time()) if req.fecha_hasta else None,
         'tipo_prestamo': req.tipo_prestamo or None,
+        'banco_id': req.banco_id,
         'lista': None,
     })
     return {'id': consulta.id}

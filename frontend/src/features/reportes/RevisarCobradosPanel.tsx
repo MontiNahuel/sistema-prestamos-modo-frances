@@ -13,6 +13,13 @@ interface ResumenLista {
   registros: number;
   cobrado: number;
 }
+interface ListaPendiente {
+  lista: string;
+  periodohaber: string;
+  fechageneracion: string;
+  registros: number;
+  presentado_centavos: number;
+}
 interface DatosCobrados {
   estado: 'lista';
   filas: Cobrado[];
@@ -20,6 +27,7 @@ interface DatosCobrados {
   registros: number;
   cobrado: number;
   listas?: ResumenLista[];
+  pendientes?: ListaPendiente[];
 }
 
 async function esperarResultado<T extends { estado: string }>(url: string, signal: AbortSignal): Promise<T> {
@@ -54,18 +62,22 @@ function Paginacion({ pagina, paginas, ocupado, cambiar, detalle }: {
 
 export function RevisarCobradosPanel() {
   const [filtros, setFiltros] = useState({
-    periodo_haber: '', fecha_desde: '', fecha_hasta: '', tipo_prestamo: '',
+    periodo_haber: '', fecha_desde: '', fecha_hasta: '', tipo_prestamo: '', banco: '',
   });
   const [tipos, setTipos] = useState<string[]>([]);
   const [cargandoTipos, setCargandoTipos] = useState(true);
   const [errorTipos, setErrorTipos] = useState('');
+  const [bancos, setBancos] = useState<{ id: number; nombre: string }[]>([]);
+  const [errorBancos, setErrorBancos] = useState('');
   const [intentoTipos, setIntentoTipos] = useState(0);
   const [resultado, setResultado] = useState<DatosCobrados | null>(null);
   const [consultaId, setConsultaId] = useState('');
   const [listas, setListas] = useState<ResumenLista[]>([]);
+  const [pendientes, setPendientes] = useState<ListaPendiente[]>([]);
   const [lista, setLista] = useState('');
   const [pagina, setPagina] = useState(1);
   const [paginaListas, setPaginaListas] = useState(1);
+  const [paginaPendientes, setPaginaPendientes] = useState(1);
   const [cargando, setCargando] = useState(false);
   const [cargandoPagina, setCargandoPagina] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -76,11 +88,15 @@ export function RevisarCobradosPanel() {
   useEffect(() => {
     const control = new AbortController();
     setErrorTipos('');
+    setErrorBancos('');
     setCargandoTipos(true);
     apiClient<string[]>(`${URL_REPORTE}/tipos`, { signal: control.signal, cache: 'no-store' })
       .then(datos => { if (!control.signal.aborted) setTipos(datos); })
       .catch(err => { if (!control.signal.aborted) setErrorTipos(mensajeConsulta(err, 'No se pudieron cargar los tipos.')); })
       .finally(() => { if (!control.signal.aborted) setCargandoTipos(false); });
+    apiClient<{ id: number; nombre: string }[]>(`${URL_REPORTE}/bancos`, { signal: control.signal, cache: 'no-store' })
+      .then(datos => { if (!control.signal.aborted) setBancos(datos); })
+      .catch(err => { if (!control.signal.aborted) setErrorBancos(mensajeConsulta(err, 'No se pudieron cargar los bancos.')); });
     return () => control.abort();
   }, [intentoTipos]);
   useEffect(() => () => {
@@ -89,18 +105,25 @@ export function RevisarCobradosPanel() {
   }, []);
 
   const listasVisibles = useMemo(() => lista ? listas.filter(l => l.lista === lista) : listas, [listas, lista]);
-  const opcionesLista = useMemo(() => listas.map(l => <option key={l.lista}>{l.lista}</option>), [listas]);
+  const pendientesVisibles = useMemo(() => lista ? pendientes.filter(p => p.lista === lista) : pendientes, [pendientes, lista]);
+  const opcionesLista = useMemo(() => {
+    const opciones = new Set([...listas, ...pendientes].map(l => l.lista));
+    return [...opciones].sort().map(nombre => <option key={nombre} value={nombre}>{nombre}</option>);
+  }, [listas, pendientes]);
   const paginas = Math.max(1, Math.ceil((resultado?.registros ?? 0) / POR_PAGINA));
   const paginasListas = Math.max(1, Math.ceil(listasVisibles.length / POR_PAGINA));
+  const paginasPendientes = Math.max(1, Math.ceil(pendientesVisibles.length / POR_PAGINA));
   const ocupado = cargando || cargandoPagina || exportando;
 
   function limpiarResultado() {
     setResultado(null);
     setConsultaId('');
     setListas([]);
+    setPendientes([]);
     setLista('');
     setPagina(1);
     setPaginaListas(1);
+    setPaginaPendientes(1);
     setError('');
   }
 
@@ -123,6 +146,7 @@ export function RevisarCobradosPanel() {
           fecha_desde: filtros.fecha_desde || null,
           fecha_hasta: filtros.fecha_hasta || null,
           tipo_prestamo: filtros.tipo_prestamo || null,
+          banco_id: filtros.banco === '' ? null : Number(filtros.banco),
         }),
       });
       const datos = await esperarResultado<DatosCobrados>(`${URL_REPORTE}/consultas/${id}?incluir_listas=true`, control.signal);
@@ -130,6 +154,7 @@ export function RevisarCobradosPanel() {
       setConsultaId(id);
       setResultado(datos);
       setListas(datos.listas ?? []);
+      setPendientes(datos.pendientes ?? []);
     } catch (err) {
       if (!control.signal.aborted) setError(mensajeConsulta(err, 'No se pudo consultar Oracle.'));
     } finally {
@@ -151,7 +176,10 @@ export function RevisarCobradosPanel() {
       setResultado(datos);
       setPagina(nuevaPagina);
       setLista(nuevaLista);
-      if (nuevaLista !== lista) setPaginaListas(1);
+      if (nuevaLista !== lista) {
+        setPaginaListas(1);
+        setPaginaPendientes(1);
+      }
     } catch (err) {
       if (!control.signal.aborted) setError(mensajeConsulta(err, 'No se pudo cargar la página.'));
     } finally {
@@ -192,16 +220,22 @@ export function RevisarCobradosPanel() {
 
   return <>
     <h3>Revisar cobrados · base histórica Oracle</h3>
-    <p className="reportes-ayuda">Todos los filtros son opcionales. Desde y Hasta filtran la fecha de generación de la presentación. Hasta incluye todo el día.</p>
+    <p className="reportes-ayuda">Todos los filtros son opcionales. Dejá vacías las fechas de generación para incluir todas las listas del período haber, aunque se hayan generado en otro mes.</p>
     <form className="reportes-filtros" onSubmit={e => { e.preventDefault(); void consultar(); }}>
       <label>Período haber (AAAAMM)
         <input disabled={ocupado} inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Ej. 202611" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} />
       </label>
-      <label>Desde
+      <label>Desde (generación)
         <input disabled={ocupado} type="date" max={filtros.fecha_hasta || undefined} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} />
       </label>
-      <label>Hasta
+      <label>Hasta (generación, inclusive)
         <input disabled={ocupado} type="date" min={filtros.fecha_desde || undefined} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} />
+      </label>
+      <label>Banco / canal
+        <select disabled={ocupado} value={filtros.banco} onChange={e => cambiar({ banco: e.target.value })}>
+          <option value="">Todos los bancos</option>
+          {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
+        </select>
       </label>
       <label>Tipo de préstamo
         <select disabled={ocupado} aria-busy={cargandoTipos} value={filtros.tipo_prestamo} onChange={e => cambiar({ tipo_prestamo: e.target.value })}>
@@ -213,6 +247,7 @@ export function RevisarCobradosPanel() {
       <button className="reportes-primario" type="submit" disabled={ocupado}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
     {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos. {errorTipos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
+    {errorBancos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de bancos. {errorBancos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
     {error && <div className="reportes-error" role="alert">{error}</div>}
     {cargando && <p role="status">Preparando los resultados de Oracle. El histórico completo puede tardar unos minutos.</p>}
     {resultado && <>
@@ -227,8 +262,25 @@ export function RevisarCobradosPanel() {
             <option value="">Todas las listas recuperadas</option>{opcionesLista}
           </select>
         </label>
-        <button type="button" className="reportes-excel" disabled={ocupado || !resultado.registros} onClick={() => void exportar()}>{exportando ? 'Preparando Excel…' : 'Descargar Excel (.xlsx)'}</button>
+        <button type="button" className="reportes-excel" disabled={ocupado || (!resultado.registros && !pendientesVisibles.length)} onClick={() => void exportar()}>{exportando ? 'Preparando Excel…' : 'Descargar Excel (.xlsx)'}</button>
       </div>
+      {pendientesVisibles.length > 0 && <section className="reportes-resultado mb-5" aria-label="Presentaciones sin estado de cobro">
+        <div className="reportes-barra">
+          <div>
+            <h3>Presentaciones sin estado de cobro</h3>
+            <p>{pendientesVisibles.reduce((total, fila) => total + fila.registros, 0).toLocaleString('es-AR')} registros por {formatMoney(pendientesVisibles.reduce((total, fila) => total + fila.presentado_centavos, 0))}. El total cobrado incluye sólo los registros confirmados.</p>
+          </div>
+        </div>
+        <div className="reportes-tabla" tabIndex={0}>
+          <table>
+            <thead><tr><th scope="col">Lista</th><th scope="col">Período haber</th><th scope="col">Generación</th><th scope="col">Registros</th><th scope="col">Importe presentado</th></tr></thead>
+            <tbody>{pendientesVisibles.slice((paginaPendientes - 1) * POR_PAGINA, paginaPendientes * POR_PAGINA).map(p =>
+              <tr key={p.lista}><td>{p.lista}</td><td>{p.periodohaber}</td><td>{formatearFechaCobrado(p.fechageneracion)}</td><td>{p.registros}</td><td>{formatMoney(p.presentado_centavos)}</td></tr>
+            )}</tbody>
+          </table>
+        </div>
+        {paginasPendientes > 1 && <Paginacion pagina={paginaPendientes} paginas={paginasPendientes} cambiar={setPaginaPendientes} />}
+      </section>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
         <div className="reportes-resultado min-w-0">
           <div className="reportes-barra"><h3>Detalle · {resultado.registros.toLocaleString('es-AR')} registros</h3></div>

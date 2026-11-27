@@ -24,6 +24,7 @@ _lock = Lock()
 _consultas = {}
 TAMANIO_PAGINA = 50
 FILAS_EXCEL = 1_048_575
+SQL_PENDIENTES = Path(__file__).with_name('pendientes_mp.sql').read_text(encoding='utf-8')
 
 
 @dataclass
@@ -135,7 +136,20 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                        SUM(importe_cobrado_centavos) AS cobrado
                 FROM detalle GROUP BY lista_cobro;
                 CREATE UNIQUE INDEX ix_listas ON listas(lista);
+                CREATE TABLE pendientes (
+                    lista TEXT NOT NULL, periodohaber TEXT, fechageneracion TEXT NOT NULL,
+                    registros INTEGER NOT NULL, presentado_centavos INTEGER NOT NULL
+                );
             ''')
+            if parametros.get('banco_id'):
+                _, pendientes = oracle_client.ejecutar_consulta(
+                    SQL_PENDIENTES, {k: v for k, v in parametros.items() if k != 'lista'},
+                )
+                db.executemany(
+                    'INSERT INTO pendientes VALUES (?, ?, ?, ?, ?)',
+                    ((lista, periodo, fecha.isoformat(), cantidad, _centavos(importe))
+                     for lista, periodo, fecha, cantidad, importe in pendientes),
+                )
             db.commit()
         estado = 'lista'
     except Exception:
@@ -171,6 +185,7 @@ def detalle(consulta: Consulta, pagina: int, lista: str | None, incluir_listas: 
         }
         if incluir_listas:
             respuesta['listas'] = [dict(f) for f in db.execute('SELECT * FROM listas ORDER BY lista')]
+            respuesta['pendientes'] = [dict(f) for f in db.execute('SELECT * FROM pendientes ORDER BY fechageneracion, lista')]
         return respuesta
 
 
@@ -224,6 +239,11 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
             cabecera = libro.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#1E3A8A'})
             dinero = libro.add_format({'num_format': '"$" #,##0.00'})
             fecha = libro.add_format({'num_format': 'dd/mm/yyyy hh:mm:ss'})
+            banco_id = consulta.filtros.get('banco_id')
+            banco = 'Todos'
+            if banco_id is not None:
+                dato_banco = db.execute('SELECT banco FROM detalle LIMIT 1').fetchone()
+                banco = dato_banco[0] if dato_banco else ('BNA' if banco_id == 0 else f'Canal MP {banco_id}')
             condiciones = libro.add_worksheet('Condiciones')
             condiciones.set_column(0, 0, 22)
             condiciones.set_column(1, 1, 45)
@@ -234,6 +254,7 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                 ('Generación desde', consulta.filtros.get('fecha_desde') or 'Sin límite'),
                 ('Generación hasta (inclusive)', consulta.filtros.get('fecha_hasta') or 'Sin límite'),
                 ('Tipo de préstamo', consulta.filtros.get('tipo_prestamo') or 'Todos'),
+                ('Banco / canal', banco),
                 ('Lista', lista or 'Todas'),
                 ('Consulta', consulta.generado),
                 ('Fechas contables', 'Aplicación: actualización del cobro del mismo día. Movimiento: fecha del asiento en cuenta corriente.'),
@@ -275,6 +296,21 @@ def _crear_excel(consulta: Consulta, lista: str | None) -> None:
                         hoja.write_string(fila + 1, columna, valor)
                     else:
                         hoja.write(fila + 1, columna, valor)
+            pendientes = db.execute(
+                'SELECT * FROM pendientes' + (' WHERE lista = ?' if lista else '') + ' ORDER BY fechageneracion, lista', params,
+            )
+            hoja_pendientes = None
+            for i, (nombre, periodo, generacion, cantidad, total) in enumerate(pendientes, 1):
+                if hoja_pendientes is None:
+                    hoja_pendientes = libro.add_worksheet('Sin estado de cobro')
+                    hoja_pendientes.freeze_panes(1, 0)
+                    hoja_pendientes.set_column(0, 0, 44)
+                    hoja_pendientes.set_column(1, 4, 24)
+                    hoja_pendientes.write_row(0, 0, ['Lista', 'Período haber', 'Generación', 'Registros', 'Importe presentado'], cabecera)
+                hoja_pendientes.write_row(i, 0, [nombre, periodo])
+                hoja_pendientes.write_datetime(i, 2, datetime.fromisoformat(generacion), fecha)
+                hoja_pendientes.write_number(i, 3, cantidad)
+                hoja_pendientes.write_number(i, 4, total / 100, dinero)
         estado = 'lista'
     except Exception:
         logger.exception('Falló la exportación de Revisar cobrados')

@@ -169,3 +169,30 @@ def test_sin_importe_no_inventa_cero(monkeypatch):
     http = client()
     r = http.post(URL, json={})
     assert esperar(http, f"{URL}/consultas/{r.json()['id']}").status_code == 503
+
+
+def test_presentados_sin_estado_quedan_fuera_del_total_cobrado(monkeypatch):
+    @contextmanager
+    def ejecutar_cobrados(sql, params, *, lote):
+        assert params['banco_id'] == 4
+        yield SimpleNamespace(fetchmany=lambda size: [])
+
+    def ejecutar_pendientes(sql, params):
+        assert params['banco_id'] == 4
+        assert params['periodo_haber'] == '202606'
+        return [], [('MP / COMERCIO - DEBITO CBU - 15303', '202606', datetime(2026, 7, 7), 6, Decimal('100.25'))]
+
+    monkeypatch.setattr(oracle_client, 'cursor_consulta', ejecutar_cobrados)
+    monkeypatch.setattr(oracle_client, 'ejecutar_consulta', ejecutar_pendientes)
+    http = client()
+    r = http.post(URL, json={'periodo_haber': '202606', 'banco_id': 4})
+    assert r.status_code == 202
+    ruta = f"{URL}/consultas/{r.json()['id']}"
+    datos = esperar(http, ruta + '?incluir_listas=true').json()
+    assert datos['cobrado'] == datos['registros'] == 0
+    assert datos['pendientes'][0]['presentado_centavos'] == 10025
+    excel = ruta + '/excel'
+    assert http.post(excel).status_code == 202
+    assert esperar(http, excel).json()['estado'] == 'lista'
+    with ZipFile(BytesIO(http.get(excel, params={'descargar': True}).content)) as libro:
+        assert b'Sin estado de cobro' in libro.read('xl/workbook.xml')

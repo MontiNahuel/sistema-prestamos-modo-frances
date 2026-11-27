@@ -3,6 +3,7 @@ WITH parametros AS (
            TRUNC(CAST(:fecha_desde AS DATE)) AS fecha_desde,
            TRUNC(CAST(:fecha_hasta AS DATE)) + 1 AS fecha_fin,
            CAST(:tipo_prestamo AS VARCHAR2(200)) AS tipo_prestamo,
+           CAST(:banco_id AS NUMBER) AS banco_id,
            CAST(:lista AS VARCHAR2(400)) AS lista
     FROM dual
 ), cuotas_bna AS (
@@ -17,6 +18,7 @@ WITH parametros AS (
     FROM prestaprod.mv_prestamos_mora_completa v
     CROSS JOIN parametros p
     WHERE (p.fecha_desde IS NULL OR v.fechageneracion >= p.fecha_desde)
+      AND (p.banco_id IS NULL OR p.banco_id = 0)
       AND (p.fecha_fin IS NULL OR v.fechageneracion < p.fecha_fin)
       AND (p.periodo_haber IS NULL OR v.periodohaber = p.periodo_haber)
       AND (p.tipo_prestamo IS NULL OR v.tipo_prestamo = p.tipo_prestamo)
@@ -57,6 +59,7 @@ WITH parametros AS (
     LEFT JOIN prestaprod.mp_canalcobro c ON c.idcanalcobro = e.idcanalcobrosalida
     CROSS JOIN parametros p
     WHERE (p.fecha_desde IS NULL OR e.fechageneracion >= p.fecha_desde)
+      AND (p.banco_id IS NULL OR e.idcanalcobrosalida = p.banco_id)
       AND (p.fecha_fin IS NULL OR e.fechageneracion < p.fecha_fin)
       AND (p.periodo_haber IS NULL OR e.periodohaber = p.periodo_haber)
       AND (p.tipo_prestamo IS NULL OR tp.descripcion = p.tipo_prestamo)
