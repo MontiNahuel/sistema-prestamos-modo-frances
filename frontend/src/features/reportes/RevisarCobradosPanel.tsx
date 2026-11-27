@@ -113,7 +113,13 @@ export function RevisarCobradosPanel() {
   const paginas = Math.max(1, Math.ceil((resultado?.registros ?? 0) / POR_PAGINA));
   const paginasListas = Math.max(1, Math.ceil(listasVisibles.length / POR_PAGINA));
   const paginasPendientes = Math.max(1, Math.ceil(pendientesVisibles.length / POR_PAGINA));
-  const ocupado = cargando || cargandoPagina || exportando;
+  const filtrosBloqueados = cargandoPagina || exportando;
+  const ocupado = cargando || filtrosBloqueados;
+  const [anio, mes, dia] = filtros.fecha_desde.split('-').map(Number);
+  const mesDesde = filtros.fecha_desde.slice(0, 7);
+  const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  const haberDelRango = !filtros.periodo_haber && anio >= 1900 && dia === 1 &&
+    filtros.fecha_hasta === `${mesDesde}-${ultimoDia}` ? mesDesde.replace('-', '') : '';
 
   function limpiarResultado() {
     setResultado(null);
@@ -128,12 +134,17 @@ export function RevisarCobradosPanel() {
   }
 
   function cambiar(cambio: Partial<typeof filtros>) {
+    if (cargando) {
+      peticion.current?.abort();
+      setCargando(false);
+    }
     setFiltros(prev => ({ ...prev, ...cambio }));
     limpiarResultado();
   }
 
-  async function consultar() {
-    if (ocupado) return;
+  async function consultar(filtrosConsulta = filtros) {
+    if (filtrosBloqueados) return;
+    peticion.current?.abort();
     const control = new AbortController();
     peticion.current = control;
     limpiarResultado();
@@ -142,11 +153,11 @@ export function RevisarCobradosPanel() {
       const { id } = await apiClient<{ id: string }>(URL_REPORTE, {
         method: 'POST', signal: control.signal,
         body: JSON.stringify({
-          periodo_haber: filtros.periodo_haber || null,
-          fecha_desde: filtros.fecha_desde || null,
-          fecha_hasta: filtros.fecha_hasta || null,
-          tipo_prestamo: filtros.tipo_prestamo || null,
-          banco_id: filtros.banco === '' ? null : Number(filtros.banco),
+          periodo_haber: filtrosConsulta.periodo_haber || null,
+          fecha_desde: filtrosConsulta.fecha_desde || null,
+          fecha_hasta: filtrosConsulta.fecha_hasta || null,
+          tipo_prestamo: filtrosConsulta.tipo_prestamo || null,
+          banco_id: filtrosConsulta.banco === '' ? null : Number(filtrosConsulta.banco),
         }),
       });
       const datos = await esperarResultado<DatosCobrados>(`${URL_REPORTE}/consultas/${id}?incluir_listas=true`, control.signal);
@@ -223,22 +234,22 @@ export function RevisarCobradosPanel() {
     <p className="reportes-ayuda">Todos los filtros son opcionales. Dejá vacías las fechas de generación para incluir todas las listas del período haber, aunque se hayan generado en otro mes.</p>
     <form className="reportes-filtros" onSubmit={e => { e.preventDefault(); void consultar(); }}>
       <label>Período haber (AAAAMM)
-        <input disabled={ocupado} inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Ej. 202611" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} />
+        <input disabled={filtrosBloqueados} inputMode="numeric" pattern="[0-9]{4}(0[1-9]|1[0-2])" maxLength={6} placeholder="Ej. 202611" value={filtros.periodo_haber} onChange={e => cambiar({ periodo_haber: e.target.value })} />
       </label>
       <label>Desde (generación)
-        <input disabled={ocupado} type="date" max={filtros.fecha_hasta || undefined} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} />
+        <input disabled={filtrosBloqueados} type="date" max={filtros.fecha_hasta || undefined} value={filtros.fecha_desde} onChange={e => cambiar({ fecha_desde: e.target.value })} />
       </label>
       <label>Hasta (generación, inclusive)
-        <input disabled={ocupado} type="date" min={filtros.fecha_desde || undefined} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} />
+        <input disabled={filtrosBloqueados} type="date" min={filtros.fecha_desde || undefined} value={filtros.fecha_hasta} onChange={e => cambiar({ fecha_hasta: e.target.value })} />
       </label>
       <label>Banco / canal
-        <select disabled={ocupado} value={filtros.banco} onChange={e => cambiar({ banco: e.target.value })}>
+        <select disabled={filtrosBloqueados} value={filtros.banco} onChange={e => cambiar({ banco: e.target.value })}>
           <option value="">Todos los bancos</option>
           {bancos.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>)}
         </select>
       </label>
       <label>Tipo de préstamo
-        <select disabled={ocupado} aria-busy={cargandoTipos} value={filtros.tipo_prestamo} onChange={e => cambiar({ tipo_prestamo: e.target.value })}>
+        <select disabled={filtrosBloqueados} aria-busy={cargandoTipos} value={filtros.tipo_prestamo} onChange={e => cambiar({ tipo_prestamo: e.target.value })}>
           <option value="">Todos los tipos</option>
           {tipos.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
           {cargandoTipos && <option disabled>Cargando tipos…</option>}
@@ -246,6 +257,14 @@ export function RevisarCobradosPanel() {
       </label>
       <button className="reportes-primario" type="submit" disabled={ocupado}>{cargando ? 'Consultando Oracle…' : 'Consultar cobrados'}</button>
     </form>
+    {haberDelRango && <p className="reportes-ayuda">
+      El rango actual filtra por fecha de generación.{' '}
+      <button type="button" className="underline text-blue-700" disabled={filtrosBloqueados} onClick={() => {
+        const porHaber = { ...filtros, periodo_haber: haberDelRango, fecha_desde: '', fecha_hasta: '' };
+        setFiltros(porHaber);
+        void consultar(porHaber);
+      }}>Consultar haber {haberDelRango} completo</button>
+    </p>}
     {errorTipos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de tipos. {errorTipos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
     {errorBancos && <div className="reportes-advertencia" role="status">No se pudo cargar el catálogo de bancos. {errorBancos} <button type="button" onClick={() => setIntentoTipos(n => n + 1)}>Reintentar catálogo</button></div>}
     {error && <div className="reportes-error" role="alert">{error}</div>}

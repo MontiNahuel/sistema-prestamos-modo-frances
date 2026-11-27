@@ -1,14 +1,14 @@
 """Copia temporal del resultado Oracle para paginar y exportar sin repetir la consulta."""
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 import logging
 from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
-from threading import Lock
+from threading import Event, Lock
 from time import monotonic
 from uuid import uuid4
 
@@ -25,6 +25,11 @@ _consultas = {}
 TAMANIO_PAGINA = 50
 FILAS_EXCEL = 1_048_575
 SQL_PENDIENTES = Path(__file__).with_name('pendientes_mp.sql').read_text(encoding='utf-8')
+TIMEOUT_ORACLE_MS = 180_000
+
+
+class ConsultaReemplazada(Exception):
+    """El operador cambió los filtros mientras el resultado estaba en preparación."""
 
 
 @dataclass
@@ -37,6 +42,8 @@ class Consulta:
     estado: str = 'procesando'
     estado_excel: str = 'pendiente'
     lista_excel: str | None = None
+    cancelada: Event = field(default_factory=Event)
+    trabajo: Future | None = None
 
     @property
     def db(self) -> Path:
@@ -47,12 +54,18 @@ class Consulta:
         return Path(_directorio.name) / f'{self.id}.xlsx'
 
 
+def _se_puede_eliminar(consulta: Consulta) -> bool:
+    return (
+        consulta.estado != 'procesando'
+        and consulta.estado_excel != 'procesando'
+        and (consulta.trabajo is None or consulta.trabajo.done())
+    )
+
+
 def _limpiar() -> None:
     vencimiento = monotonic() - 1800
     for id_consulta, consulta in list(_consultas.items()):
-        if consulta.acceso < vencimiento and (
-            consulta.estado != 'procesando' and consulta.estado_excel != 'procesando'
-        ):
+        if consulta.acceso < vencimiento and _se_puede_eliminar(consulta):
             consulta.db.unlink(missing_ok=True)
             consulta.excel.unlink(missing_ok=True)
             del _consultas[id_consulta]
@@ -64,12 +77,10 @@ def iniciar(operador_id: int, sql: str, filtros: dict, parametros: dict) -> Cons
         previa = next((c for c in _consultas.values() if c.operador_id == operador_id and c.estado == 'procesando'), None)
         if previa and previa.filtros == filtros:
             return previa
-        if previa:
-            raise HTTPException(409, 'Ya tenés una consulta en curso.')
-        if sum(c.estado == 'procesando' for c in _consultas.values()) >= 2:
+        if not previa and sum(c.estado == 'procesando' for c in _consultas.values()) >= 2:
             raise HTTPException(429, 'Hay varias consultas de cobrados en curso. Probá de nuevo en unos minutos.')
         if len(_consultas) >= 8:
-            disponibles = [c for c in _consultas.values() if c.estado != 'procesando' and c.estado_excel != 'procesando']
+            disponibles = [c for c in _consultas.values() if _se_puede_eliminar(c)]
             if not disponibles:
                 raise HTTPException(429, 'Hay varios reportes en preparación. Probá de nuevo en unos minutos.')
             anterior = min(disponibles, key=lambda c: c.acceso)
@@ -78,7 +89,12 @@ def iniciar(operador_id: int, sql: str, filtros: dict, parametros: dict) -> Cons
             del _consultas[anterior.id]
         consulta = Consulta(uuid4().hex, operador_id, filtros, datetime.now().astimezone().isoformat(), monotonic())
         _consultas[consulta.id] = consulta
-        _trabajadores.submit(_cargar, consulta, sql, parametros)
+        if previa:
+            previa.cancelada.set()
+            previa.estado = 'reemplazada'
+            if previa.trabajo:
+                previa.trabajo.cancel()
+        consulta.trabajo = _trabajadores.submit(_cargar, consulta, sql, parametros)
         return consulta
 
 
@@ -109,9 +125,16 @@ def _centavos(importe) -> int:
     return int((Decimal(str(importe)) * 100).quantize(Decimal('1')))
 
 
+def _verificar_vigencia(consulta: Consulta) -> None:
+    if consulta.cancelada.is_set():
+        raise ConsultaReemplazada
+
+
 def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
     try:
+        _verificar_vigencia(consulta)
         with closing(sqlite3.connect(consulta.db)) as db:
+            db.set_progress_handler(consulta.cancelada.is_set, 10_000)
             db.execute('''
                 CREATE TABLE detalle (
                     fuente_cobro TEXT, banco TEXT, lista_cobro TEXT, id_lista INTEGER,
@@ -123,12 +146,16 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                     dni TEXT, fecha_movimiento TEXT
                 )
             ''')
-            with oracle_client.cursor_consulta(sql, parametros, lote=5000) as cursor:
-                while lote := cursor.fetchmany(5000):
+            with oracle_client.cursor_consulta(sql, parametros, lote=5000, timeout_ms=TIMEOUT_ORACLE_MS) as cursor:
+                while not consulta.cancelada.is_set():
+                    lote = cursor.fetchmany(5000)
+                    if not lote or consulta.cancelada.is_set():
+                        break
                     db.executemany(
                         'INSERT INTO detalle VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         map(_convertir, lote),
                     )
+            _verificar_vigencia(consulta)
             db.executescript('''
                 CREATE INDEX ix_detalle_lista ON detalle(lista_cobro);
                 CREATE TABLE listas AS
@@ -142,9 +169,12 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
                 );
             ''')
             if parametros.get('banco_id'):
+                _verificar_vigencia(consulta)
                 _, pendientes = oracle_client.ejecutar_consulta(
                     SQL_PENDIENTES, {k: v for k, v in parametros.items() if k != 'lista'},
+                    timeout_ms=TIMEOUT_ORACLE_MS,
                 )
+                _verificar_vigencia(consulta)
                 db.executemany(
                     'INSERT INTO pendientes VALUES (?, ?, ?, ?, ?)',
                     ((lista, periodo, fecha.isoformat(), cantidad, _centavos(importe))
@@ -153,10 +183,14 @@ def _cargar(consulta: Consulta, sql: str, parametros: dict) -> None:
             db.commit()
         estado = 'lista'
     except Exception:
-        logger.exception('Falló la preparación de Revisar cobrados')
-        consulta.db.unlink(missing_ok=True)
         estado = 'error'
+        if not consulta.cancelada.is_set():
+            logger.exception('Falló la preparación de Revisar cobrados')
     with _lock:
+        if consulta.cancelada.is_set():
+            estado = 'reemplazada'
+        if estado != 'lista':
+            consulta.db.unlink(missing_ok=True)
         consulta.estado = estado
         consulta.acceso = monotonic()
 

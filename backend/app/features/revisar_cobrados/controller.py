@@ -100,6 +100,8 @@ def detalle(
     if pagina < 1 or pagina > 1_000_000:
         raise HTTPException(422, 'Página inválida.')
     consulta = historico.obtener(id_consulta, perfil.id)
+    if consulta.estado == 'reemplazada':
+        raise HTTPException(409, 'Esta consulta fue reemplazada por otra más reciente.')
     if consulta.estado == 'error':
         raise HTTPException(503, 'No se pudo preparar el reporte con Oracle. Intentá nuevamente.')
     return historico.detalle(consulta, pagina, lista, incluir_listas)

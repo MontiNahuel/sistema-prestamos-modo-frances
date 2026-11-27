@@ -157,14 +157,19 @@ class OracleClient:
         self,
         sql: str,
         params: Optional[Dict[str, Any]] = None,
+        *,
+        timeout_ms: Optional[int] = None,
     ) -> tuple[list[str], list[tuple[Any, ...]]]:
         """Ejecuta una consulta SELECT parametrizada en Oracle y retorna (columnas_lower, filas)."""
-        with self.cursor_consulta(sql, params) as cursor:
+        with self.cursor_consulta(sql, params, timeout_ms=timeout_ms) as cursor:
             columnas = [str(col[0]).lower() for col in (cursor.description or ())]
             return columnas, [tuple(row) for row in cursor.fetchall()]
 
     @contextmanager
-    def cursor_consulta(self, sql: str, params: Optional[Dict[str, Any]] = None, *, lote: int = 100):
+    def cursor_consulta(
+        self, sql: str, params: Optional[Dict[str, Any]] = None, *,
+        lote: int = 100, timeout_ms: Optional[int] = None,
+    ):
         """Abre un SELECT con la conexión Oracle configurada y cierra el cursor al terminar."""
         if not self.enabled:
             raise RuntimeError(
@@ -186,6 +191,8 @@ class OracleClient:
                 password=self.password,
                 dsn=self.dsn,
             ) as conn:
+                if timeout_ms is not None:
+                    conn.call_timeout = timeout_ms
                 with conn.cursor() as cursor:
                     cursor.arraysize = lote
                     cursor.execute(sql, bind_params)

@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from decimal import Decimal
 from io import BytesIO
+from threading import Event
 from time import monotonic, sleep
 from types import SimpleNamespace
 from zipfile import ZipFile
@@ -54,7 +55,7 @@ def fila(importe, lista='BNA / BNA - 1'):
 
 def test_consulta_parametrizada_y_centavos_exactos(monkeypatch):
     @contextmanager
-    def ejecutar(sql, params, *, lote):
+    def ejecutar(sql, params, *, lote, timeout_ms):
         assert params['fecha_desde'] == datetime(2026, 11, 3)
         assert params['fecha_hasta'] == datetime(2026, 11, 5)
         assert params['tipo_prestamo'] == "Tipo ' especial"
@@ -107,6 +108,36 @@ def test_validaciones_y_autenticacion():
     payload.update(fecha_hasta='2026-11-05', periodo_haber='202613')
     assert client().post('/api/v1/reportes/revisar-cobrados', json=payload).status_code == 422
     assert client(False).get('/api/v1/reportes/revisar-cobrados/tipos').status_code == 401
+
+
+def test_retomar_y_reemplazar_consulta_en_curso(monkeypatch):
+    inicio = Event()
+    soltar = Event()
+
+    @contextmanager
+    def ejecutar(sql, params, *, lote, timeout_ms):
+        if params['periodo_haber'] == '202606':
+            inicio.set()
+            assert soltar.wait(5)
+        yield SimpleNamespace(fetchmany=lambda size: [])
+
+    monkeypatch.setattr(oracle_client, 'cursor_consulta', ejecutar)
+    http = client()
+    junio = {'periodo_haber': '202606'}
+    anterior = http.post(URL, json=junio)
+    assert anterior.status_code == 202
+    id_anterior = anterior.json()['id']
+    try:
+        assert inicio.wait(2)
+        assert http.post(URL, json=junio).json()['id'] == id_anterior
+        nueva = http.post(URL, json={'periodo_haber': '202607'})
+        assert nueva.status_code == 202
+        assert nueva.json()['id'] != id_anterior
+        assert http.get(f'{URL}/consultas/{id_anterior}').status_code == 409
+        assert esperar(http, f"{URL}/consultas/{nueva.json()['id']}").json()['estado'] == 'lista'
+    finally:
+        soltar.set()
+        historico._consultas[id_anterior].trabajo.result(timeout=5)
 
 
 @pytest.mark.parametrize(('filtros', 'esperados'), [
@@ -173,11 +204,11 @@ def test_sin_importe_no_inventa_cero(monkeypatch):
 
 def test_presentados_sin_estado_quedan_fuera_del_total_cobrado(monkeypatch):
     @contextmanager
-    def ejecutar_cobrados(sql, params, *, lote):
+    def ejecutar_cobrados(sql, params, *, lote, timeout_ms):
         assert params['banco_id'] == 4
         yield SimpleNamespace(fetchmany=lambda size: [])
 
-    def ejecutar_pendientes(sql, params):
+    def ejecutar_pendientes(sql, params, *, timeout_ms):
         assert params['banco_id'] == 4
         assert params['periodo_haber'] == '202606'
         return [], [('MP / COMERCIO - DEBITO CBU - 15303', '202606', datetime(2026, 7, 7), 6, Decimal('100.25'))]
